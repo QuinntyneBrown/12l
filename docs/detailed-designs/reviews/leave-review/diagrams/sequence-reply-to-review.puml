@@ -1,0 +1,76 @@
+@startuml
+title UML sequence behaviour — Reply to a review
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Reviewed member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "MemberProfilePageComponent" as page
+  participant "ReplyToReviewDialogComponent" as dialog
+  participant "ReviewsApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "ReviewsController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "PostReviewReplyCommandHandler" as handler
+  participant "Review" as review
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Choose "Reply" under a published review
+page -> dialog : Open "Reply to {authorDisplayName}"
+actor -> dialog : Type reply, "Post reply"
+alt reply empty
+  dialog --> actor : "Write a reply or cancel"
+else reply present
+  dialog -> client : postReply(reviewId, {text})
+  client -> controller : POST /api/reviews/{reviewId}/reply
+  controller -> controller : MemberPolicy + VerifiedActiveMemberPolicy, validate 1 to 500 characters
+  controller -> handler : Send PostReviewReplyCommand
+  handler -> db : Load review
+  db --> handler : Review
+  alt caller is not the subject
+    handler --> controller : NotFound
+    controller --> client : 404 problem details
+  else review is Hidden
+    handler -> review : AddReply(text, now)
+    review --> handler : ReviewConflictException review.not_published
+    handler --> controller : Conflict
+    controller --> client : 409 problem details
+  else reply already exists (L2-039)
+    handler -> review : AddReply(text, now)
+    review --> handler : ReviewConflictException review.reply_exists
+    handler --> controller : Conflict
+    controller --> client : 409 problem details
+  else first reply on a published review
+    handler -> review : AddReply(text, now)
+    review --> handler : Reply set
+    handler -> db : Save with RowVersion check
+    alt concurrent reply committed first
+      db --> handler : DbUpdateConcurrencyException
+      handler --> controller : Conflict review.reply_exists
+      controller --> client : 409 problem details
+    else committed
+      db --> handler : Commit result
+      handler --> controller : ReviewReplyDto
+      controller --> client : 201 Created
+      client --> dialog : Reply saved
+      dialog --> page : Close and refresh reviews
+      page --> actor : "Reply: {text}" beneath the review
+    end
+  end
+end
+@enduml

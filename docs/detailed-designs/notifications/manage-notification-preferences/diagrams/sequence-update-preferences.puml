@@ -1,0 +1,73 @@
+@startuml
+title UML sequence behaviour — Change email settings
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "NotificationSettingsPageComponent" as page
+  participant "NotificationPreferencesApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "NotificationPreferencesController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "UpdateNotificationPreferencesCommandHandler" as handler
+  participant "NotificationPreferences" as entity
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Open /account/emails
+page -> client : get()
+client -> controller : GET /api/me/notification-preferences
+controller --> client : 200 categories, ETag
+alt load failed
+  client --> page : Problem details
+  page --> actor : "Couldn’t load email settings", Ref, "Try again"
+else loaded
+  page --> actor : Account security and Orders on and disabled (L2-043), Reviews on, News from 12L off
+  actor -> page : Turn Reviews off, "Save"
+  page --> actor : "Save" aria-busy, switches disabled
+  page -> client : update({reviewEmails: false, marketingEmails: false})
+  client -> controller : PUT /api/me/notification-preferences, If-Match, anti-forgery token
+  controller -> controller : MemberPolicy, validator
+  controller -> handler : Send UpdateNotificationPreferencesCommand
+  handler -> db : Load NotificationPreferences
+  db --> handler : Row
+  handler -> entity : Update(false, false, now)
+  note right of entity
+    The request has no field for Account security
+    or Orders, so they stay on (L2-043)
+  end note
+  handler -> db : Save with RowVersion = If-Match
+  alt RowVersion changed elsewhere
+    db --> handler : DbUpdateConcurrencyException
+    handler --> controller : Stale
+    controller --> client : 412 notifications.stale
+    client --> page : Reload values
+    page --> actor : Toast "Something went wrong" with "Try again" (L2-068)
+  else committed
+    db --> handler : Commit result
+    handler --> controller : NotificationPreferencesDto
+    controller --> client : 200, new ETag
+    client --> page : Saved
+    page --> actor : "Email settings saved"
+  end
+end
+note over db
+  The dispatcher reads ReviewEmails at send time,
+  so the next ReviewReceived email is suppressed (L2-043)
+end note
+@enduml
