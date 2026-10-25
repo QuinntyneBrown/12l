@@ -18,7 +18,7 @@ skinparam state {
 title Order state machine (L2-032) — single source for every orders feature
 [*] --> Paid : Signed payment webhook\ncreates the order (System)
 Paid --> Shipped : Seller adds tracking
-Paid --> Cancelled : Seller cancels or accepts buyer request,\nship deadline passes (System),\nadministrator removes listing (L2-045)
+Paid --> Cancelled : Seller cancels or accepts buyer request,\nship deadline passes (System)
 Shipped --> Delivered : Carrier reports delivery,\nor buyer confirms receipt
 Delivered --> Completed : Buyer confirms receipt,\nor 3 days pass with no open problem (System),\nor administrator releases payout (L2-036)
 Shipped --> Refunded : Administrator resolves problem\nin the buyer's favour

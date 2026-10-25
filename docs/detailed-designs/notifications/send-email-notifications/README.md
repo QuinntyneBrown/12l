@@ -53,10 +53,7 @@ two are always sent.
 | `PasswordReset` | member | AccountSecurity | `L2-009` | `/reset-password?token=…` |
 | `PasswordChanged` | member | AccountSecurity | `L2-009` | `/account/settings` |
 | `AccountLocked` | member | AccountSecurity | `L2-007` | `/forgot-password` |
-| `MemberSuspended` | member | AccountSecurity | `L2-046` | `/account` |
-| `ListingRemoved` | seller | AccountSecurity | `L2-045` | `/account/listings` |
 | `DraftExpiring` | seller | AccountSecurity | `L2-019` | `/account/listings` |
-| `DataExportReady` | member | AccountSecurity | `L2-055` | download link |
 | `SaleMade` | seller | Orders | `L2-042` | `/sales/{orderId}` |
 | `OrderShipped` | buyer | Orders | `L2-033` | `/orders/{orderId}` |
 | `OrderDelivered` | buyer | Orders | `L2-042` | `/orders/{orderId}` |
@@ -69,10 +66,9 @@ two are always sent.
 | `ReviewReceived` | reviewed member | Reviews | `L2-042` | `/members/{displayName}` |
 | `Marketing` | opted-in member | Marketing | `L2-043` | per campaign, `<TO SUPPLY>` |
 
-`ListingRemoved`, `DraftExpiring` and `DataExportReady` fall under AccountSecurity because
-`L2-043` permits turning off only review and marketing email. Administrator alerts for a
-reported problem (`L2-036`) go to an operations address, `Notifications:ModerationInbox`,
-whose value is `<TO SUPPLY>`. The ship-by reminder schedule belongs to `orders`.
+`DraftExpiring` falls under AccountSecurity because `L2-043` permits turning off only
+review and marketing email. Administrator alerts for a reported problem (`L2-036`) go to
+an operations address, `Notifications:OperationsInbox`, whose value is `<TO SUPPLY>`. The ship-by reminder schedule belongs to `orders`.
 
 ### Producing a notification (`TwelveL.Application`)
 
@@ -212,7 +208,7 @@ request that enqueued the message.
 | `Notifications:Outbox:MaxBackoff` | 60 minutes | design |
 | `Notifications:Outbox:RetentionDays` | `<TO SUPPLY>` | |
 | `Notifications:FromAddress` | `<TO SUPPLY>` | |
-| `Notifications:ModerationInbox` | `<TO SUPPLY>` | |
+| `Notifications:OperationsInbox` | `<TO SUPPLY>` | |
 | `App:PublicBaseUrl` | `<TO SUPPLY>` | hosting |
 | Email provider API key | secret store | `L2-052` |
 
@@ -223,7 +219,7 @@ requirement, cited by identifier.
 
 | L2 ID | Refines (L1) | Requirement |
 |-------|--------------|-------------|
-| `L2-042` | `L1-011` | The system shall send email for: email verification, password reset, account lockout, a new sale (to the seller), shipping with tracking (to the buyer), delivery, cancellation, refund, ship-by reminders, problem reported and resolved, review received, listing removed by an administrator, and suspension. Emails shall be sent within 2 minutes of the event and shall not contain passwords or full card details. |
+| `L2-042` | `L1-011` | The system shall send email for: email verification, password reset, account lockout, a new sale (to the seller), shipping with tracking (to the buyer), delivery, cancellation, refund, ship-by reminders, problem reported and resolved, and review received. Emails shall be sent within 2 minutes of the event and shall not contain passwords or full card details. |
 
 ## Diagrams
 

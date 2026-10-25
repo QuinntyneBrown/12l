@@ -56,7 +56,7 @@ else buyer
     h --> ctrl : OrderDetailDto (Completed, canReview = true)
     ctrl --> client : 200
     client --> page : Updated order
-    page --> actor : "Completed" with "How was {seller}?" and "Leave a review" (L2-038)
+    page --> actor : "Completed" with the full timeline
   end
 end
 @enduml

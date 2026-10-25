@@ -298,7 +298,7 @@ def _():
 # ---------------------------------------------------------------------------
 # Account overview
 # ---------------------------------------------------------------------------
-ac = screen("account", "page", "Account", route="/account", reqs=["L2-003", "L2-002", "L2-046"])
+ac = screen("account", "page", "Account", route="/account", reqs=["L2-003", "L2-002"])
 
 
 def stat(value: str, label: str, href: str) -> str:
@@ -343,17 +343,10 @@ def _():
     return overview("", extra=a, user="unverified")
 
 
-@ac.state("suspended", "Suspended member: can see orders, can’t list, buy, review or report.")
-def _():
-    a = alert("danger", "Your account is suspended", "You can still ship and track open orders. We emailed you the reason.",
-              f'<a href="{P("rules")}">Marketplace rules</a>', icon="shield")
-    return overview(stat("1", "To ship by Fri 30 Oct", P("sales")) + stat("1", "On the way", P("purchases")), extra=a + '<div style="height: var(--space-8);"></div>', user="suspended")
-
-
 # ---------------------------------------------------------------------------
-# Public profile (L2-041, L2-040, L2-039)
+# Public profile (L2-041, L2-040)
 # ---------------------------------------------------------------------------
-pr = screen("profile", "page", "Member profile", route="/members/{displayName}", reqs=["L2-041", "L2-040", "L2-039", "L2-044", "L2-054"])
+pr = screen("profile", "page", "Member profile", route="/members/{displayName}", reqs=["L2-041", "L2-040", "L2-054"])
 
 REVIEWS = {
     "kicks_12": [("marcus_12", 5, "Fri 9 Oct", "Shipped next day, exactly as pictured.", "Thanks Marcus, enjoy them."),
@@ -366,7 +359,7 @@ REVIEWS = {
 
 def review_html(author, stars_n, date, text, reply, reply_btn=False) -> str:
     rp_ = f'<div class="review__reply"><strong>Reply:</strong> {esc(reply)}</div>' if reply else ""
-    rb = f'<a class="text-sm" href="{D("reply-review")}" style="align-self: flex-start;">Reply</a>' if reply_btn and not reply else ""
+    rb = ""
     return (f'<article class="review"><div class="review__head">{avatar(author, "avatar--sm")}<a href="{P("profile")}">{author}</a>'
             f'{rating(float(stars_n), 1, short=True).replace("(1)", "")}<span class="text-caption"><time>{date}</time></span></div>'
             f'<p>{esc(text)}</p>{rp_}{rb}</article>')
@@ -378,7 +371,7 @@ def profile(handle: str, keys, *, own: bool = False, reviews=None, listings_coun
     if own:
         act = btn("Edit profile", href=P("edit-profile"), icon="edit")
     else:
-        act = f'<a class="text-sm text-muted" href="{D("report-member")}" style="display: inline-flex; gap: var(--space-2); align-items: center;">{ic("flag", "icon icon--sm")}Report member</a>'
+        act = ""
     sales = p["sales"]
     stats = (f'<div class="stats"><div class="stat"><span class="stat__value">{sales}</span><span class="stat__label">Sales</span></div>'
              f'<div class="stat"><span class="stat__value">{p["since"]}</span><span class="stat__label">Member since</span></div></div>')
@@ -410,7 +403,7 @@ def _():
     return pg
 
 
-@pr.state("own", "Marcus viewing his own profile: Edit profile, Reply on reviews without a reply.")
+@pr.state("own", "Marcus viewing his own profile: Edit profile.")
 def _():
     return profile("marcus_12", ["arizona", "reverse-weave"], own=True)
 
@@ -436,7 +429,7 @@ def _():
                             btn("Try again", "primary", icon="refresh") + btn("Back to shop", href=P("catalog"))))
 
 
-@pr.state("unavailable", "Suspended or closed member: “This member isn’t available” (HTTP 404).")
+@pr.state("unavailable", "Closed member: “This member isn’t available” (HTTP 404).")
 def _():
     return Page(main=center('4<em>0</em>4', "This member isn’t available", "The account may have been closed.",
                             btn("Back to shop", "primary", P("catalog"))))
@@ -512,9 +505,9 @@ def _():
 
 
 # ---------------------------------------------------------------------------
-# Settings (L2-005, L2-008, L2-055, L2-056)
+# Settings (L2-005, L2-008, L2-056)
 # ---------------------------------------------------------------------------
-st = screen("settings", "page", "Settings", route="/account/settings", reqs=["L2-005", "L2-008", "L2-009", "L2-055", "L2-056"],
+st = screen("settings", "page", "Settings", route="/account/settings", reqs=["L2-005", "L2-008", "L2-009", "L2-056"],
             na={"empty": "Every member has an email, password and session."})
 
 
@@ -527,14 +520,13 @@ def settings_rows() -> str:
         row("Email", ME_P["email"], ""),
         row("Password", "Changed Tue 2 Jun", btn("Change", href=D("change-password"))),
         row("Sessions", "Signed in on 2 devices", btn("Sign out everywhere", href=D("sign-out-everywhere"))),
-        row("Your data", "Download a copy as JSON", btn("Request download", href=D("data-export"), icon="download")),
         row("Cookies", "Strictly necessary only", btn("Cookie settings", href=D("cookie-settings"))),
         row("Close account", "Removes your listings and erases your data within 30 days", btn("Close account", "ghost", D("close-account"), attrs='style="color: var(--color-danger-fg);"')),
     ]
     return f'<ul class="settings-list page--form">{"".join(rows)}</ul>'
 
 
-@st.state("default", "Account settings as a short list: email, password, sessions, data, cookies, close account.")
+@st.state("default", "Account settings as a short list: email, password, sessions, cookies, close account.")
 def _():
     return account_page(head("Settings") + settings_rows(), "settings")
 
@@ -694,31 +686,6 @@ def _():
     return signout(cancel() + btn("Try again", "primary"), failed("Couldn’t sign you out", "8e44-1b7c"))
 
 
-de = screen("data-export", "dialog", "Download your data", opens_from="settings", reqs=["L2-055"],
-            na={"invalid": "No inputs; the export covers everything."})
-
-
-def export(footer: str, top: str = "", desc: str = "Profile, listings, orders, reviews and settings as a JSON file. We’ll email you a link within 24 hours.") -> Dialog:
-    return Dialog(bg=("settings", "default"), html=dialog("Download your data", "", footer, desc=desc, icon="download", top=top))
-
-
-@de.state("default", "Request a JSON export by email.")
-def _():
-    return export(cancel() + btn("Request download", "primary", attrs="autofocus"))
-
-
-@de.state("busy", "Requesting.")
-def _():
-    return export(cancel(disabled=True) + btn("Request download", "primary", attrs='aria-busy="true"'))
-
-
-@de.state("success", "Requested: link arrives within 24 hours and works for 7 days.")
-def _():
-    return export(btn("Done", "primary", attrs="autofocus"),
-                  top=alert("success", "Request received", f'We’ll email {ME_P["email"]}. The link works for 7 days, only for you.', role="status"),
-                  desc="")
-
-
 ca = screen("close-account", "dialog", "Close account", opens_from="settings", reqs=["L2-005"])
 
 
@@ -755,73 +722,11 @@ def _():
     return close_acc(blocked=True)
 
 
-rm = screen("report-member", "dialog", "Report member", opens_from="profile", reqs=["L2-044"])
-REASONS = ["Selling items that aren’t size 12 or L", "Counterfeit items", "Abusive messages or reviews", "Other"]
-
-
-def report(*, pick: int = -1, err: dict | None = None, busy: bool = False, details: str = "", top: str = "", footer: str | None = None, body: str | None = None) -> Dialog:
-    err = err or {}
-    inv = ' aria-invalid="true" aria-describedby="reason-error"' if "reason" in err else ""
-    opts = "".join(f'<label class="choice"><input type="radio" name="reason"{" checked" if i == pick else ""}{inv}><span>{r}</span></label>' for i, r in enumerate(REASONS))
-    e = f'<span class="field__error" id="reason-error">{err["reason"]}</span>' if "reason" in err else ""
-    det = field("details", "Details", f'<textarea class="textarea" id="details" rows="3"{{db}}>{esc(details)}</textarea>',
-                optional=pick != 3, error=err.get("details"))
-    body = body if body is not None else f'<fieldset><legend>Reason</legend>{opts}{e}</fieldset>{det}'
-    foot = footer if footer is not None else cancel(disabled=busy) + btn("Send report", "primary", attrs='type="submit"' + (' aria-busy="true"' if busy else ""))
-    return Dialog(bg=("profile", "default"), html=dialog("Report kicks_12", body, foot, desc="Our team reviews every report.", top=top))
-
-
-@rm.state("default", "Pick a reason; details optional unless Other.")
-def _():
-    return report()
-
-
-@rm.state("invalid", "Other chosen without details.")
-def _():
-    return report(pick=3, err={"details": "Tell us what happened"})
-
-
-@rm.state("busy", "Sending.")
-def _():
-    return report(pick=1, busy=True, details="Same photos as a listing on another site.")
-
-
-@rm.state("success", "Thanks, our team will review this.")
-def _():
-    return report(body="", top=alert("success", "Thanks, our team will review this", role="status"),
-                  footer=btn("Done", "primary", attrs="autofocus"))
-
-
-rr = screen("reply-review", "dialog", "Reply to review", opens_from="profile", reqs=["L2-039"])
-
-
-def reply(*, text: str = "", err: str | None = None, busy: bool = False) -> Dialog:
-    quote = f'<blockquote class="review__reply" style="margin: 0;">“Good seller, a little slow to reply.” — jaybird</blockquote>'
-    body = quote + field("reply", "Your reply", f'<textarea class="textarea" id="reply" rows="3" autofocus{{db}}>{esc(text)}</textarea>',
-                         error=err, counter=f"{len(text)} / 500", help="One reply per review. It can’t be edited later.")
-    foot = cancel(disabled=busy) + btn("Post reply", "primary", attrs='type="submit"' + (' aria-busy="true"' if busy else ""))
-    return Dialog(bg=("profile", "own"), html=dialog("Reply to jaybird", body, foot))
-
-
-@rr.state("default", "Reply to a published review, once.")
-def _():
-    return reply()
-
-
-@rr.state("invalid", "Empty reply.")
-def _():
-    return reply(err="Write a reply or cancel")
-
-
-@rr.state("busy", "Posting.")
-def _():
-    return reply(text="Fair point — I’m quicker now. Thanks for buying.", busy=True)
-
-
 # ---------------------------------------------------------------------------
-# Account banner (L2-002, L2-046)
+# Account banner (L2-002)
 # ---------------------------------------------------------------------------
-ab = screen("account-banner", "notification", "Account banner", opens_from="catalog", reqs=["L2-002", "L2-046"])
+ab = screen("account-banner", "notification", "Account banner", opens_from="catalog", reqs=["L2-002"],
+            na={"danger": "Account suspension is deferred (see docs/adr/general/0001-defer-moderation-reviews-and-data-export.md); no danger banner exists."})
 
 
 @ab.state("info", "Verification email sent after joining.")
@@ -839,9 +744,3 @@ def _():
     n = Note(bg=("catalog", "default"), top=banner("warning", "Verify your email to buy and sell.", '<button type="button">Resend link</button>', dismiss=False, icon="mail"))
     n.notes = note("Stays on every page until the email is verified; cannot be dismissed.", "top: 8rem; right: 1rem;")
     return n
-
-
-@ab.state("danger", "Account suspended: what still works.")
-def _():
-    return Note(bg=("catalog", "default"), top=banner("danger", "Your account is suspended. You can still ship open orders.",
-                                                      f'<a href="{P("account", "suspended")}">Details</a>', dismiss=False, icon="shield"))

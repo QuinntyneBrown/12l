@@ -43,7 +43,7 @@ Terms used in this design:
 
 ### API (`TwelveL.Api`)
 
-All endpoints require a signed-in member. Suspended members keep access (`L2-046`). An order the caller is not party to returns `404` (`L2-010` criterion 2).
+All endpoints require a signed-in member. An order the caller is not party to returns `404` (`L2-010` criterion 2).
 
 - **`PurchasesController`**
   - `GET /api/purchases?cursor=` — `200` `OrderListDto` (`items`, `counts`, `nextCursor`); `401`.

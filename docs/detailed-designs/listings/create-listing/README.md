@@ -2,7 +2,7 @@
 
 ## Overview
 
-12L is a marketplace for men's US size 12 shoes and men's size L clothing. Any verified, non-suspended member may sell; there is no seller application or separate seller account (`L2-003`). This feature covers the first half of the listing lifecycle: a seller opens the sell form, describes an item, saves it as a draft, and publishes it to the catalog.
+12L is a marketplace for men's US size 12 shoes and men's size L clothing. Any verified member may sell; there is no seller application or separate seller account (`L2-003`). This feature covers the first half of the listing lifecycle: a seller opens the sell form, describes an item, saves it as a draft, and publishes it to the catalog.
 
 The feature sits in the listings subsystem (`L1-003`, `L1-004`). Photo upload and processing belong to the sibling feature [upload-listing-photos](../upload-listing-photos/README.md); later changes and withdrawal belong to [edit-and-withdraw-listing](../edit-and-withdraw-listing/README.md); the seller's list of listings belongs to [manage-my-listings](../manage-my-listings/README.md).
 
@@ -28,7 +28,6 @@ The slice runs from the Angular sell page through `12L API` to the `Listings` ta
 
 - **`SellPage`** — routed standalone component at `/sell` (new listing) and `/sell/:reference` (continue a draft). It reads `AuthState` from `core` and renders one of these states:
   - `unverified` — "Verify your email to sell" with "Resend link" (opens the `verify-email-prompt` dialog) and "Back to shop".
-  - `suspended` — "Selling is paused on your account", "You can still manage open orders.", with "View your sales" and "Marketplace rules".
   - `error` — "Couldn't open the form" with the correlation ID ("Ref …") and "Try again", when categories or options fail to load (`L2-068`).
   - `default` / `filled` — the listing form.
   - `invalid` — error summary at the top, each error inline, focus moved to the summary and announced in a live region.
@@ -48,7 +47,7 @@ The slice runs from the Angular sell page through `12L API` to the `Listings` ta
 - **`SellingOptionsService`** — loads and caches, for the session, `GET /api/categories` and `GET /api/selling/options` as a signal.
 - **`ListingsApiService`** — typed client for `POST /api/listings`, `PUT /api/listings/{reference}`, `POST /api/listings/{reference}/publish` and `GET /api/me/listings/{reference}`. It maps problem details to field errors by the `errors` keys. The `core` HTTP interceptor adds the anti-forgery header (`L2-050`) and maps HTTP 429 to a typed `RateLimited` result.
 - **`ToastService`** (from `shared`) — raises "Listing published" with "{title} is live." and a "View listing" action after a publish from a context other than the sell page, and the danger toast "Couldn't save your draft", "Check your connection.", "Try again" when a draft save fails offline. Danger toasts never auto-dismiss; others dismiss after 8 s and pause on hover and focus.
-- **Rules link** — the `suspended` state links to `RulesPage` at `/rules`, which renders the same category table served by `GET /api/categories`.
+- **Rules link** — `RulesPage` at `/rules` renders the same category table served by `GET /api/categories`.
 
 Client validation mirrors the server rules for fast feedback. It is never trusted.
 
@@ -57,7 +56,7 @@ Client validation mirrors the server rules for fast feedback. It is never truste
 - **`CategoriesController`**
   - `GET /api/categories` — anonymous. Returns `200` with the 4 categories and 12 subcategories of `L2-011`, each category with its `acceptedSize` and a display label. Sends `Cache-Control: public, max-age=3600` (`<TO SUPPLY>`: confirm the max-age).
   - `GET /api/selling/options` — anonymous. Returns `200` with `feePercent` (from configuration), `conditions` (the 5 values of `L2-016` with display labels), `suggestedBrands` and `maxPhotos` (8).
-- **`ListingsController`** — every action requires an authenticated member and the `CanSell` policy (email verified, not suspended). The policy returns `401` for anonymous callers and `403` with code `EMAIL_NOT_VERIFIED` or `MEMBER_SUSPENDED` otherwise (`L2-010`).
+- **`ListingsController`** — every action requires an authenticated member and the `CanSell` policy (email verified). The policy returns `401` for anonymous callers and `403` with code `EMAIL_NOT_VERIFIED` otherwise (`L2-010`).
   - `POST /api/listings` — creates a draft. Body `ListingDetailsDto`. Returns `201 Created` with `Location: /api/me/listings/{reference}` (the new `L-<number>` reference) and the `MyListingDetailDto`; `422` for validation failures; `403`; `401`.
   - `PUT /api/listings/{reference}` — replaces the editable fields of the caller's `Draft` listing (draft rules) or `Active` listing (publish rules, see [edit-and-withdraw-listing](../edit-and-withdraw-listing/README.md)). Returns `200`, `404`, `409`, `422`.
   - `POST /api/listings/{reference}/publish` — body `{ "sizeConfirmed": true }`. Returns `200` with `PublishListingResult`, `404` (missing or not owned), `409` with `LISTING_NOT_DRAFT` when the listing is not a draft, `422` with per-field errors, `429` with `Retry-After`.
@@ -100,7 +99,6 @@ All errors are RFC 9457 problem details with `code`, `title`, `correlationId` an
 | `PHOTOS_PROCESSING` | 422 | Publish while a photo is not yet `Ready` |
 | `LISTING_NOT_DRAFT` | 409 | Publish of a listing that is not a draft |
 | `EMAIL_NOT_VERIFIED` | 403 | Unverified member calls a selling endpoint |
-| `MEMBER_SUSPENDED` | 403 | Suspended member calls a selling endpoint |
 | `RATE_LIMITED` | 429 | More than 20 publishes in one UTC day |
 
 ### Infrastructure and data (`TwelveL.Infrastructure`)
@@ -128,7 +126,7 @@ The feature realises the following level-2 (L2) requirements. Each refines the l
 
 | L2 ID | Refines (L1) | Requirement |
 |-------|--------------|-------------|
-| `L2-003` | `L1-001` | Every verified, non-suspended member shall be able to both buy and sell. There shall be no seller application, approval or separate seller account. |
+| `L2-003` | `L1-001` | Every verified member shall be able to both buy and sell. There shall be no seller application, approval or separate seller account. |
 | `L2-011` | `L1-003` | 12L shall accept only the categories and sizes in this table. The list is held on the server and served to the client. |
 | `L2-012` | `L1-003` | The listing form shall not offer a size choice. Once the seller picks a category, the form shall show the accepted size for that category as fixed, read-only text. |
 | `L2-013` | `L1-003` | The API shall be the source of truth for the size rule. It shall reject any listing create or update request whose size does not match the accepted size for its category, whatever the client sends. The stored size shall always be set by the server from the category. |

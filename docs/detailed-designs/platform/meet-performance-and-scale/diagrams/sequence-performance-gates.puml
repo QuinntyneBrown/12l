@@ -21,9 +21,7 @@ box "Build — GitHub Actions CI" #FFF4E5
   participant "check-bundle-budget.mjs" as budget
   participant "check-lazy-chunks.mjs" as lazy
   participant "Lighthouse CI" as lh
-  participant "load-test.yml (k6)" as k6
 end box
-participant "Performance environment" as perf
 dev -> pr : Push frontend change
 pr -> build : Production build
 build -> budget : dist + stats.json
@@ -41,13 +39,5 @@ else Within budget
       lh --> pr : Pass
     end
   end
-end
-== Weekly and before release ==
-k6 -> perf : 200 req/s for 10 min, 100,000 Active listings
-perf --> k6 : Latencies and errors
-alt Read p95 >= 300 ms or write p95 >= 800 ms or failures >= 0.1%
-  k6 --> pr : Fail run and upload summary (L2-057)
-else Within budget
-  k6 --> pr : Pass and upload summary
 end
 @enduml

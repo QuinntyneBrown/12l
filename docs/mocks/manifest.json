@@ -27,16 +27,14 @@
       "route": "/account",
       "requirements": [
         "L2-003",
-        "L2-002",
-        "L2-046"
+        "L2-002"
       ],
       "states": [
         "default",
         "loading",
         "empty",
         "error",
-        "unverified",
-        "suspended"
+        "unverified"
       ]
     },
     {
@@ -108,8 +106,6 @@
       "requirements": [
         "L2-041",
         "L2-040",
-        "L2-039",
-        "L2-044",
         "L2-054"
       ],
       "states": [
@@ -193,7 +189,6 @@
         "L2-005",
         "L2-008",
         "L2-009",
-        "L2-055",
         "L2-056"
       ],
       "states": [
@@ -359,9 +354,7 @@
         "L2-033",
         "L2-034",
         "L2-035",
-        "L2-036",
-        "L2-038",
-        "L2-039"
+        "L2-036"
       ],
       "states": [
         "default",
@@ -523,7 +516,6 @@
         "draft-saved",
         "success",
         "unverified",
-        "suspended",
         "limited",
         "error"
       ],
@@ -531,42 +523,6 @@
         "loading": "A new listing form needs no data; categories ship with the app shell.",
         "empty": "The form is the page; an empty form is the default state."
       }
-    },
-    {
-      "id": "admin-verify",
-      "kind": "page",
-      "title": "Admin verification",
-      "route": "/admin/verify",
-      "requirements": [
-        "L2-047",
-        "L2-006"
-      ],
-      "states": [
-        "default",
-        "invalid",
-        "submitting",
-        "error"
-      ],
-      "not_applicable": {
-        "loading": "The form renders without fetching data.",
-        "empty": "A single-field form has no collection."
-      }
-    },
-    {
-      "id": "audit-log",
-      "kind": "page",
-      "title": "Audit log",
-      "route": "/admin/audit",
-      "requirements": [
-        "L2-047"
-      ],
-      "states": [
-        "default",
-        "loading",
-        "empty",
-        "error",
-        "no-results"
-      ]
     },
     {
       "id": "forbidden",
@@ -602,44 +558,6 @@
         "empty": "Not a collection.",
         "error": "This page is itself the outage notice."
       }
-    },
-    {
-      "id": "member-admin",
-      "kind": "page",
-      "title": "Member admin",
-      "route": "/admin/members/{name}",
-      "requirements": [
-        "L2-046",
-        "L2-047"
-      ],
-      "states": [
-        "default",
-        "suspended",
-        "loading",
-        "error"
-      ],
-      "not_applicable": {
-        "empty": "Every member record has a profile and history."
-      }
-    },
-    {
-      "id": "moderation-queue",
-      "kind": "page",
-      "title": "Moderation queue",
-      "route": "/admin/queue",
-      "requirements": [
-        "L2-045",
-        "L2-036",
-        "L2-044",
-        "L2-010"
-      ],
-      "states": [
-        "default",
-        "loading",
-        "empty",
-        "error",
-        "forbidden"
-      ]
     },
     {
       "id": "not-found",
@@ -682,7 +600,6 @@
       "route": "/privacy",
       "requirements": [
         "L2-054",
-        "L2-055",
         "L2-056",
         "L2-005"
       ],
@@ -702,8 +619,7 @@
       "route": "/admin/problems/{id}",
       "requirements": [
         "L2-036",
-        "L2-045",
-        "L2-047"
+        "L2-010"
       ],
       "states": [
         "default",
@@ -716,27 +632,6 @@
       }
     },
     {
-      "id": "report-detail",
-      "kind": "page",
-      "title": "Report detail",
-      "route": "/admin/reports/{id}",
-      "requirements": [
-        "L2-044",
-        "L2-045",
-        "L2-047"
-      ],
-      "states": [
-        "default",
-        "hidden",
-        "resolved",
-        "loading",
-        "error"
-      ],
-      "not_applicable": {
-        "empty": "A report always has a reported listing or member and at least one reporter."
-      }
-    },
-    {
       "id": "rules",
       "kind": "page",
       "title": "Marketplace rules",
@@ -746,8 +641,7 @@
         "L2-014",
         "L2-016",
         "L2-031",
-        "L2-033",
-        "L2-044"
+        "L2-033"
       ],
       "states": [
         "default"
@@ -824,52 +718,6 @@
         "invalid",
         "busy",
         "blocked"
-      ]
-    },
-    {
-      "id": "data-export",
-      "kind": "dialog",
-      "title": "Download your data",
-      "opens_from": "settings",
-      "requirements": [
-        "L2-055"
-      ],
-      "states": [
-        "default",
-        "busy",
-        "success"
-      ],
-      "not_applicable": {
-        "invalid": "No inputs; the export covers everything."
-      }
-    },
-    {
-      "id": "reply-review",
-      "kind": "dialog",
-      "title": "Reply to review",
-      "opens_from": "profile",
-      "requirements": [
-        "L2-039"
-      ],
-      "states": [
-        "default",
-        "invalid",
-        "busy"
-      ]
-    },
-    {
-      "id": "report-member",
-      "kind": "dialog",
-      "title": "Report member",
-      "opens_from": "profile",
-      "requirements": [
-        "L2-044"
-      ],
-      "states": [
-        "default",
-        "invalid",
-        "busy",
-        "success"
       ]
     },
     {
@@ -989,23 +837,6 @@
       }
     },
     {
-      "id": "leave-review",
-      "kind": "dialog",
-      "title": "Leave a review",
-      "opens_from": "order-detail",
-      "requirements": [
-        "L2-038",
-        "L2-039",
-        "L2-040"
-      ],
-      "states": [
-        "default",
-        "invalid",
-        "busy",
-        "success"
-      ]
-    },
-    {
       "id": "relist",
       "kind": "dialog",
       "title": "Relist item",
@@ -1071,22 +902,6 @@
       }
     },
     {
-      "id": "report-listing",
-      "kind": "dialog",
-      "title": "Report listing",
-      "opens_from": "listing-detail",
-      "requirements": [
-        "L2-044"
-      ],
-      "states": [
-        "default",
-        "invalid",
-        "busy",
-        "success",
-        "already"
-      ]
-    },
-    {
       "id": "withdraw-listing",
       "kind": "dialog",
       "title": "Withdraw listing",
@@ -1126,9 +941,7 @@
       "title": "Resolve problem",
       "opens_from": "problem-detail",
       "requirements": [
-        "L2-036",
-        "L2-045",
-        "L2-047"
+        "L2-036"
       ],
       "states": [
         "default",
@@ -1137,54 +950,21 @@
       ]
     },
     {
-      "id": "resolve-report",
-      "kind": "dialog",
-      "title": "Resolve report",
-      "opens_from": "report-detail",
-      "requirements": [
-        "L2-045",
-        "L2-046",
-        "L2-047"
-      ],
-      "states": [
-        "default",
-        "invalid",
-        "busy",
-        "order-warning",
-        "failed"
-      ]
-    },
-    {
-      "id": "suspend-member",
-      "kind": "dialog",
-      "title": "Suspend member",
-      "opens_from": "member-admin",
-      "requirements": [
-        "L2-046",
-        "L2-047"
-      ],
-      "states": [
-        "default",
-        "invalid",
-        "busy",
-        "reinstate"
-      ]
-    },
-    {
       "id": "account-banner",
       "kind": "notification",
       "title": "Account banner",
       "opens_from": "catalog",
       "requirements": [
-        "L2-002",
-        "L2-046"
+        "L2-002"
       ],
       "states": [
         "info",
         "success",
-        "warning",
-        "danger"
-      ]
+        "warning"
+      ],
+      "not_applicable": {
+        "danger": "Account suspension is deferred (see docs/adr/general/0001-defer-moderation-reviews-and-data-export.md); no danger banner exists."
+      }
     },
     {
       "id": "reservation-timer",

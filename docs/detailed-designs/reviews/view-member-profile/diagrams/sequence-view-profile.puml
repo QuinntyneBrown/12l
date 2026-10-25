@@ -39,7 +39,7 @@ par profile, listings and reviews
   controller -> qprofile : Send GetPublicProfileQuery
   qprofile -> db : Select public columns by NormalizedDisplayName, join MemberReputations
   db --> qprofile : Row or none
-  alt unknown, Suspended or Closed member (L2-041)
+  alt unknown or Closed member (L2-041)
     qprofile --> controller : MemberUnavailable
     controller --> client : 404 member.unavailable, Cache-Control no-store
   else available member
@@ -58,7 +58,7 @@ else
   page -> client : getReviews(displayName, 1)
   client -> controller : GET /api/members/{displayName}/reviews?page=1
   controller -> qrev : Send GetMemberReviewsQuery
-  qrev -> db : Reviews with Status Published only (L2-039)
+  qrev -> db : Reviews with Status Published only (L2-040)
   db --> qrev : Page and total
   qrev --> controller : PagedResult<PublicReviewDto>
   controller --> client : 200

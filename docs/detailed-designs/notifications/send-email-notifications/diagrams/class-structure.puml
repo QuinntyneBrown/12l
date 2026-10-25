@@ -16,10 +16,7 @@ enum NotificationType {
   PasswordReset
   PasswordChanged
   AccountLocked
-  MemberSuspended
-  ListingRemoved
   DraftExpiring
-  DataExportReady
   SaleMade
   OrderShipped
   OrderDelivered

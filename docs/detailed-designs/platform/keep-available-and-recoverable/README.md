@@ -19,7 +19,7 @@ Terms used below:
 
 The readiness and liveness endpoints this feature relies on are defined in
 [report-errors-and-observe](../report-errors-and-observe/README.md). The stateless
-API that allows 3 or more instances is defined in
+API that allows several instances is defined in
 [meet-performance-and-scale](../meet-performance-and-scale/README.md).
 
 ## Description
@@ -34,8 +34,8 @@ support; infrastructure-as-code files live under `deploy/infra/` (tool
 `<TO SUPPLY>`).
 
 - **Instances** — at least 3 `12L API` instances and 2 `12L Worker` instances
-  spread across at least 2 availability zones (counts `<TO SUPPLY>` beyond the
-  3 API instances used in `L2-060` tests). Autoscaling bounds `<TO SUPPLY>`.
+  spread across at least 2 availability zones (counts `<TO SUPPLY>`).
+  Autoscaling bounds `<TO SUPPLY>`.
 - **Load balancer health probe** — `GET /health/ready` every 10 s, timeout 5 s,
   unhealthy after 2 consecutive failures, healthy after 2 consecutive
   successes. A failed instance therefore leaves rotation within 25 s, inside the

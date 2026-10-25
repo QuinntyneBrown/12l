@@ -52,8 +52,8 @@ and a webhook event table absorb repeats.
 
 ### API (`TwelveL.Api`)
 
-- **`CheckoutsController`** (policies `VerifiedMember` and `NotSuspended` from [suspend-member](../../moderation/suspend-member/README.md); a suspended member receives 403 `account.suspended`, `L2-010` criterion 5)
-  - `POST /api/checkouts` — body `{ listingReference }`. `201` `CheckoutDto` (`id`, `status`, `expiresAt`, item, `itemPrice`, `shippingCost`, `savedAddress`). Errors: `401`; `403` `account.suspended`; `404` `LISTING_NOT_FOUND`; `409` `LISTING_RESERVED` (another checkout holds it, `L2-028` criterion 2); `409` `checkout.listing_unavailable` (not Active); `422` `CANNOT_BUY_OWN_LISTING` (`L2-026`, code owned by [view-listing-detail](../../catalog/view-listing-detail/README.md)).
+- **`CheckoutsController`** (policy `VerifiedMember`)
+  - `POST /api/checkouts` — body `{ listingReference }`. `201` `CheckoutDto` (`id`, `status`, `expiresAt`, item, `itemPrice`, `shippingCost`, `savedAddress`). Errors: `401`; `404` `LISTING_NOT_FOUND`; `409` `LISTING_RESERVED` (another checkout holds it, `L2-028` criterion 2); `409` `checkout.listing_unavailable` (not Active); `422` `CANNOT_BUY_OWN_LISTING` (`L2-026`, code owned by [view-listing-detail](../../catalog/view-listing-detail/README.md)).
   - `GET /api/checkouts/{id}` — `200` `CheckoutDto` including `status`, `lastDeclineReason` and `orderId` once Paid; `404` for anyone but the buyer. Polled by the frontend every `<TO SUPPLY>` ms after payment submission.
   - `PUT /api/checkouts/{id}/address` — body `ShippingAddressDto`. `200` with `salesTax` and `total`; `400` field errors; `409` `checkout.reservation_expired`; `422` `checkout.non_us_address`.
   - `POST /api/checkouts/{id}/payments` — header `Idempotency-Key` (required, UUID); body `{ paymentMethodToken, expectedTotal }`. `202` `PaymentDto`; `400` `payment.idempotency_key_required`; `409` `checkout.reservation_expired`; `409` `checkout.total_changed`; `409` `checkout.address_required`.
@@ -107,7 +107,6 @@ Configuration: `Checkout:ReservationDuration` = `00:10:00`, `Checkout:ExpiryJobI
 | `checkout.total_changed` | 409 | Submitted total differs from the server total |
 | `checkout.address_required` | 409 | Payment submitted before an address was set |
 | `payment.idempotency_key_required` | 400 | `Idempotency-Key` header missing or not a UUID |
-| `account.suspended` | 403 | Suspended members cannot buy (defined by the moderation subsystem) |
 
 ## Requirements
 

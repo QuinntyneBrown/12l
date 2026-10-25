@@ -9,11 +9,11 @@ buyer report a problem on a `Shipped` or `Delivered` order, lets the seller repl
 lets an administrator decide the outcome: a full refund, a partial refund or release of
 the payment to the seller.
 
-The order side of the problem lives here. The administrator's entry point, the
-moderation queue at `/admin/queue`, belongs to
-[moderate-reports](../../moderation/moderate-reports/README.md). That queue reads open
-problems through `IOrderProblemQueueSource`, which this feature implements. The problem
-detail page at `/admin/problems/:id` and the resolve dialog are designed here.
+The whole problem lives here, including the administrator's problem detail page at
+`/admin/problems/:id` and the resolve dialog. An administrator reaches a problem from
+the alert sent to the operations inbox when it is opened. A moderation queue, the
+audit log and administrator second factor are deferred
+([ADR 0001](../../../adr/general/0001-defer-moderation-reviews-and-data-export.md)).
 
 Terms used in this design:
 
@@ -47,17 +47,17 @@ route to the `Refunded` status in the state machine of
 
 ### Frontend — administrator side (`src/frontend/src/app/orders/admin/`, rendered in `AdminShellComponent`)
 
-- **`ProblemDetailPage`** (route `/admin/problems/:reference`, mock `docs/mocks/pages/problem-detail/`) — heading is the reason ("Not as described"), subtitle "Order problem P-0912 · opened yesterday", breadcrumb "Queue". The body holds the buyer's claim with photos, a divider and the seller's reply. A sunken side panel shows "Order {number}", the item, Status, Total, Delivered, Payout ("Held" or "Not paid") and primary "Resolve". The `resolved` state shows the success alert "Refunded in full" / "{total} back to the buyer. No payout. {time} ET." and no action. Other states are `loading` (skeleton) and `error` ("Couldn't load this problem", reference code).
+- **`ProblemDetailPage`** (route `/admin/problems/:reference`, mock `docs/mocks/pages/problem-detail/`) — heading is the reason ("Not as described"), subtitle "Order problem P-0912 · opened yesterday". The body holds the buyer's claim with photos, a divider and the seller's reply. A sunken side panel shows "Order {number}", the item, Status, Total, Delivered, Payout ("Held" or "Not paid") and primary "Resolve". The `resolved` state shows the success alert "Refunded in full" / "{total} back to the buyer. No payout. {time} ET." and no action. Other states are `loading` (skeleton) and `error` ("Couldn't load this problem", reference code).
 - **`ResolveProblemDialog`** (mock `docs/mocks/dialogs/resolve-problem/`) — title "Resolve problem {reference}". The "Decision" radios are "Refund buyer in full" ("{total} to {buyer} · no payout") and "Release payout to seller" ("Order completes · {seller} is paid"), followed by the reason field. Buttons are "Cancel" and a primary that reads "Refund buyer"; it shows busy "Refunding". States: `default`; `invalid` ("Add a reason. Both members see it."); `busy`. The mock has no partial-refund option; its control and copy are `<TO SUPPLY>`.
 - **`AdminProblemsApiService`** — `getProblem(reference)`, `resolve(reference, body)`.
 
 ### API (`TwelveL.Api`)
 
-- **`OrderProblemsController`** (policy `VerifiedMember`; a non-party receives `404`, `L2-010`). Reporting a problem is a buyer action not listed among the suspension-gated actions; the seller reply stays open to suspended sellers (`L2-046`).
+- **`OrderProblemsController`** (policy `VerifiedMember`; a non-party receives `404`, `L2-010`).
   - `POST /api/orders/{id}/problem` — buyer; `multipart/form-data` with `reason`, `description`, `photos[]` (0–4). `201` `ProblemDto`. Errors: `400` `problem.invalid` (field errors); `409` `problem.window_closed` (`L2-036` criterion 2); `409` `problem.already_reported`; `413`, `415` or `422` per photo with the codes of [upload-listing-photos](../../listings/upload-listing-photos/README.md).
   - `POST /api/orders/{id}/problem/response` — seller; body `{ message }`. `200`; `400`; `404`; `409` `problem.response_not_allowed` (resolved or already answered).
   - `GET /api/orders/{id}/problem/photos/{photoId}` — buyer, seller or administrator; streams the private photo with `Cache-Control: private, no-store`; otherwise `404`.
-- **`AdminProblemsController`** (policy `AdministratorWithSecondFactor` from [audit-log-and-admin-sign-in](../../moderation/audit-log-and-admin-sign-in/README.md); `403` `auth.administrator_required` or `auth.second_factor_required`)
+- **`AdminProblemsController`** (policy `Administrator`, the Administrator role check of `L2-010`; `403` `auth.administrator_required`)
   - `GET /api/admin/problems/{reference}` — `200` `ProblemDetailDto`; `404`.
   - `POST /api/admin/problems/{reference}/resolution` — body `{ outcome: "FullRefund" | "PartialRefund" | "ReleaseToSeller", refundAmount?, reason }`. `200` `ProblemDetailDto`; `400` `problem.reason_required`, `problem.refund_amount_invalid`; `409` `problem.already_resolved`; `409` `order.invalid_transition`.
 
@@ -66,27 +66,25 @@ route to the `Refunded` status in the state machine of
 - **`OrderProblem`** (aggregate) — `Id`, `Reference` (`P-NNNN` from SQL sequence `ProblemNumbers`, start `<TO SUPPLY>`), `OrderId`, `Reason` (`ProblemReason`), `Description`, `Photos` (0–4 `ProblemPhoto`), `Status` (`Open`, `Resolved`), `OpenedAt`, `SellerResponse`, `SellerRespondedAt`, `Outcome`, `RefundAmount`, `ResolutionReason`, `ResolvedBy`, `ResolvedAt`, `RowVersion`. `RecordSellerResponse` accepts one reply while `Open`. `Resolve` accepts one decision.
 - **`Order.CanReportProblem(now)`** — true when `Status = Shipped`, or when `Status = Delivered` and `now <= DeliveredAt + Orders:ProblemWindow` (3 days; the mock shows delivered Sat 24 Oct open until Tue 27 Oct). `OrderDetailDto.problemDeadline` carries the end of the window.
 - **`ReportProblemCommandValidator`** — reason required ("Choose what's wrong"); description required ("Tell us what happened"), maximum length `<TO SUPPLY>`; at most 4 photos.
-- **`ReportProblemCommandHandler`** — loads the order by `BuyerId = caller` and checks the window. It validates each photo with `IImageInspector`, applying the content-sniffed type and 10 MB limit of `L2-017`; whether the 800-pixel minimum applies to evidence photos is `<TO SUPPLY>`. It strips metadata, re-encodes, and stores each photo privately through `IPhotoStorage` under `problems/{problemId}/{photoId}`. Problem photos are never published to the CDN. In one transaction it inserts the problem and calls `Payout.Hold(OpenProblem)`. It enqueues `NotificationType.ProblemReported` to the seller and an alert to `Notifications:ModerationInbox` for administrators (`L2-036` criterion 1).
+- **`ReportProblemCommandHandler`** — loads the order by `BuyerId = caller` and checks the window. It validates each photo with `IImageInspector`, applying the content-sniffed type and 10 MB limit of `L2-017`; whether the 800-pixel minimum applies to evidence photos is `<TO SUPPLY>`. It strips metadata, re-encodes, and stores each photo privately through `IPhotoStorage` under `problems/{problemId}/{photoId}`. Problem photos are never published to the CDN. In one transaction it inserts the problem and calls `Payout.Hold(OpenProblem)`. It enqueues `NotificationType.ProblemReported` to the seller and an alert to `Notifications:OperationsInbox` for administrators (`L2-036` criterion 1).
 - **`RespondToProblemCommandHandler`** — records the seller's reply (`L2-036` criterion 5).
 - **`ResolveProblemCommandValidator`** — reason required and non-whitespace; `refundAmount` required only for `PartialRefund`, greater than $0.00 and less than `Order.Total`.
 - **`ResolveProblemCommandHandler`** — in one transaction, by outcome:
-  - `FullRefund` — `Order.Refund(Administrator, now)` (`Shipped` or `Delivered` → `Refunded`), a `Refund` for `Total` with `IssueRefund` outbox message, `Payout.Cancel()`, audit action `ProblemResolvedFullRefund` (`L2-036` criterion 3).
-  - `ReleaseToSeller` — `Order.Complete(Administrator, now)` (`Delivered` → `Completed`), which raises `OrderCompleted` so the payout becomes releasable. Audit action `ProblemResolvedPayoutReleased` (`L2-036` criterion 4). A `Shipped` order cannot complete directly; see the note in ship-order.
-  - `PartialRefund` — a `Refund` for `refundAmount` and audit action `ProblemResolvedPartialRefund`. The resulting order status and the effect on the seller's payout are `<TO SUPPLY>`, because the `L2-032` table has no transition for it.
+  - `FullRefund` — `Order.Refund(Administrator, now)` (`Shipped` or `Delivered` → `Refunded`), a `Refund` for `Total` with `IssueRefund` outbox message, `Payout.Cancel()` (`L2-036` criterion 3).
+  - `ReleaseToSeller` — `Order.Complete(Administrator, now)` (`Delivered` → `Completed`), which raises `OrderCompleted` so the payout becomes releasable (`L2-036` criterion 4). A `Shipped` order cannot complete directly; see the note in ship-order.
+  - `PartialRefund` — a `Refund` for `refundAmount`. The resulting order status and the effect on the seller's payout are `<TO SUPPLY>`, because the `L2-032` table has no transition for it.
 
-  Each outcome calls `OrderProblem.Resolve`, enqueues `NotificationType.ProblemResolved` to buyer and seller (and `OrderRefunded` to the buyer for refunds), and writes the audit entry through `IAuditLog.Record` with target type `OrderProblem` and display ID `P-NNNN` (`L2-047`).
-- **`OrderProblemQueueSource`** — implements the moderation subsystem's `IOrderProblemQueueSource`. It returns each open problem as a `ModerationQueueItemDto`: kind `OrderProblem`, reference, item title and thumbnail, meta "Order problem · {reason} · Order {number}", the "Payout held" badge flag, `OpenedAt`, and link `/admin/problems/{reference}`.
+  Each outcome calls `OrderProblem.Resolve`, enqueues `NotificationType.ProblemResolved` to buyer and seller (and `OrderRefunded` to the buyer for refunds), and writes a structured log entry with the administrator ID, outcome, problem reference and correlation ID (`L2-069`).
 - **`GetProblemDetailQuery`** / handler — projects claim, photos (as API URLs), seller response, order facts, payout state and, when resolved, the decision.
 
 ### Data
 
 | Table | Key columns and constraints |
 |-------|-----------------------------|
-| `OrderProblems` | `Id` PK; unique `UX_OrderProblems_Reference`; unique `UX_OrderProblems_OrderId` (one problem per order); `Reason`, `Description`, `Status`, `OpenedAt`, `SellerResponse`, `Outcome`, `RefundAmount decimal(10,2)`, `ResolutionReason`, `ResolvedBy`, `ResolvedAt`, `RowVersion`; filtered index `IX_OrderProblems_Open_OpenedAt` where `Status = 'Open'` (queue and auto-completion) |
+| `OrderProblems` | `Id` PK; unique `UX_OrderProblems_Reference`; unique `UX_OrderProblems_OrderId` (one problem per order); `Reason`, `Description`, `Status`, `OpenedAt`, `SellerResponse`, `Outcome`, `RefundAmount decimal(10,2)`, `ResolutionReason`, `ResolvedBy`, `ResolvedAt`, `RowVersion`; filtered index `IX_OrderProblems_Open_OpenedAt` where `Status = 'Open'` (auto-completion) |
 | `ProblemPhotos` | `Id` PK; `ProblemId` FK; `Position`; `StorageKey`; `ContentType` |
-| `AuditEntries` | owned by moderation; written through `IAuditLog` |
 
-Configuration: `Orders:ProblemWindow` = `3.00:00:00`; `Notifications:ModerationInbox`
+Configuration: `Orders:ProblemWindow` = `3.00:00:00`; `Notifications:OperationsInbox`
 (owned by notifications).
 
 ### Error codes
@@ -125,16 +123,14 @@ the payment provider and emails both members.
 
 ### Components
 
-Member endpoints and administrator endpoints sit in separate controllers. The
-moderation queue reads open problems through `OrderProblemQueueSource`.
+Member endpoints and administrator endpoints sit in separate controllers.
 
 ![C4 component view for resolving order problems](diagrams/c4-component.png)
 
 ### Class structure
 
 An `Order` has at most one `OrderProblem` with up to 4 photos.
-`ResolveProblemCommandHandler` changes the problem, the order and the payout together
-and writes the audit entry.
+`ResolveProblemCommandHandler` changes the problem, the order and the payout together.
 
 ![Class diagram for resolving order problems](diagrams/class-structure.png)
 
@@ -155,6 +151,6 @@ to administrators.
 ### Behaviour — administrator resolution
 
 A full refund moves the order to Refunded and cancels the payout. Release completes the
-order and frees the payout. Both write an audit entry.
+order and frees the payout.
 
 ![Sequence diagram for resolving a problem](diagrams/sequence-resolve-problem.png)

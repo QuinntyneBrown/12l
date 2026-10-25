@@ -56,7 +56,7 @@ else complete
     else photos valid
       h -> store : Strip metadata, re-encode, store privately at problems/{problemId}/{photoId}
       h -> prob : Open(order, reason, description, photos, now)
-      h -> db : Insert OrderProblem (Reference P-NNNN), photos, Payout.Hold(OpenProblem), enqueue ProblemReported to seller and to Notifications:ModerationInbox, one transaction (L2-036 criterion 1)
+      h -> db : Insert OrderProblem (Reference P-NNNN), photos, Payout.Hold(OpenProblem), enqueue ProblemReported to seller and to Notifications:OperationsInbox, one transaction (L2-036 criterion 1)
       ctrl --> client : 201 ProblemDto
       page --> actor : "We're on it" with "Problem open · Wrong size" and the thread
     end

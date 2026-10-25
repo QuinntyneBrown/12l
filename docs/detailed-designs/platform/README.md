@@ -13,7 +13,7 @@ infrastructure and CI, and each has an estimate in
 |---------|-----------------|
 | [harden-http-and-api](harden-http-and-api/README.md) | `L2-048`, `L2-049`, `L2-050`, `L2-051` |
 | [protect-credentials-and-supply-chain](protect-credentials-and-supply-chain/README.md) | `L2-052`, `L2-053` |
-| [meet-performance-and-scale](meet-performance-and-scale/README.md) | `L2-057`, `L2-058`, `L2-060` |
+| [meet-performance-and-scale](meet-performance-and-scale/README.md) | `L2-058`, `L2-060` |
 | [responsive-accessible-shell](responsive-accessible-shell/README.md) | `L2-061`, `L2-062`, `L2-063`, `L2-064`, `L2-065` |
 | [report-errors-and-observe](report-errors-and-observe/README.md) | `L2-068`, `L2-069`, `L2-070` |
 | [keep-available-and-recoverable](keep-available-and-recoverable/README.md) | `L2-066`, `L2-067` |

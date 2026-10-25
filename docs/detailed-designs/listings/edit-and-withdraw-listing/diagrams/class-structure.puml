@@ -22,7 +22,6 @@ package "TwelveL.Domain" {
   enum RemovalReason {
     Withdrawn
     OrderCancelled
-    Moderation
   }
   class Listing {
     +Guid Id
