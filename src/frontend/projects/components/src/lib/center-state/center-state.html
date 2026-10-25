@@ -1,0 +1,6 @@
+<div class="center-state">
+  <div class="empty__icon"><tl-icon [name]="icon()" size="lg" /></div>
+  <h1>{{ heading() }}</h1>
+  <ng-content />
+  <div class="actions"><ng-content select="[actions]" /></div>
+</div>

@@ -6,7 +6,7 @@
     >. It works for 24 hours.
   </p>
   @if (resend() === 'sent') {
-    <tl-alert tone="success" heading="Link sent" role="status">Earlier links no longer work.</tl-alert>
+    <tl-alert tone="success" heading="Link sent" live="polite">Earlier links no longer work.</tl-alert>
   } @else if (resend() === 'limited') {
     <tl-alert tone="warning" heading="Too many requests" icon="clock"
       >You can request 3 links an hour. Try again later.</tl-alert

@@ -13,7 +13,7 @@ const ICONS: Record<AlertTone, IconName> = {
 
 /**
  * Inline message with an icon, a title and projected text (design system: Alert). Danger alerts
- * are announced with role="alert"; pass role="status" for a polite success message.
+ * are announced at once (role="alert"); pass live="polite" for a status message such as success.
  */
 @Component({
   selector: 'tl-alert',
@@ -26,12 +26,11 @@ export class AlertComponent {
   readonly tone = input<AlertTone>('info');
   readonly heading = input.required<string>();
   readonly icon = input<IconName>();
-  readonly role = input<'alert' | 'status' | null>();
+  readonly live = input<'assertive' | 'polite' | 'off'>();
 
   readonly iconName = computed(() => this.icon() ?? ICONS[this.tone()]);
   readonly ariaRole = computed(() => {
-    const role = this.role();
-    if (role !== undefined) return role;
-    return this.tone() === 'danger' ? 'alert' : null;
+    const live = this.live() ?? (this.tone() === 'danger' ? 'assertive' : 'off');
+    return live === 'assertive' ? 'alert' : live === 'polite' ? 'status' : null;
   });
 }
