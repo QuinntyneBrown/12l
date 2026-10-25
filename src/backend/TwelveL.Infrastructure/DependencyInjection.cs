@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TwelveL.Application.Abstractions;
+using TwelveL.Application.Listings;
 using TwelveL.Infrastructure.Accounts;
 using TwelveL.Infrastructure.Email;
+using TwelveL.Infrastructure.Listings;
 using TwelveL.Infrastructure.Persistence;
 
 namespace TwelveL.Infrastructure;
@@ -20,7 +22,9 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IBreachedPasswords, BundledBreachedPasswords>();
         services.AddSingleton<IEmailSender, LoggingEmailSender>();
+        services.AddSingleton<ISellerPayoutAccountReader, NoPayoutAccountsReader>();
         services.Configure<AppOptions>(configuration.GetSection("App"));
+        services.Configure<SellingOptions>(configuration.GetSection("Selling"));
         return services;
     }
 }

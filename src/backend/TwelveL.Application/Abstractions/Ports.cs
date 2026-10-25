@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
 
 namespace TwelveL.Application.Abstractions;
@@ -11,6 +12,8 @@ public interface ITwelveLDbContext
     DbSet<EmailVerificationToken> EmailVerificationTokens { get; }
 
     DbSet<Session> Sessions { get; }
+
+    DbSet<Listing> Listings { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }

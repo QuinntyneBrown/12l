@@ -3,13 +3,14 @@ namespace TwelveL.Migrator.Tests;
 public sealed class MigratorTests
 {
     [Fact]
-    public void Run_reports_no_migrations_and_succeeds()
+    public void Run_without_a_connection_string_lists_the_migrations_connects_to_nothing_and_fails()
     {
         using var output = new StringWriter();
 
-        var exitCode = TwelveL.Migrator.MigratorApp.Run(output);
+        var exitCode = MigratorApp.Run(output, connectionString: null);
 
-        Assert.Equal(0, exitCode);
-        Assert.Contains("No migrations", output.ToString());
+        Assert.Equal(2, exitCode);
+        Assert.Contains(MigratorApp.ConnectionStringVariable, output.ToString());
+        Assert.Contains("_InitialCreate", output.ToString());
     }
 }
