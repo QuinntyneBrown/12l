@@ -1,3 +1,6 @@
 :host {
   display: contents;
 }
+.topbar__avatar {
+  text-decoration: none;
+}

@@ -1,5 +1,14 @@
-<tl-top-bar />
-<main id="main" class="container page" tabindex="-1">
-  <router-outlet />
-</main>
-<tl-footer />
+@if (shell() === 'auth') {
+  <div class="auth-layout">
+    <tl-logo size="lg" />
+    <main id="main" class="auth-card" tabindex="-1">
+      <router-outlet />
+    </main>
+  </div>
+} @else {
+  <tl-top-bar [member]="auth.member()" />
+  <main id="main" class="container page" tabindex="-1">
+    <router-outlet />
+  </main>
+  <tl-footer />
+}

@@ -1,5 +1,12 @@
+export { AlertComponent, type AlertTone } from './lib/alert/alert';
+export { ButtonDirective } from './lib/button/button';
+export { ChoiceComponent } from './lib/choice/choice';
+export { ErrorSummaryComponent, type SummaryError } from './lib/error-summary/error-summary';
 export { FooterComponent } from './lib/footer/footer';
+export { FormFieldComponent } from './lib/form-field/form-field';
+export { IconComponent, type IconName } from './lib/icon/icon';
 export { LogoComponent } from './lib/logo/logo';
 export { SkipLinkComponent } from './lib/skip-link/skip-link';
+export { SpinnerComponent } from './lib/spinner/spinner';
 export { ToastRegionComponent } from './lib/toast-region/toast-region';
-export { TopBarComponent } from './lib/top-bar/top-bar';
+export { TopBarComponent, type TopBarMember } from './lib/top-bar/top-bar';
