@@ -58,6 +58,7 @@ first and record the change as an ADR.
 12l/
 ├── AGENTS.md
 ├── README.md
+├── .github/workflows/          ci.yml runs `npm run verify` on ubuntu-latest
 ├── docs/
 │   ├── journeys.md              user journeys with effort
 │   ├── specs/                   L1.md and L2.md requirements
@@ -79,7 +80,7 @@ first and record the change as an ADR.
 │       ├── package.json
 │       ├── tsconfig.json        path alias @12l/<library> per library
 │       ├── eslint.config.js
-│       ├── e2e/                 Playwright acceptance tests
+│       ├── e2e/                 Playwright: pages/, tests/, fixtures.ts, serve.mjs (static build server)
 │       └── projects/
 │           ├── twelvel/         the application (projectType "application")
 │           │   └── src/app/     app.config.ts, app.routes.ts, shells only
@@ -145,6 +146,8 @@ library per area, all registered in `angular.json`. Follow these rules:
 
 ## Working in this repository
 
+- Run `npm run verify` in `src/frontend` before every commit; it is the same command CI runs
+  (`L2-071`, [ADR-0002](docs/adr/platform/0002-single-verify-command.md)).
 - Change mocks in `docs/mocks/_build/screens_*.py`, then run
   `python docs/mocks/_build/build.py` and
   `python .claude/skills/writing-html-mocks/scripts/check_mocks.py docs/mocks --write`.

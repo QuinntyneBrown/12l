@@ -8,4 +8,4 @@
 | protect-credentials-and-supply-chain | 4 days | 0% |
 | report-errors-and-observe | 6 days | 0% |
 | responsive-accessible-shell | 6 days | 0% |
-| set-up-the-workspace | 3 days | 0% |
+| set-up-the-workspace | 3 days | 100% |

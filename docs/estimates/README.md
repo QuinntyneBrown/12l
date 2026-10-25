@@ -1,11 +1,11 @@
 # Estimates
 
 - Overall effort: 108 days
-- Complete: 0%
+- Complete: 3%
 
 | Subsystem | Effort | Complete |
 |---|---|---|
-| [platform](platform.md) | 32 days | 0% |
+| [platform](platform.md) | 32 days | 9% |
 | [privacy](privacy.md) | 7 days | 0% |
 | [listings](listings.md) | 17 days | 0% |
 | [catalog](catalog.md) | 12 days | 0% |
@@ -15,7 +15,6 @@
 
 ## Roadmap
 
-0. Set up the workspace
 1. platform and privacy
 2. listings
 3. catalog

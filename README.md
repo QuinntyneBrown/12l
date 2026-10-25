@@ -79,21 +79,44 @@ The Angular app calls the ASP.NET Core API over HTTPS. The backend is the source
 
 ## Getting started
 
-12L is in its early planning stage. Application code and run instructions will be added here as the project takes shape.
-
 ### Prerequisites
 
-- [.NET SDK](https://dotnet.microsoft.com/download) (latest LTS)
-- [Node.js](https://nodejs.org) (latest LTS) and npm
-- [Angular CLI](https://angular.dev/tools/cli) (`npm install -g @angular/cli`)
 - [Git](https://git-scm.com)
+- [.NET SDK 10](https://dotnet.microsoft.com/download) (pinned in `src/backend/global.json`)
+- [Node.js 22 LTS](https://nodejs.org) and npm
 
-### Clone the repository
+No database, Docker or other service is needed: the tests fake every external system.
+
+### Clone, install and verify
 
 ```bash
 git clone https://github.com/QuinntyneBrown/12l.git
-cd 12l
+cd 12l/src/frontend
+npm ci
+npx playwright install chromium
+npm run verify
 ```
+
+`npm run verify` restores, format-checks, builds and tests the backend solution, then
+lints both Prettier and ESLint, builds every Angular library and the application, and runs
+the Playwright tests. It stops at the first failure. CI runs the same command.
+
+### Run the apps
+
+```bash
+# from src/frontend
+npm start                                   # Angular app on http://localhost:4200
+dotnet run --project ../backend/TwelveL.Api # API; GET /api/health returns 200
+```
+
+### Individual checks
+
+| Command (from `src/frontend`) | Does |
+|---|---|
+| `npm run backend:verify` | Backend restore, format check, build, tests |
+| `npm run lint` | Prettier check and ESLint |
+| `npm run build:all` | Every library, then the application |
+| `npm run test:e2e` | Playwright (Chromium) against the production build |
 
 ## Project structure
 
@@ -102,9 +125,10 @@ cd 12l
 ├── .agents/skills/        Agent skills (shared, tool-agnostic copy)
 ├── .claude/skills/        Agent skills for Claude Code
 ├── .github/               Issue templates, pull request template, Copilot instructions
-├── docs/specs/            L1 and L2 requirements
-├── src/backend/           .NET backend (planned)
-├── src/frontend/          Angular frontend (planned)
+├── docs/                  Journeys, specs, mocks, design system, designs, estimates, ADRs
+├── src/backend/           .NET solution (TwelveL.Api, Application, Domain, Infrastructure, Worker, Migrator)
+├── src/frontend/          Angular workspace (projects/twelvel plus api, components and feature libraries)
+├── tests/                 xUnit test project per backend project
 ├── AGENTS.md              Working agreement for coding agents
 ├── CLAUDE.md              Instructions for Claude Code
 ├── GEMINI.md              Instructions for Gemini

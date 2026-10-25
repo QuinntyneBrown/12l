@@ -63,9 +63,9 @@ referencing its project:
   to call `GET /api/health` and asserts `200`, `application/json`, and that the body
   contains neither a version number, the machine name nor the text `ConnectionString`.
   **`StatelessApiTests`** (NetArchTest) loads `TwelveL.Api` and `TwelveL.Application`
-  and fails when any type references `IMemoryCache`, `AddSession`,
-  `AddDistributedMemoryCache` or `IDistributedCache` from `Microsoft.Extensions.Caching.Memory`
-  (`L2-060` criterion 1). It is the one architecture test of this feature.
+  and fails when any type depends on the `Microsoft.Extensions.Caching.Memory` or
+  `Microsoft.AspNetCore.Session` namespaces (`L2-060` criterion 1). A deliberate
+  `IMemoryCache` dependency was used to confirm the test fails. It is the one architecture test of this feature.
 - **`TwelveL.Application.Tests`**, **`TwelveL.Domain.Tests`**,
   **`TwelveL.Infrastructure.Tests`**, **`TwelveL.Worker.Tests`**,
   **`TwelveL.Migrator.Tests`** — each holds one smoke test that the project's marker
@@ -80,8 +80,7 @@ maps `@12l/<library>` to each `projects/<library>/src/public-api.ts`.
 - **`projects/twelvel/`** — the application. `src/main.ts`, `src/index.html`,
   `src/styles.css` (imports the tokens and component styles of `@12l/components`),
   `src/app/app.config.ts` (router with the feature routes, `provideApi()` from
-  `@12l/api`), `src/app/app.routes.ts` (`''` renders `HomePlaceholderPage`; each feature
-  library's routes are attached with `loadChildren` under its path and `data.shell`),
+  `@12l/api`), `src/app/app.routes.ts` (`''` renders `HomePlaceholderPage`; each feature library's empty routes are attached with `loadChildren` under a provisional path that the feature's own design confirms),
   **`AppComponent`** (renders `tl-skip-link`, the shell for the active route and
   `tl-toast-region`), **`AppShellComponent`** (`tl-top-bar`, `<main id="main"
   tabindex="-1"><router-outlet>`, `tl-footer`) and **`HomePlaceholderPage`** (an `h1`
@@ -93,14 +92,18 @@ maps `@12l/<library>` to each `projects/<library>/src/public-api.ts`.
   Components, each with `.ts`, `.html` and `.css`: **`tl-skip-link`**, **`tl-logo`**,
   **`tl-top-bar`** (guest state only: menu button with `aria-expanded="false"`, logo,
   primary navigation, search form, "Sell" and "Sign in" links), **`tl-footer`**
-  (Marketplace rules, Privacy, Terms, Cookie settings, "© {year} 12L" from `Date`),
+  (Marketplace rules, Privacy, Terms, Cookie settings, "© {year} 12L" from `Date`; Cookie
+  settings links to `/privacy#cookie-settings` until the cookie-settings dialog exists),
   **`tl-toast-region`** (`role="status"`, `aria-live="polite"`, empty until
   `ToastService` is implemented). Exported from `public-api.ts`.
-- **`projects/api/`** (`@12l/api`) — `provideApi()` and `API_BASE_URL` injection token
-  read from `environment.apiBaseUrl`; no services yet.
+- **`projects/api/`** (`@12l/api`) — `provideApi(baseUrl)` registers `HttpClient` (fetch
+  backend) and the `API_BASE_URL` injection token; no services yet.
 - **`projects/accounts|catalog|listings|orders|reviews|privacy/`** — each exports
   `routes: Routes = []` from `src/lib/<area>.routes.ts` through `public-api.ts`, plus
   `ng-package.json`, `package.json`, `README.md` and `tsconfig.lib.json`.
+- **Unit tests** — the workspace has no Vitest or Karma target: frontend behaviour is
+  covered by Playwright, per the `AGENTS.md` testing rules, and the CLI's spec files were
+  removed.
 - **Lint and format** — `eslint.config.js` with `angular-eslint` (TypeScript and
   template rules, including the accessibility rules); `.prettierrc` with
   `prettier --check` in the lint script.
@@ -108,8 +111,9 @@ maps `@12l/<library>` to each `projects/<library>/src/public-api.ts`.
   application; `lint` runs Prettier and ESLint; `test:e2e` runs Playwright; **`verify`**
   is the verify command and runs, in order, `dotnet restore`, `dotnet format
   --verify-no-changes`, `dotnet build --no-restore -warnaserror`, `dotnet test
-  --no-build` on `../backend/TwelveL.sln`, then `npm ci`-equivalent state is assumed and
-  `lint`, `build:all` and `test:e2e` run. Any non-zero exit stops the chain.
+  --no-build` on `../backend/TwelveL.sln`, then `lint`, `build:all` and `test:e2e`. It
+  assumes `npm ci` has run once. Any non-zero exit stops the chain. Each step is also a
+  script of its own (`backend:verify`, `lint`, `build:all`, `test:e2e`).
 
 ### End-to-end tests (`src/frontend/e2e`)
 
@@ -137,7 +141,7 @@ chromium` in `src/frontend`, then `npm run verify`. A failing step fails the wor
 | .NET SDK | 10.0.x (`global.json`, `rollForward: latestFeature`) | [ADR-0001](../../../adr/platform/0001-runtime-versions.md) |
 | Node | 22 LTS (`engines` in `package.json`) | ADR-0001 (platform) |
 | Angular | 22.x | ADR-0001 (platform) |
-| API base URL | `environment.apiBaseUrl` = `http://localhost:5000` in development | `projects/api` |
+| API base URL | `environment.apiBaseUrl`: `/api` in production, `http://localhost:5045/api` in development (the API's launch profile) | `projects/twelvel/src/environments` |
 | Playwright browser | Chromium | `AGENTS.md` |
 
 ## Requirements
