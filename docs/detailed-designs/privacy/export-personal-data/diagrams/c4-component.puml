@@ -1,0 +1,40 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Export personal data
+
+Container(web, "12L Web", "Angular", "DataExportDialogComponent, DataExportDownloadPageComponent, PrivacyApiService")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "PrivacyExportsController", "ASP.NET Core controller", "/api/privacy/exports endpoints")
+  Component(reqH, "RequestDataExportCommandHandler", "MediatR", "Creates or reuses an open request; writes outbox")
+  Component(getH, "GetDataExportQueryHandler", "MediatR", "Owner-only status read")
+  Component(fileH, "OpenDataExportFileQueryHandler", "MediatR", "Owner-only, unexpired file stream")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(dispatch, "Outbox dispatcher", "Hosted service", "Delivers DataExportRequested and SendDataExportReadyEmail")
+  Component(gen, "GenerateDataExportHandler", "Worker handler", "Builds, checks and stores the file")
+  Component(composer, "PersonalDataExportComposer", "Application service", "Runs every IPersonalDataSection")
+  Component(guard, "ExportDocumentGuard", "Application service", "Rejects other members' email addresses")
+  Component(expiry, "DataExportExpiryJob", "Hosted service", "Deletes files after 7 days")
+}
+ComponentDb(db, "12L database", "SQL Server", "DataExportRequests, OutboxMessages")
+ComponentDb(store, "Exports container", "Object storage", "exports/{memberId}/{exportId}.json")
+System_Ext(email, "Email provider", "Transactional email")
+
+Rel(web, ctrl, "POST / GET", "JSON/HTTPS")
+Rel(ctrl, reqH, "Sends RequestDataExportCommand")
+Rel(ctrl, getH, "Sends GetDataExportQuery")
+Rel(ctrl, fileH, "Sends OpenDataExportFileQuery")
+Rel(reqH, db, "Inserts request and outbox message", "EF Core")
+Rel(getH, db, "Reads request", "EF Core")
+Rel(fileH, store, "Opens read stream", "SDK")
+Rel(dispatch, db, "Polls outbox", "EF Core")
+Rel(dispatch, gen, "Invokes")
+Rel(gen, composer, "Composes document")
+Rel(gen, guard, "Checks document")
+Rel(composer, db, "Reads member data", "EF Core")
+Rel(gen, store, "Writes file", "SDK")
+Rel(dispatch, email, "Sends ready email", "HTTPS API")
+Rel(expiry, store, "Deletes expired files", "SDK")
+Rel(expiry, db, "Marks Expired", "EF Core")
+@enduml

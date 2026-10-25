@@ -1,0 +1,23 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Export personal data
+
+Person(member, "Member", "Signed-in member")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "Data export dialog and download page")
+  Container(api, "12L API", "ASP.NET Core", "Records export requests; streams the file to its owner")
+  Container(worker, "12L Worker", ".NET worker service", "Builds the export, sends the email, expires old files")
+  ContainerDb(db, "12L database", "SQL Server", "DataExportRequests, outbox and source data")
+  ContainerDb(store, "Photo storage (private exports container)", "Object storage, server-side encryption", "Export JSON files, never on the CDN")
+}
+System_Ext(email, "Email provider", "Transactional email")
+
+Rel(member, web, "Uses", "HTTPS")
+Rel(web, api, "Calls", "JSON/HTTPS")
+Rel(api, db, "Writes request and outbox message", "EF Core")
+Rel(api, store, "Streams file", "SDK")
+Rel(worker, db, "Reads member data; updates request", "EF Core")
+Rel(worker, store, "Writes and deletes files", "SDK")
+Rel(worker, email, "Sends link email", "HTTPS API")
+@enduml

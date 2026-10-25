@@ -1,0 +1,57 @@
+@startuml
+title UML sequence behaviour — Build the export and send the link
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+box "Backend — 12L Worker application" #D1FADF
+  participant "Outbox dispatcher" as dispatch
+  participant "GenerateDataExportHandler" as gen
+end box
+box "Backend — TwelveL.Application and Domain" #ECFDF3
+  participant "PersonalDataExportComposer" as composer
+  participant "ExportDocumentGuard" as guard
+  participant "DataExportRequest" as entity
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "Exports container" as store
+  participant "Email provider" as email
+end box
+dispatch -> db : Poll outbox
+db --> dispatch : DataExportRequested(exportId)
+dispatch -> gen : Handle
+gen -> entity : Start(now) -> Processing
+gen -> db : Save (RowVersion check)
+gen -> composer : ComposeAsync(memberId)
+composer -> db : Read profile, listings, orders, reviews, settings, saved addresses
+db --> composer : Rows (counterparties as display names only)
+composer --> gen : JSON document
+gen -> guard : Check(document, ownEmail)
+alt document clean
+  guard --> gen : Ok
+  gen -> store : Put exports/{memberId}/{exportId}.json
+  store --> gen : Stored
+  gen -> entity : MarkReady(key, size, sha256) ExpiresAt = ReadyAt + 7 days
+  gen -> db : Save request + outbox SendDataExportReadyEmail (one transaction)
+  dispatch -> email : Send export-ready email with /account/data-export/{exportId}
+  email --> dispatch : Accepted (within 24 hours of request, L2-055)
+else other member's email found
+  guard --> gen : privacy.export_foreign_personal_data
+  gen -> entity : MarkFailed(now)
+  gen -> db : Save; raise alert
+else transient failure
+  gen -> entity : back to Requested, Attempts + 1
+  gen --> dispatch : Retry with back-off until MaxAttempts
+end
+@enduml
