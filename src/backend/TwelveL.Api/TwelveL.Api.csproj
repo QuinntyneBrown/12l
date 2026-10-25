@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\TwelveL.Application\TwelveL.Application.csproj" />
+    <ProjectReference Include="..\TwelveL.Infrastructure\TwelveL.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <PropertyGroup>
+  </PropertyGroup>
+
+</Project>

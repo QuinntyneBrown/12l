@@ -47,11 +47,14 @@ The C# namespace prefix is `TwelveL`, because a C# identifier cannot start with 
 
 ### Frontend layout
 
-The Angular application groups code into lazy-loaded feature areas under
-`src/frontend/src/app/`: `accounts`, `catalog`, `listings`, `orders`, `reviews`,
-`privacy`, plus `core` (HTTP interceptors, auth state, error handling) and
-`shared` (design-system components). Each feature area exposes route components
-(pages), dialog components and a typed API service that calls `12L API`.
+The frontend is an Angular workspace (`src/frontend`) laid out as `AGENTS.md` mandates:
+the application `projects/twelvel/` (shell and routes only) and one library per area under
+`projects/`: `api` (typed HTTP services, DTOs, auth state, interceptors), `components`
+(design-system components and styles) and the lazy-loaded feature libraries `accounts`,
+`catalog`, `listings`, `orders`, `reviews` and `privacy`. Each feature library exports its
+route table from `public-api.ts`, holds its pages and dialogs under `src/lib/`, and calls
+`12L API` only through `@12l/api`. Where an older design names `src/frontend/src/app/...`,
+read it as the matching library.
 
 ### Cross-cutting conventions
 

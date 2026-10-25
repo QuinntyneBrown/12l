@@ -35,7 +35,9 @@ Source mocks: the shell in `docs/mocks/_build/mk.py` (`topbar`, `admin_topbar`,
 with tokens in `docs/mocks/assets/tokens.css` and components in
 `docs/mocks/assets/ui.css`.
 
-### Frontend — shell components (`src/frontend/src/app/core/shell`)
+### Frontend — shell components (`src/frontend/projects/twelvel/src/app/` and `projects/components/`)
+
+Per `AGENTS.md`, the application project holds `AppComponent`, the four shell components and the routes; every reusable piece below (`tl-skip-link`, `tl-top-bar`, `tl-footer`, `tl-toast-region`, sheets, dialogs, form fields) lives in the `components` library (`@12l/components`). Feature libraries never re-implement them.
 
 - **`AppComponent`** — root component. Renders `SkipLinkComponent`, the shell
   chosen by the active route's `data.shell` (`'app' | 'auth' | 'admin' |
@@ -80,7 +82,7 @@ with tokens in `docs/mocks/assets/tokens.css` and components in
   (member), `guest`. The sheet closes on navigation and on a resize to 768 px or
   wider.
 
-### Frontend — shared behaviour (`src/frontend/src/app/shared/a11y`, `shared/layout`)
+### Frontend — shared behaviour (`src/frontend/projects/components/src/lib/`)
 
 - **`BreakpointService`** — wraps CDK `BreakpointObserver` with the queries
   `(min-width: 36rem)`, `(min-width: 48rem)`, `(min-width: 62rem)` and
@@ -153,6 +155,8 @@ with tokens in `docs/mocks/assets/tokens.css` and components in
   `tokens.css`; `forced-colors` mode uses system colours.
 
 ### CI (`src/frontend/e2e`)
+
+The harness is created by [set-up-the-workspace](../set-up-the-workspace/README.md) with one smoke test; the specs below are added by this feature.
 
 - **`e2e/routes.ts`** — catalogue of every page route and dialog state to test,
   each with API fixtures served through Playwright `page.route` so tests do not

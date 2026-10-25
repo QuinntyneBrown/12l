@@ -5,7 +5,7 @@ title Containers — Meet performance and scale targets
 
 Person(shopper, "Visitor or member", "Browser")
 System_Boundary(twelvel, "12L") {
-  Container(web, "12L Web", "Angular", "Initial bundle <= 250 KB gzipped; lazy feature areas")
+  Container(web, "12L Web", "Angular", "Calls the API through the load balancer")
   Container(lb, "Load balancer", "Hosting platform <TO SUPPLY>", "Round-robin, no sticky sessions")
   Container(api1, "12L API instance 1", "ASP.NET Core", "Stateless")
   Container(api2, "12L API instance 2", "ASP.NET Core", "Stateless")

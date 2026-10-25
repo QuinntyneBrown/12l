@@ -1,0 +1,10 @@
+namespace TwelveL.Application.Tests;
+
+public sealed class AssemblyTests
+{
+    [Fact]
+    public void Marker_type_belongs_to_the_Application_assembly()
+    {
+        Assert.Equal("TwelveL.Application", typeof(ApplicationAssembly).Assembly.GetName().Name);
+    }
+}

@@ -1,0 +1,61 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "paths": {
+      "@12l/api": ["./projects/api/src/public-api.ts"],
+      "@12l/components": ["./projects/components/src/public-api.ts"],
+      "@12l/accounts": ["./projects/accounts/src/public-api.ts"],
+      "@12l/catalog": ["./projects/catalog/src/public-api.ts"],
+      "@12l/listings": ["./projects/listings/src/public-api.ts"],
+      "@12l/orders": ["./projects/orders/src/public-api.ts"],
+      "@12l/reviews": ["./projects/reviews/src/public-api.ts"],
+      "@12l/privacy": ["./projects/privacy/src/public-api.ts"]
+    },
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "strict": true
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true
+  },
+  "files": [],
+  "references": [
+    {
+      "path": "./projects/twelvel/tsconfig.app.json"
+    },
+    {
+      "path": "./projects/api/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/components/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/accounts/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/catalog/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/listings/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/orders/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/reviews/tsconfig.lib.json"
+    },
+    {
+      "path": "./projects/privacy/tsconfig.lib.json"
+    }
+  ]
+}

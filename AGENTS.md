@@ -26,12 +26,31 @@ not re-add references to them in other documents. The decision is recorded in
   `TwelveL.ScaleTests` or latency-under-load requirement. Statelessness (`L2-060`) is
   checked by an architecture test only. See
   [ADR-0002](docs/adr/general/0002-no-load-or-scale-tests.md).
+- **Frontend performance testing**: no Lighthouse or Lighthouse CI, no bundle-size or
+  gzip budget script, no lazy-chunk check, no `web-vitals` reporter, no telemetry
+  endpoint for Core Web Vitals and no frontend performance requirement. Lazy routes
+  stay as a workspace convention, not as a measured budget. See
+  [ADR-0003](docs/adr/general/0003-no-frontend-performance-testing.md).
 
-The removed requirement numbers `L2-038`, `L2-039`, `L2-044` to `L2-047`, `L2-055` and
-`L2-057` are retired; never reuse them. `L1-012` no longer exists.
+The removed requirement numbers `L2-038`, `L2-039`, `L2-044` to `L2-047`, `L2-055`,
+`L2-057` and `L2-058` are retired; never reuse them. `L1-012` no longer exists.
 
 Administrators still resolve order problems (`L2-036`) through the admin shell, guarded
 by the `Administrator` role check of `L2-010`. That is the only administrator feature.
+
+## Testing rules (CRITICAL)
+
+- **Backend tests never touch a real database.** Unit, integration and architecture tests
+  under `tests/TwelveL.*.Tests/` use mocks, fakes or an in-memory substitute (the EF Core
+  in-memory or SQLite in-memory provider). No SQL Server, LocalDB, Testcontainers, Docker or
+  connection string to a live database in any test, fixture or CI job. The same applies to
+  Redis and every other external system: fake the port.
+- **Playwright tests never run the backend.** Every e2e test in `src/frontend/e2e/` serves
+  the `12L API` through `page.route` fixtures or an equivalent fake. No test starts, waits
+  for, or calls `TwelveL.Api`, `TwelveL.Worker` or a database. The frontend under test is
+  the built Angular application only.
+- These rules are absolute. Do not add an opt-in flag, an "integration" tag or a separate
+  CI lane that relaxes them.
 
 ## Folder structure (MANDATORY)
 
@@ -44,6 +63,7 @@ first and record the change as an ADR.
 12l/
 ├── AGENTS.md
 ├── README.md
+├── .github/workflows/          ci.yml runs `npm run verify` on ubuntu-latest
 ├── docs/
 │   ├── journeys.md              user journeys with effort
 │   ├── specs/                   L1.md and L2.md requirements
@@ -51,6 +71,7 @@ first and record the change as an ADR.
 │   ├── design-system/           tokens and components extracted from the mocks
 │   ├── detailed-designs/        {subsystem}/{feature}/README.md + diagrams/
 │   ├── estimates/               README.md + one file per subsystem
+│   ├── prompts/                 ready-to-run implementation prompts, NN-journey.md in build order
 │   └── adr/                     {category}/NNNN-title.md
 ├── src/
 │   ├── backend/                 .NET solution, namespace prefix TwelveL
@@ -65,7 +86,7 @@ first and record the change as an ADR.
 │       ├── package.json
 │       ├── tsconfig.json        path alias @12l/<library> per library
 │       ├── eslint.config.js
-│       ├── e2e/                 Playwright acceptance tests
+│       ├── e2e/                 Playwright: pages/, tests/, fixtures.ts, serve.mjs (static build server)
 │       └── projects/
 │           ├── twelvel/         the application (projectType "application")
 │           │   └── src/app/     app.config.ts, app.routes.ts, shells only
@@ -116,8 +137,23 @@ library per area, all registered in `angular.json`. Follow these rules:
   throughout. Formatting by Prettier, linting by angular-eslint, `npm run build:all`
   compiles every library and the application.
 
+## Components library is mandatory (CRITICAL)
+
+- The `twelvel` application and every feature library MUST be built from
+  `@12l/components` (`src/frontend/projects/components/`). Never hand-write markup, CSS,
+  icons, overlays or toasts the library already provides. Use the `tl-*` component,
+  `DialogService`, `SheetService` and `ToastService`.
+- `docs/screen-composition.md` is binding. Before implementing any page, dialog,
+  notification or shell part, read its entry and use exactly the components it lists.
+  Build locally only the UI it marks as local.
+- If the library lacks something the entry needs, STOP. Update
+  `docs/design-system/` and the library first. Do not work around it in the app.
+- Keep `docs/screen-composition.md` aligned with the mocks and `docs/design-system/`.
+
 ## Working in this repository
 
+- Run `npm run verify` in `src/frontend` before every commit; it is the same command CI runs
+  (`L2-071`, [ADR-0002](docs/adr/platform/0002-single-verify-command.md)).
 - Change mocks in `docs/mocks/_build/screens_*.py`, then run
   `python docs/mocks/_build/build.py` and
   `python .claude/skills/writing-html-mocks/scripts/check_mocks.py docs/mocks --write`.

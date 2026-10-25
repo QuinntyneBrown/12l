@@ -1,0 +1,235 @@
+# Screen composition
+
+Sources: `docs/mocks/` (every page, dialog and notification in every state, see
+[`docs/mocks/index.html`](mocks/index.html)) and the component catalogue in
+[`docs/design-system/README.md`](design-system/README.md), which the `components` library
+(`src/frontend/projects/components/`, alias `@12l/components`) implements one to one.
+
+"Library" names the `tl-*` components, directives and services of `@12l/components` that a
+screen is composed of. "Local UI" is markup a feature library builds itself because no
+catalogue component covers it; it is listed here so that catalogue change control can pick
+it up. Mock-only chrome (`mock-bar`, `mock-note`, the theme toggle) is excluded.
+
+The catalogue currently holds the shell components only (skip link, top bar, footer, toast,
+sheet, button, link, form field). Feature screens are inventoried below with their states
+and marked **not yet composed**; each is composed when its journey is implemented, and the
+catalogue grows in the same change.
+
+## Shell
+
+| Part | Library components | Local UI |
+|---|---|---|
+| App shell (`shell: 'app'`) | `tl-skip-link`, `tl-top-bar` (guest, member), `tl-footer`, `tl-toast-region` | `<main id="main" tabindex="-1">` with the router outlet, in `projects/twelvel` |
+| Auth shell (`shell: 'auth'`) | `tl-skip-link`, `tl-toast-region` | Large logo above a centred card; not yet composed |
+| Admin shell (`shell: 'admin'`) | `tl-skip-link`, `tl-top-bar` (admin variant), `tl-toast-region` | Not yet composed |
+| Bare shell (`shell: 'bare'`) | `tl-skip-link`, `tl-top-bar` (bare variant), `tl-toast-region` | Not yet composed |
+| Nav-menu sheet (`dialogs/nav-menu`: default, guest) | `tl-sheet`, `tl-button`, `tl-link` | Not yet composed |
+| Toast region (`notifications/toast`: info, success, warning, danger, with-action, stacked) | `tl-toast-region`, `tl-toast`, `ToastService` | None |
+| System banner (`notifications/system-banner`: info, success, warning, danger) | `tl-system-banner` (not in the catalogue yet) | Not yet composed |
+| Home placeholder (`/`) | `tl-top-bar`, `tl-footer` | Heading and one paragraph inside `main`, in `projects/twelvel`; replaced by the catalog page when browse-catalog is built |
+
+## Shared local components
+
+| Item | Used by | Notes |
+|---|---|---|
+| Logo (inline SVG) | top bar, footer, sheet, auth shell | Lives in `@12l/components` as `tl-logo`; sizes sm, md, lg |
+
+## Pages
+
+### Account — `/account` (`pages/account`: default, loading, empty, error, unverified)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Edit profile — `/account/profile` (`pages/edit-profile`: default, invalid, submitting, success, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Forgot password — `/forgot-password` (`pages/forgot-password`: default, invalid, submitting, success, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Email settings — `/account/emails` (`pages/notification-settings`: default, submitting, success, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Member profile — `/members/{displayName}` (`pages/profile`: default, own, empty, loading, error, unavailable, long)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Join — `/join` (`pages/register`: default, invalid, submitting, success, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Reset password — `/reset-password` (`pages/reset-password`: default, invalid, submitting, success, expired, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Session expired — `/sign-in?expired=1` (`pages/session-expired`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Settings — `/account/settings` (`pages/settings`: default, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Sign in — `/sign-in` (`pages/sign-in`: default, return, invalid, submitting, locked, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Verify email — `/verify` (`pages/verify-email`: default, loading, expired, used, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Catalog — `/` (`pages/catalog`: default, guest, category, search, filtered, loading, empty, no-results, error, offline)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Listing detail — `/items/{id}` (`pages/listing-detail`: default, guest, new-seller, reserved, sold, own, loading, error, unavailable)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Checkout — `/checkout/{id}` (`pages/checkout`: default, new-address, invalid, non-us, submitting, declined, expired, conflict, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Order confirmed — `/orders/{id}/confirmed` (`pages/order-confirmation`: default, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Order (buyer) — `/orders/{id}` (`pages/order-detail`: default, paid, delivered, completed, cancelled, refunded, problem, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Purchases — `/account/purchases` (`pages/purchases`: default, loading, empty, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Sale (seller) — `/sales/{id}` (`pages/sale-detail`: default, shipped, cancel-requested, problem, completed, address-hidden, cancelled, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Sales — `/account/sales` (`pages/sales`: default, loading, empty, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Edit listing — `/items/{id}/edit` (`pages/edit-listing`: default, loading, error, invalid, submitting, success, locked)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Your listings — `/account/listings` (`pages/my-listings`: default, filtered, loading, empty, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Payouts — `/account/payouts` (`pages/payouts`: default, not-onboarded, loading, empty, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Sell an item — `/sell` (`pages/sell`: default, filled, invalid, submitting, draft-saved, success, unverified, limited, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Forbidden — `/403` (`pages/forbidden`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Maintenance — `(any)` (`pages/maintenance`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Not found — `/*` (`pages/not-found`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Offline — `(any)` (`pages/offline`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Privacy — `/privacy` (`pages/privacy`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Problem detail — `/admin/problems/{id}` (`pages/problem-detail`: default, resolved, loading, error)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Marketplace rules — `/rules` (`pages/rules`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Server error — `/error` (`pages/server-error`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+### Terms — `/terms` (`pages/terms`: default)
+
+- Library: not yet composed
+- Local: not yet composed
+
+
+## Dialogs
+
+| Dialog (mock folder: states) | Overlay surface | Library components | Local UI |
+|---|---|---|---|
+| Change password (`dialogs/change-password`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Close account (`dialogs/close-account`: default, invalid, busy, blocked) | `DialogService` | not yet composed | not yet composed |
+| Sign out everywhere (`dialogs/sign-out-everywhere`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Verify email prompt (`dialogs/verify-email-prompt`: default, busy, sent, limited) | `DialogService` | not yet composed | not yet composed |
+| Filters (`dialogs/filters`: default, invalid, busy) | `tl-sheet` | not yet composed | not yet composed |
+| Menu (`dialogs/nav-menu`: default, guest) | `tl-sheet` | `tl-sheet`, `tl-button`, `tl-link` | not yet composed |
+| Add tracking (`dialogs/add-tracking`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Cancel order (`dialogs/cancel-order`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Confirm receipt (`dialogs/confirm-receipt`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Relist item (`dialogs/relist`: default, busy) | `DialogService` | not yet composed | not yet composed |
+| Report a problem (`dialogs/report-problem`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Ask to cancel (`dialogs/request-cancellation`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Respond to cancellation (`dialogs/respond-cancellation`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Withdraw listing (`dialogs/withdraw-listing`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Cookie settings (`dialogs/cookie-settings`: default, analytics-on) | `DialogService` | not yet composed | not yet composed |
+| Resolve problem (`dialogs/resolve-problem`: default, invalid, busy) | `DialogService` | not yet composed | not yet composed |
+
+## Notifications
+
+| Notification (mock folder: states) | Surface | Library components | Local UI |
+|---|---|---|---|
+| Account banner (`notifications/account-banner`: info, success, warning) | banner above the top bar | not yet composed | not yet composed |
+| Reservation timer (`notifications/reservation-timer`: info, warning, danger, success) | banner above the top bar | not yet composed | not yet composed |
+| Payout banner (`notifications/payout-banner`: info, success, warning, danger) | banner above the top bar | not yet composed | not yet composed |
+| Toasts (`notifications/toast`: info, success, warning, danger, with-action, stacked) | toast region | `tl-toast-region`, `tl-toast`, `ToastService` | None |
+| Cookie consent (`notifications/cookie-consent`: info, success) | fixed bottom panel | not yet composed | not yet composed |
+| System notices (`notifications/system-banner`: info, success, warning, danger) | banner above the top bar | not yet composed | not yet composed |
+
+## Summary of local UI to build
+
+1. `main#main` with the router outlet and the home placeholder (`projects/twelvel`).
+2. Everything marked "not yet composed" is composed, and its library components added to the catalogue, when its journey is implemented.
