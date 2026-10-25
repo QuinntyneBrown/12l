@@ -1,0 +1,13 @@
+/* Inputs: additions made during extraction (drift fixes and documented states). */
+.form-actions--start { justify-content: flex-start; }
+.form-summary ul { margin: 0; padding-left: var(--space-5); }
+.switch--between { justify-content: space-between; width: 100%; }
+/* Password show toggle and other trailing buttons inside an input group. */
+.input-group > .btn { margin-left: calc(-1 * var(--border-width-hairline)); border-color: var(--color-border-strong); flex: none; }
+/* Uploader: hover/focus/dragging states for the add tile. */
+.uploader__add:focus-within, .uploader__add[data-state="focus"] { outline: var(--focus-ring-width) solid var(--color-focus-ring); outline-offset: var(--focus-ring-offset); }
+.uploader__add[data-state="dragging"] { border-style: solid; border-color: var(--color-accent); background: var(--color-accent-subtle); color: var(--color-fg-default); }
+/* Option cards and radios: documented hover. */
+.option[data-state="hover"] { border-color: var(--color-border-strong); }
+/* Textareas grow with content where supported. */
+@supports (field-sizing: content) { .textarea { field-sizing: content; } }

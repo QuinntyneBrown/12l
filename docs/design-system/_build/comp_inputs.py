@@ -73,7 +73,7 @@ component(
                 + w('<div class="field"><label class="field__label" for="v-pw">Password</label><div class="input-group"><input class="input" id="v-pw" type="password" autocomplete="current-password" value="••••••••••••"><button class="btn btn--icon" type="button" aria-label="Show password" aria-pressed="false">' + EYE + '</button></div></div>', "18rem")
                 + w(field("v-price", "Price", '<div class="input-group"><span class="addon">$</span><input class="input" id="v-price" inputmode="decimal" value="45.00"{db}></div>'), "12rem")
                 + w('<form class="search" role="search"><label class="visually-hidden" for="v-q">Search 12L</label>' + ic("search") + '<input class="input" id="v-q" type="search" placeholder="Search brands and items"></form>', "18rem")
-                + w(field("v-track", "Tracking number", attrs='class="num" inputmode="numeric" autocomplete="off"', value="9400 1000 0000 0000 0482 13"), "18rem"),
+                + w(field("v-track", "Tracking number", attrs='inputmode="numeric" autocomplete="off"', value="9400 1000 0000 0000 0482 13"), "18rem"),
                 "Email · password with show toggle · money with addon · search · tracking number."),
     sizes=p("Medium (40px) everywhere in forms. Small (32px, <code>.input--sm</code>) only in toolbars (sort, audit-log filter). Large (48px, <code>.input--lg</code>) for the one-time code on verify screens.")
     + ex(w(tf("sz-sm", "default").replace('class="input"', 'class="input input--sm"'), "12rem") + w(tf("sz-md", "default"), "12rem") + w(tf("sz-lg", "default").replace('class="input"', 'class="input input--lg"'), "12rem"),
