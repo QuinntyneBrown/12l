@@ -1,0 +1,61 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Meet performance and scale targets
+
+package "12L Web" {
+  class FlagPreloadingStrategy {
+    +preload(route: Route, load: () => Observable<any>): Observable<any>
+  }
+  class WebVitalsReporter {
+    +start(): void
+    -send(metric: Metric): void
+  }
+  class BundleBudgetCheck <<script>> {
+    +limitBytes: number = 256000
+    +run(statsPath: string, indexPath: string): ExitCode
+  }
+  class LazyChunkCheck <<script>> {
+    +forbiddenRoots: string[]
+    +run(statsPath: string): ExitCode
+  }
+}
+package "12L API" {
+  enum EndpointKind {
+    Read
+    Write
+    PaymentBound
+  }
+  class EndpointKindAttribute {
+    +EndpointKind Kind
+  }
+  class TelemetryController {
+    +PostWebVitals(request: WebVitalRequest): IActionResult
+  }
+  class WebVitalRequest <<record>> {
+    +string Name
+    +double Value
+    +string Route
+  }
+  class RedisConnectionFactory {
+    +IConnectionMultiplexer Connection
+  }
+  class PerformanceOptions {
+    +int DbReadTimeoutSeconds = 5
+    +int DbWriteTimeoutSeconds = 15
+    +int DbContextPoolSize = 128
+  }
+}
+EndpointKindAttribute --> EndpointKind
+TelemetryController ..> WebVitalRequest : binds
+WebVitalsReporter ..> TelemetryController : posts to
+BundleBudgetCheck ..> LazyChunkCheck : runs after build with
+@enduml
