@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/design-system/assets/logo-dark.svg">
+    <img src="docs/design-system/assets/logo.svg" alt="12L" width="240">
+  </picture>
+</p>
+
 # 12L
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
