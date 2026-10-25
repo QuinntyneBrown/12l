@@ -51,7 +51,7 @@ static checks stop regressions.
   - `X-Content-Type-Options: nosniff`
   - `Referrer-Policy: strict-origin-when-cross-origin`
 - **`AntiforgeryTokenService`** — root-provided Angular service. It calls
-  `GET /api/v1/antiforgery/token` once after start and after each sign-in, holds
+  `GET /api/antiforgery/token` once after start and after each sign-in, holds
   the returned token in a signal in memory and never writes it to web storage.
 - **`AntiforgeryInterceptor`** — functional `HttpInterceptorFn`. For `POST`,
   `PUT`, `PATCH` and `DELETE` requests to the API origin it adds the
@@ -111,7 +111,7 @@ Middleware order in `Program.cs`: `UseForwardedHeaders` →
   ShippingCents, PhotoIds)`. Protected fields (`SellerId`, `Status`,
   `PricePaid`, `OwnerId`) are never members of a request type, so a body
   carrying `"sellerId"` or `"status": "Sold"` is ignored.
-- **`AntiforgeryController`** — `GET /api/v1/antiforgery/token` → 200
+- **`AntiforgeryController`** — `GET /api/antiforgery/token` → 200
   `{ "token": "…" }`. It calls `IAntiforgery.GetAndStoreTokens`, which sets the
   cookie `__Host-12l-af` (`HttpOnly`, `Secure`, `SameSite=Strict`, `Path=/`).
 - **`AntiforgeryValidationMiddleware`** — for every `POST`, `PUT`, `PATCH` and
@@ -119,7 +119,7 @@ Middleware order in `Program.cs`: `UseForwardedHeaders` →
   `X-XSRF-TOKEN`. Failure → HTTP 400, code `antiforgery_invalid`, before any
   handler runs. Endpoints marked `[IgnoreAntiforgeryToken]` are skipped; the
   only such endpoint is the signed payment webhook
-  `POST /api/v1/webhooks/payments` (orders subsystem).
+  `POST /api/webhooks/payments` (orders subsystem).
 - **CORS policy `Frontend`** — `WithOrigins(Cors:AllowedOrigins)`,
   `AllowCredentials()`, methods `GET, POST, PUT, PATCH, DELETE`, request headers
   `Content-Type, X-XSRF-TOKEN, X-Correlation-ID`, exposed headers

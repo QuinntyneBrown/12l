@@ -9,7 +9,7 @@ Container_Boundary(web, "12L Web") {
   Component(mpage, "MaintenancePageComponent", "Route component", "'Back at 3:00 AM ET', 'Check status'")
 }
 Container_Boundary(api, "12L API") {
-  Component(statusctrl, "SystemStatusController", "Controller", "GET /api/v1/system/status")
+  Component(statusctrl, "SystemStatusController", "Controller", "GET /api/system/status")
   Component(mmw, "MaintenanceModeMiddleware", "Middleware", "503 maintenance + Retry-After when active")
   Component(mopts, "MaintenanceOptions + Validator", "Options", "Windows <= 120 min, outside 06:00-23:00 ET, <= 120 min per month")
   Component(shutdown, "ShutdownReadinessHealthCheck", "IHealthCheck", "Unhealthy once stopping")

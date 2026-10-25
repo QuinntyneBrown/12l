@@ -29,7 +29,7 @@ actor -> browser : Open /
 browser -> browser : Download index.html and initial JS (<= 250 KB gzipped, L2-058)
 browser -> router : Bootstrap application
 router -> page : Activate eager catalog route
-page -> api : GET /api/v1/catalog?page=1
+page -> api : GET /api/catalog?page=1
 page -> page : Render skeleton cards at final size (no layout shift)
 api --> page : Listings
 page --> actor : First screen of listings (LCP <= 2.5 s)

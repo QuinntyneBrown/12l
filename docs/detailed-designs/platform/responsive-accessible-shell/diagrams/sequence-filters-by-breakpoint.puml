@@ -38,7 +38,7 @@ else xs or sm (below 768 px)
   page -> sheet : open(form, full) with "Clear" and "Show 38 items" (L2-062)
 end
 actor -> form : Change a filter
-form -> api : GET /api/v1/catalog/count?…
+form -> api : GET /api/catalog/count?…
 api --> form : Result count
 actor -> form : Apply
 form -> sheet : close(); focus returns to "Filters"

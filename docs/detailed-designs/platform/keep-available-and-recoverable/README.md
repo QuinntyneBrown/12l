@@ -71,19 +71,19 @@ support; infrastructure-as-code files live under `deploy/infra/` (tool
   sum to more than 120 minutes (`L2-066`). An invalid configuration fails the
   options reload and keeps the previous value; the event `maintenance_window_invalid`
   is logged.
-- **`SystemStatusController`** — `GET /api/v1/system/status`, anonymous,
+- **`SystemStatusController`** — `GET /api/system/status`, anonymous,
   returns 200 `{ "maintenance": { "startsAt": "…Z", "endsAt": "…Z" } | null }`
   for the next window within `AnnounceDaysAhead`, with
   `Cache-Control: public, max-age=60`. Exempt from antiforgery (read only).
 - **`MaintenanceModeMiddleware`** — when `Maintenance:Active` is `true`, every
-  request except `/health/live`, `/health/ready` and `/api/v1/system/status`
+  request except `/health/live`, `/health/ready` and `/api/system/status`
   returns 503, code `maintenance`, with `Retry-After` set to the seconds until
   `EndsAtUtc` of the current window. Readiness stays healthy so the load balancer
   keeps the instances in rotation and the 503 reaches clients.
 
 ### Maintenance — frontend (`12L Web`)
 
-- **`SystemStatusService`** — calls `GET /api/v1/system/status` at start and
+- **`SystemStatusService`** — calls `GET /api/system/status` at start and
   every 15 minutes (`<TO SUPPLY>` interval). When a window is announced it shows
   through `SystemBannerService` (responsive-accessible-shell) the info banner
   "Planned maintenance {Ddd D Mmm}, {h:mm}–{h:mm} {AM|PM} ET." (example:

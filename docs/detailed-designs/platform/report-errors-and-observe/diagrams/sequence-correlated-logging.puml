@@ -32,7 +32,7 @@ end box
 box "Backend — 12L Worker application" #ECFDF3
   participant "OutboxDispatcher" as worker
 end box
-page -> corr : POST /api/v1/checkout/{id}/pay
+page -> corr : POST /api/checkout/{id}/pay
 corr -> log : BeginScope CorrelationId=3c8e-1d42-a7f0 (L2-069)
 corr -> ctrl : Continue
 ctrl -> handler : Send command

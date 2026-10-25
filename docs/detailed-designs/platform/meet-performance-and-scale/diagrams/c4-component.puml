@@ -9,7 +9,7 @@ Container_Boundary(web, "12L Web") {
   Component(vitals, "WebVitalsReporter", "Angular service", "Sends LCP, CLS, INP with sendBeacon")
 }
 Container_Boundary(api, "12L API") {
-  Component(tele, "TelemetryController", "Controller", "POST /api/v1/telemetry/web-vitals -> 204")
+  Component(tele, "TelemetryController", "Controller", "POST /api/telemetry/web-vitals -> 204")
   Component(kind, "EndpointKindAttribute", "Endpoint metadata", "Read, Write, PaymentBound")
   Component(dp, "Data Protection", "ASP.NET Core", "Key ring persisted to Redis")
   Component(rlstore, "RedisFixedWindowRateLimitStore", "IRateLimitStore", "From harden-http-and-api")

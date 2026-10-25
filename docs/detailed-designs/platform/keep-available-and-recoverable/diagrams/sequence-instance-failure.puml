@@ -34,7 +34,7 @@ a --> lb : 503 or timeout (1st failure)
 a --> lb : 503 or timeout (2nd failure)
 lb -> lb : Mark A unhealthy within 25 s (L2-066)
 actor -> page : Browse
-page -> lb : GET /api/v1/catalog
+page -> lb : GET /api/catalog
 lb -> b : Route to healthy instance only
 b --> lb : 200
 lb --> page : Listings

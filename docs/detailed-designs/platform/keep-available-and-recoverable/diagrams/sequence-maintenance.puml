@@ -33,7 +33,7 @@ alt Over 120 min, inside 06:00-23:00 ET, or month total over 120 min
 else Valid
   val --> ctrl : Options reloaded
 end
-status -> ctrl : GET /api/v1/system/status
+status -> ctrl : GET /api/system/status
 ctrl --> status : { maintenance: { startsAt, endsAt } }
 status -> banner : Info "Planned maintenance Tue 27 Oct, 2:00–3:00 AM ET."
 banner --> actor : Banner above the top bar
@@ -47,7 +47,7 @@ mpage --> actor : "Back at 3:00 AM ET" / "12L is down for planned maintenance. O
 == Window ends ==
 op -> mmw : maintenance.yml action=off
 actor -> mpage : "Check status"
-mpage -> ctrl : GET /api/v1/system/status
+mpage -> ctrl : GET /api/system/status
 ctrl --> mpage : { maintenance: null }
 mpage --> actor : Return to previous page
 @enduml

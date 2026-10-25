@@ -10,7 +10,7 @@ Container_Boundary(api, "12L API") {
   Component(cors, "CORS policy Frontend", "Middleware", "Allows only Cors:AllowedOrigins")
   Component(rl, "RedisRateLimitingMiddleware", "Middleware", "Applies RateLimitPolicies; 429 + Retry-After")
   Component(af, "AntiforgeryValidationMiddleware", "Middleware", "Validates X-XSRF-TOKEN on writes; 400 antiforgery_invalid")
-  Component(afctrl, "AntiforgeryController", "Controller", "GET /api/v1/antiforgery/token")
+  Component(afctrl, "AntiforgeryController", "Controller", "GET /api/antiforgery/token")
   Component(ctrl, "Feature controllers", "Controllers", "Bind dedicated request records only")
   Component(vb, "ValidationBehavior", "MediatR pipeline behaviour", "Runs FluentValidation validators")
   Component(handler, "Feature handlers", "MediatR handlers", "Business logic of each feature")

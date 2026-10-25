@@ -69,12 +69,12 @@ and its indexes. Image delivery (`L2-059`) belongs to the catalog subsystem.
   detection and signals; long lists use `track` in `@for`.
 - **`WebVitalsReporter`** — root service that registers `onLCP`, `onCLS` and
   `onINP` from the `web-vitals` package and sends each final value with
-  `navigator.sendBeacon` to `POST /api/v1/telemetry/web-vitals`. This field data
+  `navigator.sendBeacon` to `POST /api/telemetry/web-vitals`. This field data
   measures INP, which Lighthouse cannot measure in a navigation run.
 
 ### API (`TwelveL.Api`)
 
-- **`TelemetryController`** — `POST /api/v1/telemetry/web-vitals` accepts
+- **`TelemetryController`** — `POST /api/telemetry/web-vitals` accepts
   `{ name: "LCP" | "CLS" | "INP", value: number, route: string }`, returns 204,
   and records the value into histograms `twelvel_web_vitals_lcp_ms`,
   `twelvel_web_vitals_cls` and `twelvel_web_vitals_inp_ms` tagged by route

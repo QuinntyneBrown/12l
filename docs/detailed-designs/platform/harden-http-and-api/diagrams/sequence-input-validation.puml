@@ -31,7 +31,7 @@ box "Backend — 12L Infrastructure" #FFF4E5
   database "12L database" as db
 end box
 actor -> page : Save listing
-page -> client : PUT /api/v1/listings/{id}
+page -> client : PUT /api/listings/{id}
 client -> kestrel : Body (may include "sellerId" or "status")
 alt Body over 1 MB
   kestrel --> client : 413 code request_too_large (L2-049)

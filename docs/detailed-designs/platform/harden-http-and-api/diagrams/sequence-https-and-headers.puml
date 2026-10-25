@@ -38,7 +38,7 @@ else TLS 1.2 or 1.3
   lb -> host : Forward request
   host --> lb : index.html + HSTS, CSP (no inline script), nosniff, Referrer-Policy
   lb --> browser : Page response
-  browser -> lb : GET https://api…/api/v1/listings
+  browser -> lb : GET https://api…/api/listings
   lb -> sh : Forward with X-Forwarded-For / Proto
   sh -> ctrl : Continue pipeline
   ctrl --> sh : JSON response

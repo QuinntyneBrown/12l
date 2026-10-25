@@ -30,14 +30,14 @@ box "Backend — 12L Infrastructure" #FFF4E5
   database "12L database" as db
 end box
 actor -> page : Browse, then start checkout
-page -> lb : GET /api/v1/catalog (session cookie)
+page -> lb : GET /api/catalog (session cookie)
 lb -> a1 : Route
 a1 -> redis : Load Data Protection key ring; INCR rate-limit counter (L2-060)
 redis --> a1 : Keys, count
 a1 -> db : Catalog query (AsNoTracking)
 db --> a1 : Page of 24
 a1 --> page : 200 within 300 ms p95 (L2-057)
-page -> lb : POST /api/v1/checkout/reservations
+page -> lb : POST /api/checkout/reservations
 lb -> a2 : Route to a different instance
 a2 -> redis : Same key ring decrypts the cookie; INCR shared counter (L2-060)
 redis --> a2 : Keys, count
