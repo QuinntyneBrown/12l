@@ -1,0 +1,23 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Register an account
+
+Person(visitor, "Visitor", "Anyone browsing 12L without signing in")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular, TypeScript", "Responsive single-page application")
+  Container(api, "12L API", "ASP.NET Core Web API, C#", "REST API; source of truth for every rule")
+  Container(worker, "12L Worker", ".NET worker service", "Outbox email dispatch and background jobs")
+  ContainerDb(db, "12L database", "SQL Server, EF Core", "Members, sessions, link tokens, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "Rate-limit counters, refresh-token families, revoked-session keys")
+}
+System_Ext(breach, "Breached-password service", "k-anonymity range lookup of known breached passwords")
+System_Ext(email, "Email provider", "Delivers transactional email (<TO SUPPLY> vendor)")
+Rel(visitor, web, "Fills in the Join form", "HTTPS")
+Rel(web, api, "POST /api/accounts", "JSON/HTTPS")
+Rel(api, cache, "Counts registrations per IP", "Redis")
+Rel(api, breach, "GET range/{prefix}", "HTTPS")
+Rel(api, db, "Inserts Member, link token, outbox message", "EF Core")
+Rel(worker, db, "Reads pending outbox messages", "EF Core")
+Rel(worker, email, "Sends verification email", "HTTPS API")
+@enduml

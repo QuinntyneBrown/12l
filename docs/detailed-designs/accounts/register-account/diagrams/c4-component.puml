@@ -1,0 +1,33 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Register an account
+
+Container(web, "12L Web", "Angular", "RegisterPage, AccountsApi, SessionStore")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "AccountsController", "ASP.NET Core controller", "POST /api/accounts; rate-limit policy register")
+  Component(limiter, "Rate limiter", "ASP.NET Core rate limiting, Redis store", "5 registrations per hour per IP")
+  Component(validator, "RegisterMemberCommandValidator", "FluentValidation", "Field rules of L2-001")
+  Component(handler, "RegisterMemberCommandHandler", "MediatR handler", "Uniqueness, breach check, create Member, issue link, start session")
+  Component(policy, "PasswordPolicy", "Application service", "Length and breached-password checks")
+  Component(hasher, "Pbkdf2PasswordHasher", "IPasswordHasher", "PBKDF2-HMAC-SHA512, 210,000 iterations")
+  Component(breachc, "BreachedPasswordClient", "IBreachedPasswordChecker", "k-anonymity range lookup")
+  Component(links, "EmailLinkTokenIssuer", "Application service", "Creates single-use verification token")
+  Component(sessions, "SessionTokenService", "Application service", "Creates session and cookies (manage-sessions)")
+  Component(member, "Member", "Domain entity", "Account aggregate")
+  ComponentDb(dbc, "TwelveLDbContext", "EF Core", "Members, EmailLinkTokens, OutboxMessages")
+}
+System_Ext(breach, "Breached-password service", "Range API")
+Rel(web, ctrl, "Sends RegisterRequest", "JSON/HTTPS")
+Rel(ctrl, limiter, "Applies policy")
+Rel(ctrl, handler, "Sends RegisterMemberCommand", "MediatR")
+Rel(handler, validator, "Validated by pipeline")
+Rel(handler, policy, "Checks password")
+Rel(policy, breachc, "Looks up SHA-1 prefix")
+Rel(breachc, breach, "GET range", "HTTPS")
+Rel(handler, hasher, "Hashes password")
+Rel(handler, member, "Creates with Member.Register")
+Rel(handler, links, "Issues verification token")
+Rel(handler, sessions, "Signs the new member in")
+Rel(handler, dbc, "Saves in one transaction")
+@enduml

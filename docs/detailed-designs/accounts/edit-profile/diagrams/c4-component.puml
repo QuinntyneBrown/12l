@@ -1,0 +1,31 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Edit profile
+
+Container(web, "12L Web", "Angular", "EditProfilePage, AvatarPicker, ProfileApi")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "ProfileController", "ASP.NET Core controller", "GET/PUT profile, POST avatar")
+  Component(q, "GetMyProfileQueryHandler", "MediatR handler", "Returns editable profile and version")
+  Component(upd, "UpdateProfileCommandHandler", "MediatR handler", "Validates and saves profile")
+  Component(val, "UpdateProfileCommandValidator", "FluentValidation", "Display name, bio, location rules")
+  Component(av, "UploadAvatarCommandHandler", "MediatR handler", "Validates image, queues processing")
+  Component(img, "IImageInspector", "Port (listings/upload-listing-photos)", "Type from content, size and dimension checks")
+  Component(member, "Member", "Domain entity", "UpdateProfile, SetAvatar")
+  ComponentDb(dbc, "TwelveLDbContext", "EF Core", "Members, OutboxMessages")
+}
+Container(worker, "12L Worker", ".NET worker", "PhotoProcessingJob dispatches ProcessAvatarPhoto; AvatarPhotoProcessor re-encodes")
+ContainerDb(photos, "Photo storage", "Object storage", "avatars/originals, avatars/{hash}")
+Rel(web, ctrl, "Calls", "JSON, multipart/HTTPS")
+Rel(ctrl, q, "Sends GetMyProfileQuery", "MediatR")
+Rel(ctrl, upd, "Sends UpdateProfileCommand", "MediatR")
+Rel(ctrl, av, "Sends UploadAvatarCommand", "MediatR")
+Rel(upd, val, "Validated by pipeline")
+Rel(upd, member, "UpdateProfile")
+Rel(av, img, "Validates bytes")
+Rel(av, photos, "Puts original through IPhotoStorage", "HTTPS")
+Rel(upd, dbc, "Saves with RowVersion", "EF Core")
+Rel(av, dbc, "Inserts ProcessAvatarPhoto outbox message", "EF Core")
+Rel(worker, dbc, "Member.SetAvatar on completion", "EF Core")
+Rel(worker, photos, "Writes versions", "HTTPS")
+@enduml

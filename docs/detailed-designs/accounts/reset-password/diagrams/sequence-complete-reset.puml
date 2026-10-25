@@ -1,0 +1,58 @@
+@startuml
+title UML sequence behaviour — Set a new password from the reset link
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "ResetPasswordPage" as page
+  participant "AuthApi" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "PasswordResetController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "ResetPasswordCommandHandler" as handler
+  participant "PasswordPolicy" as policy
+  participant "SessionRevoker" as revoker
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "12L database" as db
+  database "Distributed cache" as cache
+end box
+actor -> page : Open /reset-password?token=... (page removes token from the address bar); enter and confirm new password; Save password
+page -> page : Client checks: 12+ characters, confirmation matches
+page -> client : resetPassword(token, newPassword)
+client -> ctrl : POST /api/auth/password-resets { token, newPassword }
+ctrl -> handler : Send ResetPasswordCommand
+handler -> db : Load EmailLinkToken by SHA-256 hash, purpose PasswordReset
+alt token missing, consumed, revoked or older than 1 hour (L2-009)
+  ctrl --> client : 410 Gone, code auth.reset_link_expired
+  page --> actor : "This link has expired" — "Reset links work once, for 1 hour." Request a new link
+else token usable
+  handler -> policy : CheckAsync(newPassword) (L2-001 rules)
+  alt too short, too long or breached
+    ctrl --> client : 400 validation_failed, errors.newPassword
+    page --> actor : "This password has appeared in a data breach. Choose another."
+  else valid
+    handler -> db : Consume token; Member.ChangePassword(PBKDF2 hash); INotificationPublisher.Enqueue(PasswordChanged)
+    handler -> revoker : RevokeAllAsync(memberId, PasswordReset) (L2-009)
+    revoker -> cache : DEL each 12l:rt:family; SET 12l:rt:revoked keys
+    ctrl --> client : 204 No Content; cookies cleared
+    page --> actor : "Password saved" — "You’re signed out everywhere. Sign in with your new password."
+  end
+end
+@enduml

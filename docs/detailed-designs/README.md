@@ -60,17 +60,23 @@ The Angular application groups code into lazy-loaded feature areas under
 - **Errors.** Every API error is an RFC 9457 problem details response with a stable error code and a correlation ID (`L2-068`).
 - **Outbox.** Handlers that must send email or call an external system write an outbox message in the same database transaction as the state change; `12L Worker` dispatches it with retry and back-off (`L2-042`).
 - **Audit.** Every administrator action writes an append-only `AuditEntry` (`L2-047`).
+- **Authorisation policies.** Endpoints use the policy catalogue defined in [enforce-authorisation](accounts/enforce-authorisation/README.md): `PublicRead`, `MemberOnly`, `VerifiedMember`, `NotSuspended`, `TradingMember` and `AdministratorWithSecondFactor`.
+- **API paths.** Every endpoint sits under `/api/` with no version segment.
+- **Error codes.** Catalog and listings designs write error codes in `UPPER_SNAKE` form; accounts, moderation, orders, notifications and privacy write them in `dotted.lower` form. The single convention is `<TO SUPPLY>` and shall be applied to all designs before implementation.
 
 ## Subsystems
 
-| Subsystem | Scope (L1) | Features |
-|-----------|------------|----------|
-| [accounts](accounts/) | `L1-001`, `L1-002` | register-account, verify-email, sign-in, manage-sessions, reset-password, edit-profile, close-account, enforce-authorisation |
-| [listings](listings/) | `L1-003`, `L1-004` | create-listing, upload-listing-photos, edit-and-withdraw-listing, manage-my-listings |
-| [catalog](catalog/) | `L1-005`, `L1-006` | browse-catalog, search-and-filter-catalog, view-listing-detail |
-| [orders](orders/) | `L1-007`, `L1-008` | checkout-and-pay, seller-payouts, ship-order, complete-order, cancel-order, resolve-order-problems, order-history |
-| [reviews](reviews/) | `L1-009`, `L1-010` | leave-review, view-member-profile |
-| [notifications](notifications/) | `L1-011` | send-email-notifications, manage-notification-preferences |
-| [moderation](moderation/) | `L1-012` | report-listing-or-member, moderate-reports, suspend-member, audit-log-and-admin-sign-in |
-| [privacy](privacy/) | `L1-014` | protect-personal-data, export-personal-data, manage-cookie-consent |
-| [platform](platform/) | `L1-013`, `L1-015` to `L1-018` | harden-http-and-api, protect-credentials-and-supply-chain, meet-performance-and-scale, responsive-accessible-shell, report-errors-and-observe, keep-available-and-recoverable |
+| Subsystem | Scope (L1) | Features | Estimate (hours) |
+|-----------|------------|----------|-----------------:|
+| [accounts](accounts/) | `L1-001`, `L1-002` | register-account, verify-email, sign-in, manage-sessions, reset-password, edit-profile, close-account, enforce-authorisation | 361 |
+| [listings](listings/) | `L1-003`, `L1-004` | create-listing, upload-listing-photos, edit-and-withdraw-listing, manage-my-listings | 210 |
+| [catalog](catalog/) | `L1-005`, `L1-006` | browse-catalog, search-and-filter-catalog, view-listing-detail | 196 |
+| [orders](orders/) | `L1-007`, `L1-008` | checkout-and-pay, seller-payouts, ship-order, complete-order, cancel-order, resolve-order-problems, order-history | 404 |
+| [reviews](reviews/) | `L1-009`, `L1-010` | leave-review, view-member-profile | 136 |
+| [notifications](notifications/) | `L1-011` | send-email-notifications, manage-notification-preferences | 114 |
+| [moderation](moderation/) | `L1-012` | report-listing-or-member, moderate-reports, suspend-member, audit-log-and-admin-sign-in | 206 |
+| [privacy](privacy/) | `L1-014` | protect-personal-data, export-personal-data, manage-cookie-consent | 176 |
+| [platform](platform/) | `L1-013`, `L1-015` to `L1-018` | harden-http-and-api, protect-credentials-and-supply-chain, meet-performance-and-scale, responsive-accessible-shell, report-errors-and-observe, keep-available-and-recoverable | 360 |
+| **Total** | | 39 features | **2163** |
+
+Each estimate assumes an intermediate Angular/TypeScript and ASP.NET Core/C# developer and covers implementation, tests and review fixes. Per-feature figures, minimal scopes and descoping options are in [`docs/estimates/`](../estimates/).

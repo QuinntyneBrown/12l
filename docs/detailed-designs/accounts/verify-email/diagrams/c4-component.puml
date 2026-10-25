@@ -1,0 +1,31 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Verify email
+
+Container(web, "12L Web", "Angular", "VerifyEmailPage, VerifyEmailPromptDialog, AccountBannerComponent, AccountOverviewPage")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "EmailVerificationController", "ASP.NET Core controller", "Verify and resend endpoints")
+  Component(verify, "VerifyEmailCommandHandler", "MediatR handler", "Consumes token, marks Member verified")
+  Component(resend, "ResendVerificationEmailCommandHandler", "MediatR handler", "Revokes earlier links, issues a new one")
+  Component(issuer, "EmailLinkTokenIssuer", "Application service", "Creates hashed single-use tokens")
+  Component(limit, "VerificationResendLimiter", "Application service", "3 requests per hour per member")
+  Component(gate, "VerifiedMemberAuthorizationHandler", "Authorization handler (enforce-authorisation)", "Refuses unverified members with 403")
+  Component(member, "Member", "Domain entity", "MarkEmailVerified transition")
+  Component(state, "MemberVerificationReader", "IMemberVerificationReader", "Caches verified = true only")
+  ComponentDb(dbc, "TwelveLDbContext", "EF Core", "Members, EmailLinkTokens, OutboxMessages")
+}
+ContainerDb(cache, "Distributed cache", "Redis", "Resend counters and verified flags")
+Rel(web, ctrl, "Calls", "JSON/HTTPS")
+Rel(ctrl, verify, "Sends VerifyEmailCommand", "MediatR")
+Rel(ctrl, resend, "Sends ResendVerificationEmailCommand", "MediatR")
+Rel(verify, member, "MarkEmailVerified")
+Rel(verify, state, "Primes 12l:cache:member-verified:{id}")
+Rel(resend, limit, "Checks and counts")
+Rel(resend, issuer, "Issues new token")
+Rel(limit, cache, "INCR", "Redis")
+Rel(state, cache, "GET and SET", "Redis")
+Rel(gate, state, "IsVerifiedAsync")
+Rel(verify, dbc, "Saves", "EF Core")
+Rel(resend, dbc, "Saves token and outbox message", "EF Core")
+@enduml

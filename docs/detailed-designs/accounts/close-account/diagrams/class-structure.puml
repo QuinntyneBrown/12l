@@ -1,0 +1,81 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Close an account
+
+package "TwelveL.Api" {
+  class AccountClosureController {
+    +Close(body: CloseAccountBody): Task<IActionResult>
+  }
+}
+package "TwelveL.Application" {
+  class CloseAccountCommand {
+    +Guid MemberId
+    +string Password
+  }
+  class CloseAccountCommandHandler {
+    +Handle(cmd, ct): Task<Result>
+  }
+  interface IOpenOrderLookup {
+    +ListOpenOrdersAsync(memberId: Guid): Task<IReadOnlyList<OpenOrderDto>>
+  }
+  class OpenOrderDto {
+    +string OrderNumber
+    +OrderRole Role
+    +string Status
+  }
+  interface IMemberListingRemover {
+    +RemoveActiveAndDraftAsync(memberId: Guid, reason: ListingRemovalReason): Task<int>
+  }
+  class MemberDataEraser {
+    +EraseAsync(memberId: Guid, ct): Task
+  }
+  interface IPhotoStorage {
+    +DeleteAsync(key: string): Task
+  }
+}
+package "TwelveL.Domain" {
+  class Member {
+    +MemberStatus Status
+    +DateTimeOffset? ClosedAt
+    +DateTimeOffset? ErasureDueAt
+    +DateTimeOffset? ErasedAt
+    +Close(now, retention: TimeSpan): void
+    +Erase(now): void
+  }
+  enum MemberStatus {
+    Active
+    Suspended
+    Closed
+  }
+  class MemberClosed <<domain event>> {
+    +Guid MemberId
+    +DateTimeOffset ClosedAt
+  }
+}
+package "TwelveL.Worker" {
+  class AccountErasureJob {
+    +ExecuteAsync(ct): Task
+  }
+}
+AccountClosureController ..> CloseAccountCommand : sends
+CloseAccountCommandHandler ..> CloseAccountCommand : handles
+CloseAccountCommandHandler --> IOpenOrderLookup
+CloseAccountCommandHandler --> IMemberListingRemover
+CloseAccountCommandHandler --> Member
+IOpenOrderLookup ..> OpenOrderDto
+Member --> MemberStatus
+Member ..> MemberClosed : raises
+AccountErasureJob --> MemberDataEraser
+MemberDataEraser --> Member : Erase
+MemberDataEraser --> IPhotoStorage
+@enduml

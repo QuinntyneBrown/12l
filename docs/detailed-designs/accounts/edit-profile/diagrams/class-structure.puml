@@ -1,0 +1,100 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Edit profile
+
+package "TwelveL.Api" {
+  class ProfileController {
+    +GetMine(): Task<ActionResult<MyProfileDto>>
+    +Update(body: UpdateProfileBody): Task<ActionResult<MyProfileDto>>
+    +UploadAvatar(file: IFormFile): Task<IActionResult>
+  }
+}
+package "TwelveL.Application" {
+  class GetMyProfileQuery {
+    +Guid MemberId
+  }
+  class MyProfileDto {
+    +string DisplayName
+    +string? Bio
+    +string? City
+    +string? Region
+    +AvatarDto? Avatar
+    +bool AvatarProcessing
+    +string Version
+  }
+  class UpdateProfileCommand {
+    +Guid MemberId
+    +string DisplayName
+    +string? Bio
+    +string? City
+    +string? Region
+    +string Version
+  }
+  class UpdateProfileCommandValidator {
+    +BioMaxLength: int = 500
+  }
+  class UpdateProfileCommandHandler {
+    +Handle(cmd, ct): Task<Result<MyProfileDto>>
+  }
+  class UploadAvatarCommand {
+    +Guid MemberId
+    +Stream Content
+    +long Length
+  }
+  class UploadAvatarCommandHandler {
+    +Handle(cmd, ct): Task<Result<AvatarUploadAccepted>>
+  }
+  interface IImageInspector {
+    +InspectAsync(stream: Stream): Task<ImageInfo?>
+  }
+  interface IPhotoStorage {
+    +PutOriginalAsync(key, stream): Task
+  }
+}
+package "TwelveL.Domain" {
+  class Member {
+    +DisplayName DisplayName
+    +Bio? Bio
+    +PublicLocation? Location
+    +Guid? AvatarPhotoId
+    +byte[] RowVersion
+    +UpdateProfile(name: DisplayName, bio: Bio?, location: PublicLocation?): void
+    +SetAvatar(photoId: Guid): void
+  }
+  class DisplayName <<value object>> {
+    +string Value
+    +string Normalized
+  }
+  class Bio <<value object>> {
+    +string Value
+    +{static} Create(raw): Result<Bio>
+  }
+  class PublicLocation <<value object>> {
+    +string? City
+    +string? Region
+  }
+}
+ProfileController ..> GetMyProfileQuery : sends
+ProfileController ..> UpdateProfileCommand : sends
+ProfileController ..> UploadAvatarCommand : sends
+UpdateProfileCommandValidator ..> UpdateProfileCommand : validates
+UpdateProfileCommandHandler ..> UpdateProfileCommand : handles
+UpdateProfileCommandHandler --> Member
+UpdateProfileCommandHandler ..> MyProfileDto : returns
+UploadAvatarCommandHandler --> IImageInspector
+UploadAvatarCommandHandler --> IPhotoStorage
+UploadAvatarCommandHandler --> Member
+Member *-- DisplayName
+Member *-- Bio
+Member *-- PublicLocation
+@enduml

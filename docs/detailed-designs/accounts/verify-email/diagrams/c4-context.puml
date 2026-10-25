@@ -1,0 +1,12 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Verify email
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System(twelvel, "12L", "Marketplace for men's US size 12 shoes and size L clothing")
+System_Ext(email, "Email provider", "Delivers transactional email (<TO SUPPLY> vendor)")
+Rel(member, twelvel, "Opens verification link, resends link, buys and sells in", "HTTPS")
+Rel(twelvel, email, "Sends verification email through", "HTTPS API")
+Rel(email, member, "Delivers single-use link to")
+@enduml

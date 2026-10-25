@@ -1,0 +1,69 @@
+@startuml
+title UML sequence behaviour — Open a verification link
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "VerifyEmailPage" as page
+  participant "AccountsApi" as client
+  participant "SessionStore" as store
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "EmailVerificationController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "VerifyEmailCommandHandler" as handler
+  participant "EmailLinkToken" as token
+  participant "Member" as entity
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "12L database" as db
+  database "Distributed cache" as cache
+end box
+actor -> page : Open /verify?token=... from the email
+page -> page : Read token from ?token=; replace URL without it; state loading "Checking your link…"
+page -> client : verifyEmail(token)
+client -> ctrl : POST /api/accounts/email-verifications { token }
+ctrl -> handler : Send VerifyEmailCommand
+handler -> handler : SHA-256 hash of token
+handler -> db : Load EmailLinkToken by TokenHash (purpose EmailVerification) with Member
+db --> handler : Token and Member, or none
+alt no token found, or token revoked by a later resend, or older than 24 hours (L2-002)
+  handler --> ctrl : account.verification_link_expired
+  ctrl --> client : 410 Gone problem details
+  client --> page : Expired
+  page --> actor : "This link has expired" with "Send a new link"
+else token already consumed (L2-002)
+  handler --> ctrl : account.verification_link_used (no state change)
+  ctrl --> client : 409 Conflict problem details
+  page --> actor : "Link already used" — "This email is already verified." with Sign in
+else token usable
+  handler -> token : Consume(now)
+  handler -> entity : MarkEmailVerified(now)
+  handler -> db : Save in one transaction (RowVersion check)
+  db --> handler : Committed
+  handler -> cache : SET 12l:cache:member-verified:{memberId} (after commit)
+  handler --> ctrl : Verified
+  ctrl --> client : 200 OK { emailVerified: true }
+  client --> store : markVerified() when the same member is signed in
+  page --> actor : "You’re verified" — "Buying and selling are open." with Start shopping and Sell an item
+end
+alt server error
+  ctrl --> client : 500 problem details with correlation ID
+  page --> actor : "Something went wrong" with Ref and Try again
+end
+@enduml

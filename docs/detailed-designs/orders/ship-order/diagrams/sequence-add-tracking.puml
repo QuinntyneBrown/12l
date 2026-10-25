@@ -38,7 +38,7 @@ page -> dlg : Open with order number and buyer handle
 actor -> dlg : Choose carrier "USPS", enter tracking number, "Mark as shipped"
 dlg -> client : addTracking(orderId, carrier, trackingNumber)
 client -> ctrl : POST /api/orders/{id}/shipment
-ctrl -> ctrl : Authenticate, apply MemberPolicy (suspended sellers allowed, L2-046)
+ctrl -> ctrl : Authenticate, apply MemberOnly policy (suspended sellers allowed, L2-046)
 ctrl -> val : Validate AddTrackingCommand (L2-033)
 alt empty or malformed tracking number
   val --> ctrl : Field errors

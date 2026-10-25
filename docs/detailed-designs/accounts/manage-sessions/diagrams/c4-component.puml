@@ -1,0 +1,38 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Manage sessions
+
+Container(web, "12L Web", "Angular", "authRefreshInterceptor, SessionStore, SettingsPage, SignOutEverywhereDialog, SessionExpiredPage")
+Container_Boundary(api, "12L API") {
+  Component(jwt, "JwtCookieAuthenticationHandler", "JWT bearer read from cookie", "Validates access token and sid")
+  Component(revcheck, "RevokedSessionCheck", "OnTokenValidated event", "Refuses tokens of revoked sessions")
+  Component(ctrl, "AuthController", "ASP.NET Core controller", "refresh, sign-out, sign-out-everywhere, session")
+  Component(sctrl, "AccountSettingsController", "ASP.NET Core controller", "GET /api/accounts/me/settings")
+  Component(refresh, "RefreshSessionCommandHandler", "MediatR handler", "Rotates refresh token; detects reuse")
+  Component(signout, "SignOutCommandHandler / SignOutEverywhereCommandHandler", "MediatR handlers", "Revoke one or all sessions")
+  Component(issuer, "SessionTokenService", "Application service", "Creates sessions and token pairs")
+  Component(revoker, "SessionRevoker", "Application service", "Revokes sessions everywhere they live")
+  Component(tokens, "AccessTokenFactory", "Infrastructure service", "Signs 15-minute JWTs")
+  Component(family, "RefreshTokenFamilyStore", "Infrastructure service", "Atomic compare-and-swap in Redis")
+  ComponentDb(dbc, "TwelveLDbContext", "EF Core", "MemberSessions")
+}
+ContainerDb(cache, "Distributed cache", "Redis", "12l:rt:family and 12l:rt:revoked keys")
+Rel(web, jwt, "Every API call", "Cookies")
+Rel(jwt, revcheck, "Then")
+Rel(revcheck, cache, "EXISTS 12l:rt:revoked:{sid}", "Redis")
+Rel(web, ctrl, "Refresh and sign-out calls", "JSON/HTTPS")
+Rel(web, sctrl, "Loads settings", "JSON/HTTPS")
+Rel(ctrl, refresh, "Sends RefreshSessionCommand", "MediatR")
+Rel(ctrl, signout, "Sends sign-out commands", "MediatR")
+Rel(refresh, family, "Rotate")
+Rel(refresh, tokens, "Signs new access token")
+Rel(refresh, revoker, "Revokes family on reuse")
+Rel(signout, revoker, "Revokes")
+Rel(issuer, family, "Creates family")
+Rel(issuer, tokens, "Signs access token")
+Rel(family, cache, "Lua script", "Redis")
+Rel(revoker, cache, "DEL 12l:rt:family; SET 12l:rt:revoked", "Redis")
+Rel(revoker, dbc, "Sets RevokedAt", "EF Core")
+Rel(issuer, dbc, "Inserts MemberSession", "EF Core")
+@enduml

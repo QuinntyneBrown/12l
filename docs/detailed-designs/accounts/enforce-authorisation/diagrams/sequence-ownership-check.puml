@@ -1,0 +1,51 @@
+@startuml
+title UML sequence behaviour — Refuse another member's resource with 404
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member A" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "EditListingPage" as page
+  participant "problemDetailsInterceptor" as icpt
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "Authorization middleware" as authz
+  participant "ListingsController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "UpdateListingCommandHandler" as handler
+  participant "ICurrentMember" as current
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Save changes to listing L-20931 (owned by member B)
+page -> authz : PUT /api/listings/L-20931
+alt anonymous caller (L2-010)
+  authz --> icpt : 401, code auth.unauthenticated
+  icpt --> actor : Route to /sign-in with returnUrl
+else signed-in member
+  authz -> ctrl : Policy TradingMember passed
+  ctrl -> handler : Send UpdateListingCommand
+  handler -> current : RequireMemberId()
+  handler -> db : Listings.OwnedBy(memberA).SingleOrDefault(id)
+  db --> handler : null (row exists but belongs to member B)
+  handler --> ctrl : NotFoundException resource.not_found
+  ctrl --> icpt : 404 problem details, identical to a missing listing (L2-010)
+  icpt --> actor : Not found page; listing unchanged
+end
+note over handler, db : Orders use VisibleToParty: BuyerId = me OR SellerId = me,\nso member A gets 404 for an order between B and C (L2-010)
+@enduml

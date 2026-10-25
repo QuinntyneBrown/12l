@@ -80,8 +80,8 @@ with a correlation ID (`L2-068`).
 
 | Verb and path | Policy | Purpose | Responses |
 |---------------|--------|---------|-----------|
-| `GET /api/me/notification-preferences` | `MemberPolicy` | Read the 4 categories | 200 `NotificationPreferencesDto` with `ETag`; 401 |
-| `PUT /api/me/notification-preferences` | `MemberPolicy`, anti-forgery (`L2-050`) | Save the two optional settings | 200 `NotificationPreferencesDto`; 400 `notifications.invalid`; 401; 412 `notifications.stale` when `If-Match` is out of date |
+| `GET /api/me/notification-preferences` | `MemberOnly` | Read the 4 categories | 200 `NotificationPreferencesDto` with `ETag`; 401 |
+| `PUT /api/me/notification-preferences` | `MemberOnly`, anti-forgery (`L2-050`) | Save the two optional settings | 200 `NotificationPreferencesDto`; 400 `notifications.invalid`; 401; 412 `notifications.stale` when `If-Match` is out of date |
 | `POST /api/notifications/unsubscribe` | anonymous, rate limited (`L2-051`) | One-click marketing unsubscribe, from the page or a mail client's RFC 8058 POST | 200 `{ "category": "Marketing", "unsubscribed": true }`; 400 `notifications.unsubscribe_invalid` |
 
 - `NotificationPreferencesDto` lists the 4 categories as

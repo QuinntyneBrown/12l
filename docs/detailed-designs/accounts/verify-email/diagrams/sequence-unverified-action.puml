@@ -1,0 +1,45 @@
+@startuml
+title UML sequence behaviour — Unverified member tries to trade
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Unverified member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "ListingDetailPage or SellPage" as page
+  participant "problemDetailsInterceptor" as icpt
+  participant "VerifyEmailPromptDialog" as dlg
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "VerifiedMember policy (via TradingMember)" as policy
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  participant "MemberVerificationReader" as state
+  database "12L database" as db
+end box
+actor -> page : Buy now, Sell an item, Leave review or Report
+page -> page : SessionStore.canTrade() is false
+alt UI gate (Sell page)
+  page --> actor : Blocked state "Verify your email to sell" with Resend link
+else request sent (defence in depth)
+  page -> policy : POST create listing / start checkout / review / report
+  policy -> state : IsVerifiedAsync(memberId)
+  state -> db : Read Members.EmailVerifiedAt on cache miss
+  state --> policy : false (false is never cached)
+  policy --> icpt : 403 Forbidden, code account.email_unverified (L2-002)
+  icpt -> dlg : Open "Verify your email first"
+  dlg --> actor : "Open the link we sent to ... to buy and sell." Not now / Resend link
+end
+@enduml

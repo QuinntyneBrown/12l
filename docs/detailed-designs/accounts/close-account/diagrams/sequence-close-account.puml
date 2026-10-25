@@ -1,0 +1,64 @@
+@startuml
+title UML sequence behaviour — Close an account
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SettingsPage" as page
+  participant "CloseAccountDialog" as dlg
+  participant "AccountsApi" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "AccountClosureController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "CloseAccountCommandHandler" as handler
+  participant "Member" as entity
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  participant "IOpenOrderLookup / IMemberListingRemover" as ports
+  participant "SessionRevoker" as revoker
+  database "12L database" as db
+end box
+actor -> page : Close account row: Close account
+page -> dlg : Open "Close your account?" (focus on password field, never on the red button)
+dlg --> actor : "Your 2 listings come down now. Your data is erased within 30 days. This can’t be undone."
+actor -> dlg : Enter password; Close account
+dlg -> dlg : State busy: Cancel disabled
+dlg -> client : closeAccount(password)
+client -> ctrl : POST /api/accounts/me/closure (policy MemberOnly)
+ctrl -> handler : Send CloseAccountCommand
+handler -> db : Load Member
+handler -> handler : IPasswordHasher.Verify(password, hash)
+alt wrong password
+  ctrl --> client : 400 validation_failed, errors.password
+  dlg --> actor : "That password isn’t right"
+else password correct
+  handler -> ports : ListOpenOrdersAsync(memberId)
+  alt one or more orders not Completed, Cancelled or Refunded (L2-005)
+    ctrl --> client : 409 Conflict, code account.open_orders, openOrders[]
+    dlg --> actor : "Finish your open orders first" with links 12L-48213 · Shipped, 12L-48302 · Paid
+  else no open orders
+    handler -> entity : Close(now, 30 days) — Status Closed, ErasureDueAt = now + 30 days
+    handler -> ports : RemoveActiveAndDraftAsync(memberId, AccountClosed) (L2-005)
+    handler -> db : SaveChanges in one transaction (RowVersion)
+    handler -> revoker : RevokeAllAsync(memberId, AccountClosed) (L2-005)
+    ctrl --> client : 204 No Content; cookies and session-hint expired
+    dlg --> actor : Signed out; catalog as a visitor with a closure confirmation (copy <TO SUPPLY>)
+  end
+end
+@enduml

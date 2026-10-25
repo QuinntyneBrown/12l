@@ -1,0 +1,66 @@
+@startuml
+title UML sequence behaviour — Refresh and rotate a session
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "Any page" as page
+  participant "authRefreshInterceptor" as icpt
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "JwtCookieAuthenticationHandler" as jwt
+  participant "AuthController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "RefreshSessionCommandHandler" as handler
+  participant "SessionRevoker" as revoker
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  participant "RefreshTokenFamilyStore" as family
+  database "Distributed cache" as cache
+  database "12L database" as db
+end box
+actor -> page : Any action after 15 minutes
+page -> jwt : API call with __Host-12l-at cookie
+jwt --> icpt : 401, code auth.token_expired (access token older than 15 minutes)
+icpt -> icpt : Start or join the single in-flight refresh
+icpt -> ctrl : POST /api/auth/refresh with __Secure-12l-rt cookie (path /api/auth)
+ctrl -> handler : Send RefreshSessionCommand
+handler -> handler : Split token into sessionId and secret; SHA-256 secret
+handler -> family : RotateAsync(sessionId, presentedHash, nextHash, 14 days)
+family -> cache : Lua: compare current hash, swap, reset TTL
+alt current hash matches (L2-008)
+  cache --> family : Rotated
+  handler -> db : MemberSession.Touch: LastRefreshedAt, ExpiresAt = now + 14 days
+  handler -> handler : New access token keeps amr [pwd, otp] when SecondFactorVerifiedAt is set
+  handler --> ctrl : New SessionTokens
+  ctrl --> icpt : 200, Set-Cookie new access and refresh tokens
+  icpt -> jwt : Retry original request once
+  jwt --> page : Original response
+else hash differs: refresh token already used (L2-008)
+  cache --> family : Reused
+  handler -> revoker : RevokeAsync(sessionId, RefreshTokenReuse)
+  revoker -> cache : DEL 12l:rt:family:{sid}; SET 12l:rt:revoked:{sid} EX 900
+  revoker -> db : MemberSession.RevokedAt = now
+  ctrl --> icpt : 401, code auth.refresh_token_reused; cookies cleared
+  icpt --> actor : Navigate to session-expired page
+else family missing: expired after 14 idle days or revoked (L2-008)
+  cache --> family : NotFound
+  ctrl --> icpt : 401, code auth.session_expired; cookies cleared
+  icpt --> actor : "Welcome back" — "For your security, sign in again after 14 days away."
+end
+@enduml

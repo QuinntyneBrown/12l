@@ -1,0 +1,110 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Manage sessions
+
+package "TwelveL.Api" {
+  class AuthController {
+    +Refresh(): Task<IActionResult>
+    +SignOut(): Task<IActionResult>
+    +SignOutEverywhere(): Task<IActionResult>
+    +GetSession(): Task<IActionResult>
+  }
+  class AccountSettingsController {
+    +GetSettings(): Task<ActionResult<AccountSettingsDto>>
+  }
+  class SessionCookieWriter {
+    +Write(response, tokens: SessionTokens): void
+    +Clear(response): void
+  }
+}
+package "TwelveL.Application" {
+  class RefreshSessionCommand {
+    +string RefreshToken
+  }
+  class RefreshSessionCommandHandler {
+    +Handle(cmd, ct): Task<Result<SessionTokens>>
+  }
+  class SignOutCommand {
+    +Guid SessionId
+  }
+  class SignOutEverywhereCommand {
+    +Guid MemberId
+  }
+  interface ISessionTokenService {
+    +StartAsync(member, ip, userAgent): Task<SessionTokens>
+    +UpgradeToSecondFactorAsync(sessionId: Guid): Task<SessionTokens>
+  }
+  interface ISessionRevoker {
+    +RevokeAsync(sessionId: Guid, reason: RevocationReason): Task
+    +RevokeAllAsync(memberId: Guid, reason: RevocationReason, exceptSessionId: Guid?): Task<int>
+  }
+  interface IRefreshTokenFamilyStore {
+    +CreateAsync(family: RefreshFamily, ttl: TimeSpan): Task
+    +RotateAsync(sessionId: Guid, presentedHash: byte[], nextHash: byte[], ttl: TimeSpan): Task<RotationResult>
+    +DeleteAsync(sessionId: Guid): Task
+  }
+  class SessionTokens <<record>> {
+    +string AccessToken
+    +DateTimeOffset AccessExpiresAt
+    +string RefreshToken
+    +DateTimeOffset RefreshExpiresAt
+  }
+  enum RotationResult {
+    Rotated
+    Reused
+    NotFound
+  }
+  class AccountSettingsDto {
+    +string Email
+    +DateTimeOffset? PasswordChangedAt
+    +int ActiveSessionCount
+  }
+}
+package "TwelveL.Domain" {
+  class MemberSession {
+    +Guid Id
+    +Guid MemberId
+    +DateTimeOffset CreatedAt
+    +DateTimeOffset LastRefreshedAt
+    +DateTimeOffset ExpiresAt
+    +DateTimeOffset? RevokedAt
+    +RevocationReason? RevokedReason
+    +DateTimeOffset? SecondFactorVerifiedAt
+    +string UserAgent
+    +byte[] RowVersion
+    +Touch(now, ttl): void
+    +Revoke(reason, now): void
+  }
+  enum RevocationReason {
+    SignOut
+    SignOutEverywhere
+    RefreshTokenReuse
+    PasswordReset
+    PasswordChanged
+    AccountClosed
+  }
+}
+AuthController ..> RefreshSessionCommand : sends
+AuthController ..> SignOutCommand : sends
+AuthController ..> SignOutEverywhereCommand : sends
+AuthController --> SessionCookieWriter
+RefreshSessionCommandHandler ..> RefreshSessionCommand : handles
+RefreshSessionCommandHandler --> IRefreshTokenFamilyStore
+RefreshSessionCommandHandler --> ISessionRevoker
+IRefreshTokenFamilyStore ..> RotationResult
+ISessionTokenService ..> SessionTokens
+ISessionTokenService --> IRefreshTokenFamilyStore
+ISessionRevoker --> MemberSession : revokes
+MemberSession --> RevocationReason
+AccountSettingsController ..> AccountSettingsDto
+@enduml

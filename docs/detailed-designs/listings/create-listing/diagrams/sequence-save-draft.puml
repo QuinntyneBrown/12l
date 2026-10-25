@@ -33,7 +33,7 @@ end box
 actor -> form : Choose "Save draft"
 form -> client : createDraft(details) or updateListing(id, details)
 client -> controller : POST /api/listings (anti-forgery header)
-controller -> controller : Authenticate, apply CanSell policy (L2-010)
+controller -> controller : Authenticate, apply TradingMember policy (L2-010)
 controller -> validator : Validate CreateListingDraftCommand
 alt category or subcategory not accepted
   validator --> controller : CATEGORY_INVALID

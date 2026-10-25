@@ -42,7 +42,7 @@ else loaded
   page --> actor : "Save" aria-busy, switches disabled
   page -> client : update({reviewEmails: false, marketingEmails: false})
   client -> controller : PUT /api/me/notification-preferences, If-Match, anti-forgery token
-  controller -> controller : MemberPolicy, validator
+  controller -> controller : MemberOnly policy, validator
   controller -> handler : Send UpdateNotificationPreferencesCommand
   handler -> db : Load NotificationPreferences
   db --> handler : Row

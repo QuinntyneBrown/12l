@@ -6,7 +6,7 @@ title Components — Leave a review
 Container(web, "12L Web", "Angular", "OrderReviewPanelComponent, LeaveReviewDialogComponent, ReplyToReviewDialogComponent, ReviewsApiService")
 
 Container_Boundary(api, "12L API") {
-  Component(ctrl, "ReviewsController", "ASP.NET Core controller", "Exposes review and reply endpoints under MemberPolicy and VerifiedActiveMemberPolicy")
+  Component(ctrl, "ReviewsController", "ASP.NET Core controller", "Exposes review and reply endpoints under MemberOnly and TradingMember policies")
   Component(create, "CreateReviewCommandHandler", "MediatR handler", "Enforces L2-038 and publishes both reviews when the counterpart has reviewed")
   Component(query, "GetOrderReviewsQueryHandler", "MediatR handler", "Applies the blind-review visibility rule")
   Component(reply, "PostReviewReplyCommandHandler", "MediatR handler", "Adds the single reply")

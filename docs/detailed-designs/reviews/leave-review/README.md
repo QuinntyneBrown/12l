@@ -94,8 +94,8 @@ The slice runs from the order pages and the profile page of `12L Web`, through
 ### API (`TwelveL.Api`)
 
 `ReviewsController` exposes the endpoints below. Each one requires a signed-in member
-under the `MemberPolicy` endpoint policy. Writing endpoints also require a verified,
-non-suspended member (`VerifiedActiveMemberPolicy`, from `L2-002` and `L2-046`), which
+under the `MemberOnly` endpoint policy. Writing endpoints also require a verified,
+non-suspended member (`TradingMember` policy, from `L2-002` and `L2-046`), which
 returns HTTP 403 otherwise. Every error is an RFC 9457 problem details response with a
 stable code and a correlation ID (`L2-068`).
 

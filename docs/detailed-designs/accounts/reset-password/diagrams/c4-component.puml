@@ -1,0 +1,36 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Reset or change a password
+
+Container(web, "12L Web", "Angular", "ForgotPasswordPage, ResetPasswordPage, ChangePasswordDialog, AuthApi, AccountsApi")
+Container_Boundary(api, "12L API") {
+  Component(actrl, "PasswordResetController", "ASP.NET Core controller", "Reset request and reset completion")
+  Component(mctrl, "AccountPasswordController", "ASP.NET Core controller", "Change password for the signed-in member")
+  Component(req, "RequestPasswordResetCommandHandler", "MediatR handler", "Same answer for every email")
+  Component(reset, "ResetPasswordCommandHandler", "MediatR handler", "Consumes token, sets password, revokes sessions")
+  Component(change, "ChangePasswordCommandHandler", "MediatR handler", "Verifies current password, sets new one")
+  Component(policy, "PasswordPolicy", "Application service (register-account)", "Length and breached checks")
+  Component(hasher, "Pbkdf2PasswordHasher", "IPasswordHasher", "Hash and verify")
+  Component(issuer, "EmailLinkTokenIssuer", "Application service", "1-hour single-use tokens")
+  Component(revoker, "SessionRevoker", "Application service (manage-sessions)", "Revokes sessions")
+  ComponentDb(dbc, "TwelveLDbContext", "EF Core", "Members, EmailLinkTokens, MemberSessions, OutboxMessages")
+}
+ContainerDb(cache, "Distributed cache", "Redis", "pwreset counters")
+Rel(web, actrl, "Calls", "JSON/HTTPS")
+Rel(web, mctrl, "Calls", "JSON/HTTPS")
+Rel(actrl, req, "Sends RequestPasswordResetCommand", "MediatR")
+Rel(actrl, reset, "Sends ResetPasswordCommand", "MediatR")
+Rel(mctrl, change, "Sends ChangePasswordCommand", "MediatR")
+Rel(req, cache, "INCR 12l:rl:password-reset:{emailKey}", "Redis")
+Rel(req, issuer, "Issues token")
+Rel(reset, policy, "Checks new password")
+Rel(change, policy, "Checks new password")
+Rel(reset, hasher, "Hashes")
+Rel(change, hasher, "Verifies and hashes")
+Rel(reset, revoker, "Revokes all sessions")
+Rel(change, revoker, "Revokes other sessions")
+Rel(req, dbc, "Saves token and outbox", "EF Core")
+Rel(reset, dbc, "Saves", "EF Core")
+Rel(change, dbc, "Saves", "EF Core")
+@enduml

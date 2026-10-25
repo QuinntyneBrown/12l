@@ -1,0 +1,20 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Edit profile
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular, TypeScript", "Responsive single-page application")
+  Container(api, "12L API", "ASP.NET Core Web API, C#", "REST API; source of truth for every rule")
+  Container(worker, "12L Worker", ".NET worker service", "Outbox email dispatch and background jobs")
+  ContainerDb(db, "12L database", "SQL Server, EF Core", "Members, sessions, link tokens, outbox")
+  ContainerDb(photos, "Photo storage", "Object storage behind a CDN", "Original and processed images")
+}
+Rel(member, web, "Uses the Profile tab", "HTTPS")
+Rel(web, api, "GET and PUT /api/accounts/me/profile; POST /api/accounts/me/avatar", "JSON, multipart/HTTPS")
+Rel(api, db, "Reads and updates Member", "EF Core")
+Rel(api, photos, "Stores original avatar (private)", "HTTPS")
+Rel(worker, photos, "Writes processed avatar versions", "HTTPS")
+Rel(worker, db, "Sets Member.AvatarPhotoId when processing completes", "EF Core")
+@enduml

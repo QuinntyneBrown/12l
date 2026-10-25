@@ -1,0 +1,40 @@
+@startuml
+title UML sequence behaviour — Throttle sign-in attempts per IP address
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Client" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SignInPage" as page
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "Rate limiter (policy sign-in)" as limiter
+  participant "AuthController" as ctrl
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "Distributed cache" as cache
+end box
+actor -> page : Sign in
+page -> limiter : POST /api/auth/sign-in
+limiter -> cache : INCR 12l:rl:sign-in:{ip}:{window} (fixed 15-minute window, limit 20)
+alt 21st attempt within 15 minutes (L2-007)
+  limiter --> page : 429 Too Many Requests, Retry-After seconds, code rate_limited
+  page --> actor : Warning alert with the wait time; submit disabled until Retry-After passes
+else within the limit
+  limiter -> ctrl : Forward to AuthController
+  ctrl --> page : Sign-in result
+end
+@enduml

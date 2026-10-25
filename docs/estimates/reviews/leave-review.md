@@ -15,7 +15,7 @@ The hours assume an intermediate Angular/TypeScript and ASP.NET Core/C# develope
 | `GetOrderReviewsQuery` and handler with the blind-review visibility rule | 4 |
 | `PostReviewReplyCommand`, validator and handler with concurrency mapping | 4 |
 | `PUT /api/reviews/{reviewId}` returning 409 `review.not_editable` | 1 |
-| `ReviewsController`, `VerifiedActiveMemberPolicy` use, problem-details error codes | 4 |
+| `ReviewsController`, `TradingMember` policy use, problem-details error codes | 4 |
 | `ReviewPublishedHandler` enqueueing `ReviewReceived` | 2 |
 | `ReviewPublishingJob` and `PublishDueReviewsCommandHandler` with batching | 5 |
 | `ReviewsApiService` and `StarRatingInputComponent` | 5 |

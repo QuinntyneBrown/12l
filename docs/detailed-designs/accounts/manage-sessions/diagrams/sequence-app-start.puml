@@ -1,0 +1,45 @@
+@startuml
+title UML sequence behaviour — Restore or end a session when the app starts
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "APP_INITIALIZER" as init
+  participant "SessionStore" as store
+  participant "Router" as router
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "AuthController" as ctrl
+end box
+actor -> init : Open 12L after time away
+init -> ctrl : GET /api/auth/session
+alt access token valid
+  ctrl --> init : 200 CurrentMemberDto
+  init -> store : setMember
+else access token expired, refresh succeeds
+  init -> ctrl : POST /api/auth/refresh (via authRefreshInterceptor)
+  ctrl --> init : 200, new cookies; then 200 CurrentMemberDto
+  init -> store : setMember
+else refresh refused and 12l-session-hint cookie present
+  ctrl --> init : 401 auth.session_expired
+  init -> store : clear()
+  init -> router : Navigate to /sign-in?expired=1 with returnUrl
+  router --> actor : SessionExpiredPage "Welcome back"
+else no session and no hint
+  init -> store : clear() — visitor
+end
+@enduml

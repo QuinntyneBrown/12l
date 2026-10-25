@@ -1,0 +1,14 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Reset or change a password
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System(twelvel, "12L", "Marketplace for men's US size 12 shoes and size L clothing")
+System_Ext(email, "Email provider", "Delivers transactional email (<TO SUPPLY> vendor)")
+System_Ext(breach, "Breached-password service", "k-anonymity range lookup of known breached passwords")
+Rel(member, twelvel, "Requests reset link, sets new password, changes password in", "HTTPS")
+Rel(twelvel, email, "Sends reset link and password-changed confirmation through", "HTTPS API")
+Rel(twelvel, breach, "Checks new password against", "HTTPS")
+Rel(email, member, "Delivers reset link to")
+@enduml

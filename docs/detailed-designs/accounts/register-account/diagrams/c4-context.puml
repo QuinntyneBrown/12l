@@ -1,0 +1,14 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Register an account
+
+Person(visitor, "Visitor", "Anyone browsing 12L without signing in")
+System(twelvel, "12L", "Marketplace for men's US size 12 shoes and size L clothing")
+System_Ext(breach, "Breached-password service", "k-anonymity range lookup of known breached passwords")
+System_Ext(email, "Email provider", "Delivers transactional email (<TO SUPPLY> vendor)")
+Rel(visitor, twelvel, "Joins 12L using", "HTTPS")
+Rel(twelvel, breach, "Checks password hash prefix against", "HTTPS")
+Rel(twelvel, email, "Sends verification email through", "HTTPS API")
+Rel(email, visitor, "Delivers verification link to")
+@enduml

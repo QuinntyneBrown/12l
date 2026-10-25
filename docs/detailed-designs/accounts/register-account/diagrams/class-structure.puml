@@ -1,0 +1,126 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Register an account
+
+package "TwelveL.Api" {
+  class AccountsController {
+    +Register(request: RegisterRequest): Task<IActionResult>
+  }
+  class RegisterRequest {
+    +string DisplayName
+    +string Email
+    +string Password
+    +bool AgeConfirmed
+    +bool TermsAccepted
+  }
+}
+package "TwelveL.Application" {
+  class RegisterMemberCommand {
+    +string DisplayName
+    +string Email
+    +string Password
+    +bool AgeConfirmed
+    +bool TermsAccepted
+    +string ClientIp
+  }
+  class RegisterMemberCommandValidator {
+    +RegisterMemberCommandValidator()
+  }
+  class RegisterMemberCommandHandler {
+    +Handle(cmd: RegisterMemberCommand, ct: CancellationToken): Task<Result<RegisteredMemberDto>>
+  }
+  class PasswordPolicy {
+    +MinLength: int = 12
+    +MaxLength: int = 128
+    +CheckAsync(password: string): Task<PasswordCheckResult>
+  }
+  interface IPasswordHasher {
+    +Hash(password: string): string
+    +Verify(password: string, encoded: string): PasswordVerification
+    +NeedsRehash(encoded: string): bool
+  }
+  interface IBreachedPasswordChecker {
+    +IsBreachedAsync(password: string): Task<bool>
+  }
+  class EmailLinkTokenIssuer {
+    +Issue(member: Member, purpose: LinkPurpose): IssuedLink
+  }
+  class RegisteredMemberDto {
+    +Guid MemberId
+    +string DisplayName
+    +string Email
+    +bool EmailVerified
+  }
+}
+package "TwelveL.Domain" {
+  class Member {
+    +Guid Id
+    +DisplayName DisplayName
+    +EmailAddress Email
+    +string PasswordHash
+    +DateTimeOffset? EmailVerifiedAt
+    +MemberStatus Status
+    +DateTimeOffset AgeConfirmedAt
+    +DateTimeOffset TermsAcceptedAt
+    +string TermsVersion
+    +DateTimeOffset CreatedAt
+    +byte[] RowVersion
+    +{static} Register(name, email, hash, termsVersion, now): Member
+  }
+  class DisplayName <<value object>> {
+    +string Value
+    +string Normalized
+    +{static} Create(raw: string): Result<DisplayName>
+  }
+  class EmailAddress <<value object>> {
+    +string Value
+    +string Normalized
+    +{static} Create(raw: string): Result<EmailAddress>
+  }
+  enum MemberStatus {
+    Active
+    Suspended
+    Closed
+  }
+  class EmailLinkToken {
+    +Guid Id
+    +Guid MemberId
+    +LinkPurpose Purpose
+    +byte[] TokenHash
+    +DateTimeOffset ExpiresAt
+    +DateTimeOffset? ConsumedAt
+    +DateTimeOffset? RevokedAt
+  }
+}
+package "TwelveL.Infrastructure" {
+  class Pbkdf2PasswordHasher
+  class BreachedPasswordClient
+}
+AccountsController ..> RegisterRequest
+AccountsController ..> RegisterMemberCommand : sends
+RegisterMemberCommandValidator ..> RegisterMemberCommand : validates
+RegisterMemberCommandHandler ..> RegisterMemberCommand : handles
+RegisterMemberCommandHandler --> PasswordPolicy
+RegisterMemberCommandHandler --> IPasswordHasher
+RegisterMemberCommandHandler --> EmailLinkTokenIssuer
+RegisterMemberCommandHandler ..> RegisteredMemberDto : returns
+PasswordPolicy --> IBreachedPasswordChecker
+IPasswordHasher <|.. Pbkdf2PasswordHasher
+IBreachedPasswordChecker <|.. BreachedPasswordClient
+RegisterMemberCommandHandler ..> Member : creates
+Member *-- DisplayName
+Member *-- EmailAddress
+Member --> MemberStatus
+EmailLinkTokenIssuer ..> EmailLinkToken : creates
+Member "1" -- "*" EmailLinkToken
+@enduml

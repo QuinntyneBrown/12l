@@ -1,0 +1,46 @@
+@startuml
+title UML sequence behaviour — Lock an account after repeated failures
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "SignInCommandHandler" as handler
+  participant "SignInLockout" as lockout
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "Distributed cache" as cache
+  database "12L database" as db
+end box
+box "Backend — 12L Worker application (TwelveL.Worker)" #FFF4E5
+  participant "Email dispatcher (notifications)" as outbox
+end box
+handler -> lockout : RecordFailureAsync(emailKey)
+lockout -> cache : INCR 12l:rl:sign-in-fail:{emailKey}; EXPIRE 15 minutes on first failure
+cache --> lockout : Failure count
+alt count reaches 5 within 15 minutes (L2-007)
+  lockout -> cache : SET 12l:rl:sign-in-lock:{emailKey} EX 900 NX
+  lockout -> cache : DEL 12l:rl:sign-in-fail:{emailKey}
+  lockout --> handler : LockStarted
+  opt the email belongs to a Member
+    handler -> db : INotificationPublisher.Enqueue(AccountLocked, memberId, unlock time) → OutboxMessages
+  end
+  outbox -> db : Poll pending messages
+  outbox -> outbox : Send "account temporarily locked" email (L2-007)
+else fewer than 5 failures
+  lockout --> handler : NotLocked
+end
+note over cache : The lock key expires after 15 minutes;\nthe next correct sign-in then succeeds (L2-007)
+@enduml

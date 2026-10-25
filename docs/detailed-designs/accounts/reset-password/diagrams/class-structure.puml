@@ -1,0 +1,100 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Reset or change a password
+
+package "TwelveL.Api" {
+  class PasswordResetController {
+    +RequestReset(req: PasswordResetRequestBody): Task<IActionResult>
+    +Reset(req: PasswordResetBody): Task<IActionResult>
+  }
+  class AccountPasswordController {
+    +Change(req: ChangePasswordBody): Task<IActionResult>
+  }
+}
+package "TwelveL.Application" {
+  class RequestPasswordResetCommand {
+    +string Email
+  }
+  class RequestPasswordResetCommandHandler {
+    +MaxPerHour: int = 3
+    +Handle(cmd, ct): Task<Result>
+  }
+  class ResetPasswordCommand {
+    +string Token
+    +string NewPassword
+  }
+  class ResetPasswordCommandHandler {
+    +Handle(cmd, ct): Task<Result>
+  }
+  class ChangePasswordCommand {
+    +Guid MemberId
+    +Guid CurrentSessionId
+    +string CurrentPassword
+    +string NewPassword
+  }
+  class ChangePasswordCommandHandler {
+    +Handle(cmd, ct): Task<Result>
+  }
+  class NewPasswordValidator {
+    +NewPasswordValidator(policy: PasswordPolicy)
+  }
+  class PasswordPolicy {
+    +CheckAsync(password: string): Task<PasswordCheckResult>
+  }
+  interface IPasswordHasher
+  interface ISessionRevoker {
+    +RevokeAllAsync(memberId, reason, exceptSessionId): Task<int>
+  }
+  class EmailLinkTokenIssuer {
+    +Issue(member, purpose): IssuedLink
+    +RevokeOutstanding(memberId, purpose): void
+  }
+}
+package "TwelveL.Domain" {
+  class Member {
+    +string PasswordHash
+    +DateTimeOffset? PasswordChangedAt
+    +ChangePassword(newHash: string, now): void
+  }
+  class EmailLinkToken {
+    +LinkPurpose Purpose = PasswordReset
+    +DateTimeOffset ExpiresAt
+    +DateTimeOffset? ConsumedAt
+    +Consume(now): Result
+  }
+  class PasswordChanged <<domain event>> {
+    +Guid MemberId
+    +PasswordChangeSource Source
+  }
+  enum PasswordChangeSource {
+    Reset
+    ChangedBySelf
+  }
+}
+PasswordResetController ..> RequestPasswordResetCommand : sends
+PasswordResetController ..> ResetPasswordCommand : sends
+AccountPasswordController ..> ChangePasswordCommand : sends
+RequestPasswordResetCommandHandler --> EmailLinkTokenIssuer
+ResetPasswordCommandHandler --> EmailLinkToken : consumes
+ResetPasswordCommandHandler --> IPasswordHasher
+ResetPasswordCommandHandler --> ISessionRevoker
+ChangePasswordCommandHandler --> IPasswordHasher
+ChangePasswordCommandHandler --> ISessionRevoker
+NewPasswordValidator --> PasswordPolicy
+NewPasswordValidator ..> ResetPasswordCommand : validates
+NewPasswordValidator ..> ChangePasswordCommand : validates
+ResetPasswordCommandHandler --> Member
+ChangePasswordCommandHandler --> Member
+Member ..> PasswordChanged : raises
+PasswordChanged --> PasswordChangeSource
+@enduml

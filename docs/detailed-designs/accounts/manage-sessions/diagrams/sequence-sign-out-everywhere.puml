@@ -1,0 +1,57 @@
+@startuml
+title UML sequence behaviour — Sign out everywhere
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SettingsPage" as page
+  participant "SignOutEverywhereDialog" as dlg
+  participant "AuthApi" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "AuthController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "SignOutEverywhereCommandHandler" as handler
+  participant "SessionRevoker" as revoker
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "12L database" as db
+  database "Distributed cache" as cache
+end box
+actor -> page : Sessions row: Sign out everywhere
+page -> dlg : Open "Sign out everywhere?"
+dlg --> actor : "Both devices, including this one, will need to sign in again."
+actor -> dlg : Sign out everywhere
+dlg -> dlg : State busy: Cancel disabled
+dlg -> client : signOutEverywhere()
+client -> ctrl : POST /api/auth/sign-out-everywhere
+ctrl -> handler : Send SignOutEverywhereCommand(memberId)
+handler -> revoker : RevokeAllAsync(memberId, SignOutEverywhere)
+revoker -> db : Select MemberSessions where RevokedAt is null
+loop each session (L2-008)
+  revoker -> cache : DEL 12l:rt:family:{sid}; SET 12l:rt:revoked:{sid} EX 900
+end
+revoker -> db : Set RevokedAt on all rows in one transaction
+alt success
+  ctrl --> client : 204 No Content; cookies expired
+  dlg --> actor : Signed out; navigate to sign in
+else failure
+  ctrl --> client : 500 problem details
+  dlg --> actor : "Couldn’t sign you out" with Ref and Try again
+end
+@enduml

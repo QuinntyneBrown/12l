@@ -1,0 +1,11 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Edit profile
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+Person(visitor, "Visitor or member", "Views public profiles")
+System(twelvel, "12L", "Marketplace for men's US size 12 shoes and size L clothing")
+Rel(member, twelvel, "Edits display name, bio, avatar and public location in", "HTTPS")
+Rel(visitor, twelvel, "Sees the updated public profile in", "HTTPS")
+@enduml

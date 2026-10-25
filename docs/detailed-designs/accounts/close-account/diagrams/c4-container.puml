@@ -1,0 +1,21 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Close an account
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular, TypeScript", "Responsive single-page application")
+  Container(api, "12L API", "ASP.NET Core Web API, C#", "REST API; source of truth for every rule")
+  Container(worker, "12L Worker", ".NET worker service", "Outbox email dispatch and background jobs")
+  ContainerDb(db, "12L database", "SQL Server, EF Core", "Members, sessions, link tokens, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "Rate-limit counters, refresh-token families, revoked-session keys")
+  ContainerDb(photos, "Photo storage", "Object storage behind a CDN", "Original and processed images")
+}
+Rel(member, web, "Confirms closure with password", "HTTPS")
+Rel(web, api, "POST /api/accounts/me/closure", "JSON/HTTPS")
+Rel(api, db, "Checks open orders; closes Member; removes listings", "EF Core")
+Rel(api, cache, "Revokes every session", "Redis")
+Rel(worker, db, "AccountErasureJob erases personal data after 30 days", "EF Core")
+Rel(worker, photos, "Deletes avatar and listing photos", "HTTPS")
+@enduml

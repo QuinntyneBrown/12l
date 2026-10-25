@@ -1,0 +1,80 @@
+@startuml
+title UML sequence behaviour — Register an account
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Visitor" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "RegisterPage" as page
+  participant "AccountsApi" as client
+  participant "SessionStore" as store
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "Rate limiter" as limiter
+  participant "AccountsController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "RegisterMemberCommandHandler" as handler
+  participant "PasswordPolicy" as policy
+  participant "Member" as entity
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  participant "BreachedPasswordClient" as breach
+  database "12L database" as db
+  database "Distributed cache" as cache
+end box
+actor -> page : Enter display name, email, password; tick 18+ and terms; Join 12L
+page -> page : Client-side checks (required, 3–30 chars, 12+ chars, ticks)
+alt client-side errors
+  page --> actor : Error summary first, inline field errors, focus summary
+else form valid
+  page -> page : State submitting: button busy, fields read-only
+  page -> client : register(RegisterRequest)
+  client -> limiter : POST /api/accounts (X-XSRF-TOKEN)
+  limiter -> cache : INCR 12l:rl:register:{ip}:{yyyyMMddHH} (policy register)
+  alt more than 5 registrations from this IP in the last hour (L2-051)
+    limiter --> client : 429 Too Many Requests, Retry-After, code rate_limited
+    client --> page : RateLimited
+    page --> actor : Danger alert with retry time (copy <TO SUPPLY>)
+  else under the limit
+    limiter -> ctrl : Forward request
+    ctrl -> handler : Send RegisterMemberCommand
+    handler -> handler : Validator: display name, email format, ticks (L2-001)
+    handler -> db : Exists NormalizedEmail or NormalizedDisplayName?
+    db --> handler : Matches
+    handler -> policy : CheckAsync(password)
+    policy -> breach : IsBreachedAsync(password)
+    breach --> policy : true or false
+    policy --> handler : PasswordCheckResult
+    alt any field invalid, taken or breached
+      handler --> ctrl : Validation failure with field errors
+      ctrl --> client : 400 problem details, code validation_failed, errors per field
+      client --> page : Field errors
+      page --> actor : "That display name is taken", "An account with this email already exists", ...
+    else all checks pass
+      handler -> entity : Member.Register(name, email, PBKDF2 hash, terms version)
+      entity --> handler : Unverified Member
+      handler -> db : Insert Member, EmailLinkToken (24 h), EmailNotificationRequested(EmailVerification) via INotificationPublisher.Enqueue, MemberSession
+      note right of db : One transaction; unique indexes on\nNormalizedEmail and NormalizedDisplayName\nturn a race into 400 validation_failed
+      db --> handler : Committed
+      handler --> ctrl : RegisteredMemberDto + session tokens
+      ctrl --> client : 201 Created, Set-Cookie access and refresh (HttpOnly, Secure, SameSite=Strict)
+      client --> store : setMember(unverified)
+      page --> actor : "Check your email" — link works for 24 hours
+    end
+  end
+end
+@enduml

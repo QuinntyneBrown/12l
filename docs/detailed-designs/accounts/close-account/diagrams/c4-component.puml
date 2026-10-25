@@ -1,0 +1,31 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Close an account
+
+Container(web, "12L Web", "Angular", "SettingsPage, CloseAccountDialog, AccountsApi")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "AccountClosureController", "ASP.NET Core controller", "POST /api/accounts/me/closure")
+  Component(handler, "CloseAccountCommandHandler", "MediatR handler", "Password check, open-order check, closure")
+  Component(orders, "IOpenOrderLookup", "Port (orders subsystem)", "Orders not Completed, Cancelled or Refunded")
+  Component(listings, "IMemberListingRemover", "Port (listings subsystem)", "Removes Active and Draft listings")
+  Component(revoker, "SessionRevoker", "Application service (manage-sessions)", "Revokes every session")
+  Component(member, "Member", "Domain entity", "Close and Erase transitions")
+  ComponentDb(dbc, "TwelveLDbContext", "EF Core", "Members, Listings, Orders, MemberSessions")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(job, "AccountErasureJob", "Hosted service", "Daily; erases members whose ErasureDueAt has passed")
+  Component(eraser, "MemberDataEraser", "Application service", "Erases fields, photos, addresses; keeps anonymised orders")
+}
+ContainerDb(photos, "Photo storage", "Object storage", "Avatars and listing photos")
+Rel(web, ctrl, "Calls", "JSON/HTTPS")
+Rel(ctrl, handler, "Sends CloseAccountCommand", "MediatR")
+Rel(handler, orders, "Lists open orders")
+Rel(handler, member, "Close(now)")
+Rel(handler, listings, "Removes listings in the same transaction")
+Rel(handler, revoker, "RevokeAllAsync(AccountClosed)")
+Rel(handler, dbc, "Saves", "EF Core")
+Rel(job, eraser, "Erases each due member")
+Rel(eraser, dbc, "Updates and deletes rows", "EF Core")
+Rel(eraser, photos, "Deletes objects", "HTTPS")
+@enduml

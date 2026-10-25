@@ -36,7 +36,7 @@ up -> up : Reject files over 10 MB before upload
 loop each accepted file
   up -> client : upload(file)
   client -> controller : POST /api/photo-uploads (multipart, anti-forgery header)
-  controller -> controller : Authenticate, apply CanSell policy and upload size limit
+  controller -> controller : Authenticate, apply TradingMember policy and upload size limit
   controller -> handler : Send UploadListingPhotoCommand
   alt larger than 10 MB
     handler --> controller : PHOTO_TOO_LARGE

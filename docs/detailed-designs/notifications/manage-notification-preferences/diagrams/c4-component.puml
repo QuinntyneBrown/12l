@@ -6,7 +6,7 @@ title Components — Manage notification preferences
 Container(web, "12L Web", "Angular", "NotificationSettingsPageComponent, UnsubscribePageComponent, NotificationPreferencesApiService")
 
 Container_Boundary(api, "12L API") {
-  Component(ctrl, "NotificationPreferencesController", "ASP.NET Core controller", "GET and PUT /api/me/notification-preferences under MemberPolicy")
+  Component(ctrl, "NotificationPreferencesController", "ASP.NET Core controller", "GET and PUT /api/me/notification-preferences under MemberOnly policy")
   Component(uctrl, "UnsubscribeController", "ASP.NET Core controller", "Anonymous POST /api/notifications/unsubscribe, rate limited")
   Component(get, "GetNotificationPreferencesQueryHandler", "MediatR handler", "Returns 4 categories, 2 locked on")
   Component(upd, "UpdateNotificationPreferencesCommandHandler", "MediatR handler", "Saves reviewEmails and marketingEmails")

@@ -1,0 +1,57 @@
+@startuml
+title UML sequence behaviour — Capability and role gates (403)
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "Page or dialog" as page
+  participant "problemDetailsInterceptor" as icpt
+  participant "Router" as router
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "Authorization middleware" as authz
+  participant "ProblemDetailsAuthorizationResultHandler" as res
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  participant "MemberVerificationReader" as ver
+  participant "RedisMemberStatusReader" as status
+end box
+actor -> page : Create listing, start checkout, review, report, or open moderation
+page -> authz : Request to endpoint with policy TradingMember or AdministratorWithSecondFactor
+alt policy TradingMember
+  authz -> ver : IsVerifiedAsync(memberId)
+  ver --> authz : bool (true cached at 12l:cache:member-verified:{id})
+  authz -> status : GetStatusAsync(memberId)
+  status --> authz : Active, Suspended or Closed
+  alt not verified (L2-002)
+    authz -> res : Fail VerifiedMember
+    res --> icpt : 403, code account.email_unverified
+    icpt --> actor : Open VerifyEmailPromptDialog
+  else suspended (L2-010, L2-046)
+    authz -> res : Fail NotSuspended
+    res --> icpt : 403, code account.suspended
+    icpt --> actor : Suspended blocked state or danger toast; AccountBanner danger
+  else allowed
+    authz --> page : Endpoint runs
+  end
+else policy AdministratorWithSecondFactor without Administrator role (L2-010)
+  authz -> res : Fail role requirement
+  res --> icpt : 403, code auth.administrator_required
+  icpt -> router : Show forbidden state
+  router --> actor : "Admins only" — "This area is for the 12L moderation team."
+end
+@enduml

@@ -1,0 +1,81 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Enforce authorisation
+
+package "TwelveL.Api" {
+  class AuthorizationPolicies <<static>> {
+    +PublicRead: string
+    +MemberOnly: string
+    +VerifiedMember: string
+    +NotSuspended: string
+    +TradingMember: string
+    +AdministratorWithSecondFactor: string
+    +Register(options: AuthorizationOptions): void
+  }
+  class VerifiedMemberRequirement
+  class VerifiedMemberAuthorizationHandler {
+    +HandleRequirementAsync(ctx, req): Task
+  }
+  class ProblemDetailsAuthorizationResultHandler {
+    +HandleAsync(next, ctx, policy, result): Task
+  }
+}
+package "TwelveL.Application" {
+  interface ICurrentMember {
+    +Guid? MemberId
+    +Guid? SessionId
+    +bool IsAdministrator
+    +Guid RequireMemberId(): Guid
+  }
+  interface IMemberVerificationReader {
+    +IsVerifiedAsync(memberId: Guid): Task<bool>
+  }
+  interface IMemberStatusReader {
+    +GetStatusAsync(memberId: Guid): Task<MemberStatus>
+  }
+  class RequiresCapabilityAttribute {
+    +Capability Capability
+  }
+  enum Capability {
+    Trade
+    Moderate
+  }
+  class AuthorizationBehavior<TRequest, TResponse> {
+    +Handle(req, next, ct): Task<TResponse>
+  }
+  class NotFoundException {
+    +string Code = "resource.not_found"
+  }
+  class ForbiddenException {
+    +string Code
+  }
+  class OwnershipQueryExtensions <<static>> {
+    +OwnedBy<T>(q: IQueryable<T>, memberId: Guid): IQueryable<T>
+    +VisibleToParty(q: IQueryable<Order>, memberId: Guid): IQueryable<Order>
+  }
+  interface IOwnedByMember {
+    +Guid OwnerMemberId
+  }
+}
+VerifiedMemberAuthorizationHandler ..> VerifiedMemberRequirement : handles
+VerifiedMemberAuthorizationHandler --> IMemberVerificationReader
+AuthorizationPolicies ..> VerifiedMemberRequirement : registers
+AuthorizationBehavior --> ICurrentMember
+AuthorizationBehavior --> IMemberVerificationReader
+AuthorizationBehavior --> IMemberStatusReader
+AuthorizationBehavior ..> RequiresCapabilityAttribute : reads
+RequiresCapabilityAttribute --> Capability
+AuthorizationBehavior ..> ForbiddenException : throws
+OwnershipQueryExtensions ..> IOwnedByMember : filters
+OwnershipQueryExtensions ..> NotFoundException : callers throw on miss
+@enduml

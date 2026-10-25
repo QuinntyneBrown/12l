@@ -1,0 +1,17 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Manage sessions
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular, TypeScript", "Responsive single-page application")
+  Container(api, "12L API", "ASP.NET Core Web API, C#", "REST API; source of truth for every rule")
+  ContainerDb(db, "12L database", "SQL Server, EF Core", "Members, sessions, link tokens, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "Rate-limit counters, refresh-token families, revoked-session keys")
+}
+Rel(member, web, "Uses", "HTTPS")
+Rel(web, api, "Calls with session cookies; POST /api/auth/refresh, /sign-out, /sign-out-everywhere", "JSON/HTTPS")
+Rel(api, cache, "Rotates refresh-token families; writes revoked-session keys", "Redis")
+Rel(api, db, "Records MemberSessions and revocations", "EF Core")
+@enduml

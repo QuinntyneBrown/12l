@@ -1,0 +1,48 @@
+@startuml
+title UML sequence behaviour — Sign out
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "UserMenu" as menu
+  participant "AuthApi" as client
+  participant "SessionStore" as store
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "AuthController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "SignOutCommandHandler" as handler
+  participant "SessionRevoker" as revoker
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "Distributed cache" as cache
+  database "12L database" as db
+end box
+actor -> menu : Sign out
+menu -> client : signOut()
+client -> ctrl : POST /api/auth/sign-out (X-XSRF-TOKEN)
+ctrl -> handler : Send SignOutCommand(sid from access token)
+handler -> revoker : RevokeAsync(sid, SignOut)
+revoker -> cache : DEL 12l:rt:family:{sid}
+revoker -> cache : SET 12l:rt:revoked:{sid} EX 900
+revoker -> db : MemberSession.Revoke(SignOut)
+ctrl --> client : 204 No Content; expire both cookies and session-hint cookie
+client --> store : clear()
+menu --> actor : Catalog as a visitor
+note over ctrl, cache : A later POST /api/auth/refresh with the old\nrefresh token finds no family and returns 401 (L2-008)
+@enduml

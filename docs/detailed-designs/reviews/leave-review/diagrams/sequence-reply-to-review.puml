@@ -38,7 +38,7 @@ alt reply empty
 else reply present
   dialog -> client : postReply(reviewId, {text})
   client -> controller : POST /api/reviews/{reviewId}/reply
-  controller -> controller : MemberPolicy + VerifiedActiveMemberPolicy, validate 1 to 500 characters
+  controller -> controller : MemberOnly + TradingMember policies, validate 1 to 500 characters
   controller -> handler : Send PostReviewReplyCommand
   handler -> db : Load review
   db --> handler : Review

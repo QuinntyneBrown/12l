@@ -1,0 +1,57 @@
+@startuml
+title UML sequence behaviour — Save profile
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "EditProfilePage" as page
+  participant "ProfileApi" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "ProfileController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "UpdateProfileCommandHandler" as handler
+  participant "Member" as entity
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Open /account/profile
+page -> client : getMyProfile()
+client -> ctrl : GET /api/accounts/me/profile
+ctrl --> client : 200 MyProfileDto (with version)
+page --> actor : Form: display name, bio with "n / 500" counter, city, state
+actor -> page : Edit fields; Save profile
+page -> page : State submitting: button busy, fields read-only
+page -> client : updateProfile(body with version)
+client -> ctrl : PUT /api/accounts/me/profile
+ctrl -> handler : Send UpdateProfileCommand (validator: L2-001 name rules, bio <= 500, city and region only)
+handler -> db : Load Member; NormalizedDisplayName used by another member?
+alt invalid or name taken (L2-004)
+  ctrl --> client : 400 validation_failed, errors per field
+  page --> actor : Error summary + "That display name is taken", "Bio must be 500 characters or fewer"
+else version differs from Member.RowVersion
+  ctrl --> client : 409 Conflict, code account.profile_changed
+  page --> actor : Conflict alert; reload profile (copy <TO SUPPLY>)
+else valid
+  handler -> entity : UpdateProfile(name, bio, location)
+  handler -> db : SaveChanges (RowVersion concurrency token; unique index on NormalizedDisplayName)
+  ctrl --> client : 200 MyProfileDto
+  page --> actor : "Profile saved" with View public profile
+end
+@enduml

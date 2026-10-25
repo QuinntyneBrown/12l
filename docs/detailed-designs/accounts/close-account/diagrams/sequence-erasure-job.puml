@@ -1,0 +1,44 @@
+@startuml
+title UML sequence behaviour — Erase a closed account after 30 days
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+box "Backend — 12L Worker application (TwelveL.Worker)" #FFF4E5
+  participant "AccountErasureJob" as job
+  participant "MemberDataEraser" as eraser
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "Member" as entity
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "12L database" as db
+  database "Photo storage" as photos
+end box
+job -> job : Wake on schedule Accounts:Erasure:Schedule (daily)
+job -> db : Select Members where Status = Closed and ErasureDueAt <= now and ErasedAt is null (batch of Accounts:Erasure:BatchSize)
+loop each member
+  job -> eraser : EraseAsync(memberId)
+  eraser -> db : Load avatar key, listing photo keys, saved addresses
+  eraser -> photos : Delete avatar and listing photo objects (L2-005)
+  eraser -> entity : Erase(now) — Email = erased-{id}@invalid, DisplayName = null, Bio, Location, AvatarPhotoId cleared, PasswordHash replaced
+  eraser -> db : Delete saved addresses, link tokens and sessions; anonymise order buyer and seller snapshots
+  note right of db : Order rows stay for the legal retention period (<TO SUPPLY>);\nviews show "Former member" when Member.ErasedAt is set
+  eraser -> db : SaveChanges in one transaction per member
+  alt failure
+    eraser --> job : Log error with correlation ID; retry on next run
+  end
+end
+@enduml

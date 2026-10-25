@@ -1,0 +1,99 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Sign in
+
+package "TwelveL.Api" {
+  class AuthController {
+    +SignIn(req: SignInRequest): Task<IActionResult>
+  }
+  class SignInRequest {
+    +string Email
+    +string Password
+  }
+  class SessionCookieWriter {
+    +Write(response: HttpResponse, tokens: SessionTokens): void
+  }
+}
+package "TwelveL.Application" {
+  class SignInCommand {
+    +string Email
+    +string Password
+    +string ClientIp
+    +string UserAgent
+  }
+  class SignInCommandHandler {
+    +Handle(cmd: SignInCommand, ct): Task<Result<SignInResult>>
+  }
+  class SignInLockout {
+    +MaxFailures: int = 5
+    +Window: TimeSpan = 15 min
+    +LockDuration: TimeSpan = 15 min
+    +IsLockedAsync(emailKey: string): Task<LockStatus>
+    +RecordFailureAsync(emailKey: string): Task<bool>
+    +ResetAsync(emailKey: string): Task
+  }
+  class SignInResult {
+    +SignInOutcome Outcome
+    +SessionTokens? Tokens
+    +CurrentMemberDto? Member
+    +TimeSpan? RetryAfter
+  }
+  enum SignInOutcome {
+    SignedIn
+    SecondFactorRequired
+    InvalidCredentials
+    Locked
+  }
+  class CurrentMemberDto {
+    +Guid Id
+    +string DisplayName
+    +bool EmailVerified
+    +MemberStatus Status
+    +string[] Roles
+  }
+  interface IPasswordHasher {
+    +Verify(password: string, encoded: string): PasswordVerification
+    +NeedsRehash(encoded: string): bool
+  }
+  interface ISessionTokenService {
+    +StartAsync(member: Member, ip: string, userAgent: string): Task<SessionTokens>
+  }
+}
+package "TwelveL.Domain" {
+  class Member {
+    +Guid Id
+    +EmailAddress Email
+    +string PasswordHash
+    +MemberStatus Status
+    +IReadOnlyCollection<Role> Roles
+    +bool CanSignIn
+  }
+  enum PasswordVerification {
+    Failed
+    Succeeded
+    SucceededNeedsRehash
+  }
+}
+AuthController ..> SignInRequest
+AuthController ..> SignInCommand : sends
+AuthController --> SessionCookieWriter
+SignInCommandHandler ..> SignInCommand : handles
+SignInCommandHandler --> SignInLockout
+SignInCommandHandler --> IPasswordHasher
+SignInCommandHandler --> ISessionTokenService
+SignInCommandHandler --> Member : loads
+SignInCommandHandler ..> SignInResult : returns
+SignInResult --> SignInOutcome
+SignInResult --> CurrentMemberDto
+IPasswordHasher ..> PasswordVerification
+@enduml

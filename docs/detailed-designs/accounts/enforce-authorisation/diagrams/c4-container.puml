@@ -1,0 +1,17 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Enforce authorisation
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular, TypeScript", "Responsive single-page application")
+  Container(api, "12L API", "ASP.NET Core Web API, C#", "REST API; source of truth for every rule")
+  ContainerDb(db, "12L database", "SQL Server, EF Core", "Members, sessions, link tokens, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "Rate-limit counters, refresh-token families, revoked-session keys")
+}
+Rel(member, web, "Uses", "HTTPS")
+Rel(web, api, "Calls every endpoint with session cookies", "JSON/HTTPS")
+Rel(api, cache, "Reads cached member status and verification", "Redis")
+Rel(api, db, "Owner-scoped queries", "EF Core")
+@enduml

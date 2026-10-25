@@ -1,0 +1,28 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Sign in
+
+Container(web, "12L Web", "Angular", "SignInPage, AuthApi, SessionStore, returnUrl handling")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "AuthController", "ASP.NET Core controller", "POST /api/auth/sign-in; rate-limit policy sign-in")
+  Component(limiter, "Rate limiter", "ASP.NET Core rate limiting, Redis store", "20 attempts per 15 minutes per IP")
+  Component(handler, "SignInCommandHandler", "MediatR handler", "Verifies credentials, applies lockout, starts session")
+  Component(lockout, "SignInLockout", "Application service", "5 failures in 15 minutes locks for 15 minutes")
+  Component(hasher, "Pbkdf2PasswordHasher", "IPasswordHasher", "Constant-time verify, dummy hash for unknown email")
+  Component(sessions, "SessionTokenService", "Application service (manage-sessions)", "Creates MemberSession and cookies")
+  Component(member, "Member", "Domain entity", "Status and password hash")
+  ComponentDb(dbc, "TwelveLDbContext", "EF Core", "Members, MemberSessions, OutboxMessages")
+}
+ContainerDb(cache, "Distributed cache", "Redis", "Counters and locks")
+Rel(web, ctrl, "Sends SignInRequest", "JSON/HTTPS")
+Rel(ctrl, limiter, "Applies policy")
+Rel(limiter, cache, "INCR", "Redis")
+Rel(ctrl, handler, "Sends SignInCommand", "MediatR")
+Rel(handler, lockout, "Checks and records failures")
+Rel(lockout, cache, "Reads and writes 12l:rl:sign-in-fail and 12l:rl:sign-in-lock", "Redis")
+Rel(handler, dbc, "Loads Member by NormalizedEmail", "EF Core")
+Rel(handler, hasher, "Verifies password")
+Rel(handler, member, "Reads Status")
+Rel(handler, sessions, "Starts session on success")
+@enduml

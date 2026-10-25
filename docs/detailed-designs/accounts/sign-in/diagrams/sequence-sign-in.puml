@@ -1,0 +1,79 @@
+@startuml
+title UML sequence behaviour — Sign in
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SignInPage" as page
+  participant "AuthApi" as client
+  participant "SessionStore" as store
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "AuthController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "SignInCommandHandler" as handler
+  participant "SignInLockout" as lockout
+  participant "Pbkdf2PasswordHasher" as hasher
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "Distributed cache" as cache
+  database "12L database" as db
+end box
+actor -> page : Enter email and password; Sign in
+page -> page : State submitting: button busy, fields read-only
+page -> client : signIn(email, password)
+client -> ctrl : POST /api/auth/sign-in (rate-limit policy sign-in passed)
+ctrl -> handler : Send SignInCommand
+handler -> handler : emailKey = SHA-256(lower-case trimmed email)
+handler -> lockout : IsLockedAsync(emailKey)
+lockout -> cache : EXISTS 12l:rl:sign-in-lock:{emailKey}
+alt locked (L2-007)
+  handler --> ctrl : Locked, RetryAfter
+  ctrl --> client : 423 Locked, Retry-After, code auth.account_locked
+  page --> actor : "Too many attempts" — "Try again in 15 minutes. We’ve emailed you about this." (submit disabled)
+else not locked
+  handler -> db : Load Member where NormalizedEmail = lower-case email (L2-006)
+  db --> handler : Member or none
+  handler -> hasher : Verify(password, member hash or fixed dummy hash)
+  hasher --> handler : Succeeded or Failed (same work either way)
+  alt unknown email, wrong password, or Member.Status = Closed (L2-006, L2-005)
+    handler -> lockout : RecordFailureAsync(emailKey)
+    handler --> ctrl : InvalidCredentials
+    ctrl --> client : 401 Unauthorized, code auth.invalid_credentials
+    page --> actor : "Email or password is incorrect" — "Check both and try again." (email kept)
+  else correct password, member has Administrator role
+    handler -> handler : ISessionTokenService.StartAsync with amr [pwd]
+    handler --> ctrl : SecondFactorRequired, tokens
+    ctrl --> client : 200 { secondFactorRequired: true }, Set-Cookie
+    page --> actor : Route to /admin/verify?returnUrl=... (moderation/audit-log-and-admin-sign-in)
+  else correct password
+    handler -> lockout : ResetAsync(emailKey)
+    opt SucceededNeedsRehash
+      handler -> db : Update PasswordHash with current iteration count
+    end
+    handler -> handler : ISessionTokenService.StartAsync (manage-sessions)
+    handler -> db : Insert MemberSession
+    handler -> cache : SET 12l:rt:family:{sessionId}
+    handler --> ctrl : SignedIn, tokens, CurrentMemberDto
+    ctrl --> client : 200 OK, Set-Cookie access and refresh (L2-008)
+    client --> store : setMember(member)
+    page -> page : Navigate to validated returnUrl or /
+    page --> actor : Page they came from (L2-006)
+  end
+end
+@enduml

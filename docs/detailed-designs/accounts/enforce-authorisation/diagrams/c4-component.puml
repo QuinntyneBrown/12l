@@ -1,0 +1,33 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Enforce authorisation
+
+Container(web, "12L Web", "Angular", "authGuard, adminGuard, problemDetailsInterceptor, ForbiddenPage, AccountBannerComponent")
+Container_Boundary(api, "12L API") {
+  Component(authn, "JwtCookieAuthenticationHandler", "Authentication (manage-sessions)", "Builds ClaimsPrincipal from access token")
+  Component(fallback, "FallbackPolicy", "ASP.NET Core authorization", "Authenticated unless [AllowAnonymous] or PublicRead")
+  Component(policies, "AuthorizationPolicies", "Policy catalogue", "PublicRead, MemberOnly, VerifiedMember, NotSuspended, TradingMember, AdministratorWithSecondFactor")
+  Component(vh, "VerifiedMemberAuthorizationHandler", "IAuthorizationHandler", "Email verified or 403 account.email_unverified")
+  Component(sh, "NotSuspendedAuthorizationHandler", "IAuthorizationHandler (moderation/suspend-member)", "Not suspended or 403 account.suspended")
+  Component(results, "ProblemDetailsAuthorizationResultHandler", "IAuthorizationMiddlewareResultHandler", "Writes 401 and 403 problem details with codes")
+  Component(behavior, "AuthorizationBehavior", "MediatR pipeline behaviour", "Re-checks [RequiresCapability] on commands")
+  Component(current, "CurrentMember", "ICurrentMember", "Member ID, roles and session ID of the caller")
+  Component(owner, "Owner-scoped query extensions", "EF Core IQueryable extensions", "OwnedBy, VisibleToParty; miss means 404")
+  Component(readers, "MemberVerificationReader / RedisMemberStatusReader", "Infrastructure services", "Cached flags")
+}
+ContainerDb(cache, "Distributed cache", "Redis", "12l:member:verified, member:status")
+ContainerDb(db, "12L database", "SQL Server", "Members, Listings, Orders")
+Rel(web, authn, "Requests with cookies", "HTTPS")
+Rel(authn, fallback, "Then")
+Rel(fallback, policies, "Endpoint metadata selects")
+Rel(policies, vh, "Uses")
+Rel(policies, sh, "Uses")
+Rel(policies, results, "Failures written by")
+Rel(vh, readers, "Reads")
+Rel(sh, readers, "Reads")
+Rel(readers, cache, "GET/SET", "Redis")
+Rel(behavior, current, "Reads")
+Rel(owner, current, "Reads member ID")
+Rel(owner, db, "Filters by owner or party", "EF Core")
+@enduml

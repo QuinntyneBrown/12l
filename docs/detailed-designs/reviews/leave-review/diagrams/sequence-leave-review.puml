@@ -41,7 +41,7 @@ alt client validation fails
 else form valid
   dialog -> client : createReview(orderId, {stars, comment})
   client -> controller : POST /api/orders/{orderId}/reviews
-  controller -> controller : MemberPolicy + VerifiedActiveMemberPolicy
+  controller -> controller : MemberOnly + TradingMember policies
   controller -> controller : CreateReviewCommandValidator (L2-038)
   alt validator fails
     controller --> client : 400 review.invalid with field errors

@@ -37,7 +37,7 @@ Screens, states and copy come from `docs/mocks/pages/sell/` (`default`, `filled`
 
 ### API (`TwelveL.Api`)
 
-- **`PhotoUploadsController`** — requires an authenticated member and the `CanSell` policy (`L2-010`); state-changing requests require the anti-forgery token (`L2-050`).
+- **`PhotoUploadsController`** — requires an authenticated member and the `TradingMember` policy (`L2-010`); state-changing requests require the anti-forgery token (`L2-050`).
   - `POST /api/photo-uploads` — `multipart/form-data` with one `file` part. `[RequestSizeLimit]` is `Photos:MaxBytes` plus 64 KB for multipart overhead; this endpoint is the exception to the 1 MB JSON body limit of `L2-049`. Returns `201 Created` with `PhotoUploadDto { id, status: "Processing" }` and `Location: /api/photo-uploads/{id}`; `413` `PHOTO_TOO_LARGE`; `415` `PHOTO_TYPE_UNSUPPORTED`; `422` `PHOTO_TOO_SMALL`; `401`; `403`.
   - `GET /api/photo-uploads/{id}` — returns `200` with `PhotoUploadDto { id, status, thumbnailUrl?, errorCode? }`; `404` when the photo belongs to another member (`L2-010`).
 - **Attaching** happens in the listing endpoints of [create-listing](../create-listing/README.md) and [edit-and-withdraw-listing](../edit-and-withdraw-listing/README.md): `POST /api/listings` and `PUT /api/listings/{reference}` carry `photoIds` in display order.

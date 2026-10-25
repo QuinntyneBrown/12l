@@ -1,0 +1,98 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Verify email
+
+package "TwelveL.Api" {
+  class EmailVerificationController {
+    +Verify(req: VerifyEmailRequest): Task<IActionResult>
+    +ResendForSignedInMember(): Task<IActionResult>
+    +ResendFromExpiredLink(req: ResendFromLinkRequest): Task<IActionResult>
+  }
+}
+package "TwelveL.Application" {
+  class VerifyEmailCommand {
+    +string Token
+  }
+  class VerifyEmailCommandHandler {
+    +Handle(cmd: VerifyEmailCommand, ct): Task<Result<VerificationOutcome>>
+  }
+  class ResendVerificationEmailCommand {
+    +Guid? MemberId
+    +string? ExpiredToken
+  }
+  class ResendVerificationEmailCommandHandler {
+    +Handle(cmd: ResendVerificationEmailCommand, ct): Task<Result>
+  }
+  class EmailLinkTokenIssuer {
+    +Issue(member: Member, purpose: LinkPurpose): IssuedLink
+    +RevokeOutstanding(memberId: Guid, purpose: LinkPurpose): void
+  }
+  class VerificationResendLimiter {
+    +MaxPerHour: int = 3
+    +TryAcquireAsync(memberId: Guid): Task<bool>
+  }
+  interface IMemberVerificationReader {
+    +IsVerifiedAsync(memberId: Guid): Task<bool>
+    +PrimeVerifiedAsync(memberId: Guid): Task
+  }
+  enum VerificationOutcome {
+    Verified
+  }
+}
+package "TwelveL.Domain" {
+  class Member {
+    +Guid Id
+    +DateTimeOffset? EmailVerifiedAt
+    +MemberStatus Status
+    +bool IsEmailVerified
+    +bool CanTrade
+    +MarkEmailVerified(now): void
+  }
+  class EmailLinkToken {
+    +Guid Id
+    +Guid MemberId
+    +LinkPurpose Purpose
+    +byte[] TokenHash
+    +DateTimeOffset CreatedAt
+    +DateTimeOffset ExpiresAt
+    +DateTimeOffset? ConsumedAt
+    +DateTimeOffset? RevokedAt
+    +Consume(now): Result
+    +Revoke(now): void
+    +StateAt(now): LinkTokenState
+  }
+  enum LinkPurpose {
+    EmailVerification
+    PasswordReset
+  }
+  enum LinkTokenState {
+    Usable
+    Expired
+    Consumed
+    Revoked
+  }
+}
+EmailVerificationController ..> VerifyEmailCommand : sends
+EmailVerificationController ..> ResendVerificationEmailCommand : sends
+VerifyEmailCommandHandler ..> VerifyEmailCommand : handles
+ResendVerificationEmailCommandHandler ..> ResendVerificationEmailCommand : handles
+VerifyEmailCommandHandler --> EmailLinkToken : consumes
+VerifyEmailCommandHandler --> Member : marks verified
+VerifyEmailCommandHandler --> IMemberVerificationReader
+ResendVerificationEmailCommandHandler --> VerificationResendLimiter
+ResendVerificationEmailCommandHandler --> EmailLinkTokenIssuer
+EmailLinkTokenIssuer ..> EmailLinkToken : creates / revokes
+EmailLinkToken --> LinkPurpose
+EmailLinkToken ..> LinkTokenState
+Member "1" -- "*" EmailLinkToken
+@enduml

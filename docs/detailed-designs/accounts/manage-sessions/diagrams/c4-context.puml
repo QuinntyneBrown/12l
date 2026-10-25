@@ -1,0 +1,9 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Manage sessions
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System(twelvel, "12L", "Marketplace for men's US size 12 shoes and size L clothing")
+Rel(member, twelvel, "Stays signed in, signs out, signs out everywhere", "HTTPS")
+@enduml

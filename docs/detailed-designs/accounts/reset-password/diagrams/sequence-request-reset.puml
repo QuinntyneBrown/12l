@@ -1,0 +1,59 @@
+@startuml
+title UML sequence behaviour — Request a password reset link
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member or visitor" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "ForgotPasswordPage" as page
+  participant "AuthApi" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "PasswordResetController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "RequestPasswordResetCommandHandler" as handler
+  participant "EmailLinkTokenIssuer" as issuer
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "Distributed cache" as cache
+  database "12L database" as db
+end box
+box "Backend — 12L Worker application (TwelveL.Worker)" #FFF4E5
+  participant "Email dispatcher (notifications)" as outbox
+end box
+actor -> page : Enter email; Send reset link
+alt malformed email
+  page --> actor : "Enter an email like name@example.com"
+else well-formed
+  page -> client : requestPasswordReset(email)
+  client -> ctrl : POST /api/auth/password-reset-requests { email }
+  ctrl -> handler : Send RequestPasswordResetCommand
+  handler -> cache : INCR 12l:rl:password-reset:{emailKey} (expires 1 hour)
+  handler -> db : Load Member by NormalizedEmail
+  alt no Member, Member closed, or fourth request within the hour (L2-009)
+    handler -> handler : Do nothing further
+  else registered and within the limit
+    handler -> issuer : RevokeOutstanding(memberId, PasswordReset)
+    handler -> issuer : Issue(member, PasswordReset) — expires in 1 hour
+    handler -> db : Save token and EmailNotificationRequested(PasswordReset) via INotificationPublisher.Enqueue
+    outbox -> outbox : Send link /reset-password?token=... (L2-042)
+  end
+  handler --> ctrl : Accepted (same result in every branch)
+  ctrl --> client : 202 Accepted (identical status and body)
+  page --> actor : "Check your email" — "If an account exists for this email, we’ve sent a link."
+end
+@enduml

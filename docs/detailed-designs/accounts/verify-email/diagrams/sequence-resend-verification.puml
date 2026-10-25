@@ -1,0 +1,66 @@
+@startuml
+title UML sequence behaviour — Resend the verification email
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Unverified member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "VerifyEmailPromptDialog or AccountBannerComponent" as ui
+  participant "AccountsApi" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "EmailVerificationController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "ResendVerificationEmailCommandHandler" as handler
+  participant "EmailLinkTokenIssuer" as issuer
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "Distributed cache" as cache
+  database "12L database" as db
+end box
+box "Backend — 12L Worker application (TwelveL.Worker)" #FFF4E5
+  participant "Email dispatcher (notifications)" as outbox
+end box
+actor -> ui : Resend link
+ui -> ui : State busy (button aria-busy)
+ui -> client : resendVerification()
+client -> ctrl : POST /api/accounts/me/verification-email (signed in)\nor POST /api/accounts/email-verifications/resend { token } (expired link)
+ctrl -> handler : Send ResendVerificationEmailCommand
+handler -> db : Load Member
+alt member already verified
+  handler --> ctrl : account.email_already_verified
+  ctrl --> client : 409 Conflict
+  ui --> actor : Close prompt; show verified state
+else member unverified
+  handler -> cache : INCR 12l:rl:verify-resend:{memberId} (expires 1 hour)
+  alt fourth request within the hour (L2-002)
+    handler --> ctrl : rate_limited
+    ctrl --> client : 429 Too Many Requests, Retry-After
+    ui --> actor : "Too many requests" — "You can request 3 links an hour. Try again later."
+  else within the limit
+    handler -> issuer : RevokeOutstanding(memberId, EmailVerification)
+    handler -> issuer : Issue(member, EmailVerification) — expires in 24 hours
+    handler -> db : Save revocations, new token, EmailNotificationRequested(EmailVerification) via INotificationPublisher.Enqueue
+    db --> handler : Committed
+    handler --> ctrl : Sent
+    ctrl --> client : 202 Accepted
+    ui --> actor : "Link sent" — "Earlier links no longer work."
+    outbox -> db : Poll pending outbox messages
+    outbox -> outbox : Send through email provider with retry and back-off (L2-042)
+  end
+end
+@enduml

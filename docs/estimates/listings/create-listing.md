@@ -13,7 +13,7 @@ The estimate assumes an intermediate Angular/TypeScript and ASP.NET Core/C# deve
 | `Listings` table: EF configuration, `Reference` sequence, check constraints, indexes, migration | 4 |
 | `SaveListingDraftValidator` and publish rules with stable error codes and per-field problem details | 6 |
 | `CreateListingDraftCommandHandler`, `UpdateListingCommandHandler` draft path and `PublishListingCommandHandler` with payout check | 6 |
-| `ListingsController` create, update and publish actions; `CanSell` policy wiring | 3 |
+| `ListingsController` create, update and publish actions; `TradingMember` policy wiring | 3 |
 | `CategoriesController` with `GET /api/categories` and `GET /api/selling/options` | 2 |
 | `listing-publish` rate-limit policy (20 per member per UTC day, `Retry-After`) | 3 |
 | `SellingOptionsService` and `ListingsApiService` with problem-details mapping | 3 |

@@ -1,0 +1,21 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Sign in
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular, TypeScript", "Responsive single-page application")
+  Container(api, "12L API", "ASP.NET Core Web API, C#", "REST API; source of truth for every rule")
+  Container(worker, "12L Worker", ".NET worker service", "Outbox email dispatch and background jobs")
+  ContainerDb(db, "12L database", "SQL Server, EF Core", "Members, sessions, link tokens, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "Rate-limit counters, refresh-token families, revoked-session keys")
+}
+System_Ext(email, "Email provider", "Delivers transactional email (<TO SUPPLY> vendor)")
+Rel(member, web, "Enters email and password", "HTTPS")
+Rel(web, api, "POST /api/auth/sign-in", "JSON/HTTPS")
+Rel(api, cache, "IP throttle, failure counters, lock keys, refresh-token family", "Redis")
+Rel(api, db, "Reads Member; inserts MemberSession and lockout outbox message", "EF Core")
+Rel(worker, email, "Sends AccountLocked email", "HTTPS API")
+Rel(worker, db, "Reads outbox", "EF Core")
+@enduml

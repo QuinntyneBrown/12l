@@ -1,0 +1,59 @@
+@startuml
+title UML sequence behaviour — Change avatar
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "AvatarPicker" as picker
+  participant "ProfileApi" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "ProfileController" as ctrl
+end box
+box "Backend — Application and Domain (TwelveL.Application, TwelveL.Domain)" #ECFDF3
+  participant "UploadAvatarCommandHandler" as handler
+  participant "IImageInspector" as intake
+end box
+box "Backend — Infrastructure (TwelveL.Infrastructure)" #FFF4E5
+  database "12L database" as db
+  database "Photo storage" as store
+end box
+box "Backend — 12L Worker application (TwelveL.Worker)" #FFF4E5
+  participant "PhotoProcessingJob" as job
+end box
+actor -> picker : Change photo; choose a file
+picker -> picker : Client pre-checks: type JPEG, PNG or WebP; up to 10 MB
+picker -> client : uploadAvatar(file)
+client -> ctrl : POST /api/accounts/me/avatar (multipart, request size limit 10 MB)
+ctrl -> handler : Send UploadAvatarCommand
+handler -> intake : InspectAsync(stream) — type from content (L2-017)
+alt not an image
+  ctrl --> client : 415 Unsupported Media Type
+  picker --> actor : Inline error under Change photo
+else over 10 MB or shortest side under 800 px
+  ctrl --> client : 400 validation_failed, errors.avatar ("Photos must be 10 MB or smaller" or minimum size error)
+  picker --> actor : Inline error
+else valid image
+  handler -> store : Put original to private avatars/originals/{id}
+  handler -> db : Insert OutboxMessage ProcessAvatarPhoto(memberId, uploadId)
+  ctrl --> client : 202 Accepted { avatarProcessing: true }
+  picker --> actor : Shows local preview with processing indicator
+  job -> store : AvatarPhotoProcessor: read original; strip EXIF, XMP, GPS; re-encode 400, 800, 1600 px (L2-017)
+  job -> db : Member.SetAvatar(photoId); delete original; mark message done
+  note right of job : The public profile shows the new avatar\nonce processing completes (L2-004)
+end
+@enduml

@@ -1,0 +1,23 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Reset or change a password
+
+Person(member, "Member", "Signed-in 12L account holder who buys and sells")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular, TypeScript", "Responsive single-page application")
+  Container(api, "12L API", "ASP.NET Core Web API, C#", "REST API; source of truth for every rule")
+  Container(worker, "12L Worker", ".NET worker service", "Outbox email dispatch and background jobs")
+  ContainerDb(db, "12L database", "SQL Server, EF Core", "Members, sessions, link tokens, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "Rate-limit counters, refresh-token families, revoked-session keys")
+}
+System_Ext(email, "Email provider", "Delivers transactional email (<TO SUPPLY> vendor)")
+System_Ext(breach, "Breached-password service", "k-anonymity range lookup of known breached passwords")
+Rel(member, web, "Uses forgot-password, reset-password and change-password screens", "HTTPS")
+Rel(web, api, "POST /api/auth/password-reset-requests, /api/auth/password-resets, /api/accounts/me/password", "JSON/HTTPS")
+Rel(api, cache, "Counts reset requests per email; revokes sessions", "Redis")
+Rel(api, db, "Link tokens, password hash, sessions, outbox", "EF Core")
+Rel(api, breach, "Range lookup", "HTTPS")
+Rel(worker, db, "Reads outbox", "EF Core")
+Rel(worker, email, "Sends PasswordReset and PasswordChanged email", "HTTPS API")
+@enduml
