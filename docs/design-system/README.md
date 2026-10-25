@@ -45,6 +45,17 @@ Ink `#0B0B0B`, paper `#F4F1EA` and signal red `#E1251B` from the logo; square co
 | [Tabs](components/tabs.html) | tab panel (role=tablist), link tabs (sub-nav), with counts, scrollable | default, hover, focus, selected/current, disabled | [pages/account/default](../mocks/pages/account/default.html), [pages/purchases/default](../mocks/pages/purchases/default.html), [pages/my-listings/default](../mocks/pages/my-listings/default.html) +1 |
 | [Top bar](components/top-bar.html) | member, guest, admin, compact (mobile) | link default, hover, focus, current; menu expanded | [pages/catalog/default](../mocks/pages/catalog/default.html), [pages/catalog/guest](../mocks/pages/catalog/guest.html), [pages/catalog/category](../mocks/pages/catalog/category.html) +2 |
 
+### Containers and overlays
+
+| Component | Variants | States | Source mocks |
+|---|---|---|---|
+| [Card](components/card.html) | panel, panel sunken, card (with header/footer), interactive, selected, well, category tile | default, hover, focus, selected | [pages/account/default](../mocks/pages/account/default.html), [pages/order-detail/completed](../mocks/pages/order-detail/completed.html), [pages/checkout/default](../mocks/pages/checkout/default.html) +2 |
+| [Dialog](components/dialog.html) | default, form, destructive (danger icon), small, large, bottom sheet | default, invalid, busy, failed, success | [dialogs/withdraw-listing/default](../mocks/dialogs/withdraw-listing/default.html), [dialogs/cancel-order/invalid](../mocks/dialogs/cancel-order/invalid.html), [dialogs/add-tracking/failed](../mocks/dialogs/add-tracking/failed.html) +3 |
+| [Divider](components/divider.html) | horizontal, vertical, with label | none (static) | [dialogs/resolve-problem/default](../mocks/dialogs/resolve-problem/default.html), [pages/terms/default](../mocks/pages/terms/default.html) |
+| [Drawer and sheet](components/drawer.html) | menu sheet (full screen), filter sheet (left, full screen on phones), right drawer, left drawer | default, busy | [dialogs/nav-menu/default](../mocks/dialogs/nav-menu/default.html), [dialogs/nav-menu/guest](../mocks/dialogs/nav-menu/guest.html), [dialogs/filters/default](../mocks/dialogs/filters/default.html) +2 |
+| [Layout primitives](components/layout-primitives.html) | container, page (narrow, form), stack (sm, lg), cluster (between, end), grid (auto), split | none (static) | [pages/order-detail/default](../mocks/pages/order-detail/default.html), [pages/account/default](../mocks/pages/account/default.html), [pages/sell/default](../mocks/pages/sell/default.html) +2 |
+| [Tooltip](components/tooltip.html) | text, with shortcut | hidden, hover, focus | [pages/listing-detail/default](../mocks/pages/listing-detail/default.html), [pages/sell/default](../mocks/pages/sell/default.html), [pages/moderation-queue/default](../mocks/pages/moderation-queue/default.html) |
+
 ### Data display
 
 | Component | Variants | States | Source mocks |
@@ -130,6 +141,9 @@ Values and markup in the mocks that disagreed with the system, and what was done
 | pages/order-detail/default | External tracking link shows an icon but does not tell screen readers it leaves 12L. | Link page documents visually hidden destination text, e.g. “(opens USPS)”. |
 | assets/ui.css (.size-tag, .photo__stamp, .topbar__admin) | The size tag, photo stamps and admin tag read --palette-ink-950, --palette-paper-100 and --palette-white directly, skipping the semantic tier. | Added semantic --color-size-tag-bg/-fg, --color-stamp-bg/-fg and --color-fg-on-brand; components.css reads only those. Values unchanged. |
 | assets/tokens.css (--photo-bg-1..6) | Photo backdrops were declared as unprefixed --photo-bg-* custom properties, outside both the primitive and the semantic tier. | Renamed to primitives --palette-photo-1..6 with semantic --color-photo-bg-1..6; .photo--1..6 read the semantic tokens. |
+| pages/account/default | Stat panels are links but have no hover or focus affordance beyond the browser default. | Documented as interactive containers; the system gives .panel links the hover border and the shared focus ring. |
+| pages/listing-detail/default | Icon-only buttons (Share, Save, Remove photo, Close) carry aria-label but show no visible name on hover or focus. | Tooltip component specified; product builds add it to every icon-only button. |
+| docs/mocks/assets/ui.css | Media queries used 36rem, 62rem and 75rem (plus 35.99rem), none of which were layout tokens (40/48/64/80/96rem). | Normalised to 40rem (sm), 64rem (lg) and 80rem (xl) in components.css; dialogs centre, form rows split and two-column layouts start 32–64px later. |
 | pages/rules/default | Row headers (th scope=row) in the category table picked up the column-header style: sunken background, muted label, sticky. | Added .table tbody th as a plain label cell in components.css. |
 | pages/audit-log/default | Time and Target cells used .num (tabular, right-aligned intent) on text, plus inline style white-space: nowrap. | Added .nowrap; .num is reserved for numbers. Target IDs are shown as code. |
 | pages/rules/default | Each rules-list item carried inline padding-block and border-bottom (with a raw 1px) and borrowed .settings-list__body. | Added .rules-list > li with the same rhythm; the inline styles can be dropped. |

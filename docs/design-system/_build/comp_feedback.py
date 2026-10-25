@@ -370,7 +370,7 @@ component(
          "<b>Secure note</b> (<code>.secure-note</code>): reassurance under the card field (<i>Card details go straight to our payment provider. 12L never sees them.</i>)."),
     anatomy=anatomy(
         '<div style="width: min(100%, 22rem);">' + _field("anat-flaws", "Describe the flaws", "", "error") + "</div>",
-        [("4%", "18%"), ("4%", "38%"), ("4%", "54%"), ("4%", "68%")],
+        [("1%", "18%"), ("1%", "38%"), ("1%", "54%"), ("1%", "68%")],
         [("Label", "The field's name; see " + comp("form-field") + "."), ("Control", "Marked <code>aria-invalid</code> when the error shows."),
          ("Hint", "<code>--text-body-sm</code>, muted, always visible."), ("Error", "<code>--text-body-sm</code> in <code>--color-danger-fg</code> with a ⚠ marker; below the hint.")]),
     variants=ex('<div class="stack" style="width: min(100%, 24rem);">' + _field("v-hint", "Price", "45.00", "hint") + _field("v-err", "Describe the flaws", "", "error") + "</div>",
@@ -697,17 +697,17 @@ component(
     + ul("<b>404</b> <i>Page not found</i>, and the listing-specific <i>This item isn’t available</i>.", "<b>403</b> <i>You can’t open this</i> / <i>Admins only</i>.",
          "<b>500</b> <i>Something went wrong</i> with <i>Try again</i> and the reference.", "<b>Offline</b> <i>You’re offline</i>, with an icon instead of a code.",
          "<b>Maintenance</b> <i>Back at 3:00 AM ET</i>, served statically."),
-    anatomy=anatomy(_err("500"), [("4%", "29%"), ("4%", "45%"), ("4%", "54%"), ("4%", "61%"), ("4%", "73%")],
+    anatomy=anatomy(_err("500"), [("1%", "29%"), ("1%", "45%"), ("1%", "54%"), ("1%", "61%"), ("1%", "73%")],
                     [("Code", "<code>--text-display</code> at 96px, black weight, middle digit in <code>--color-brand</code>; <code>aria-hidden</code>."),
                      ("Title", "The page heading (<code>h1</code> in the product)."), ("Text", "What happened and what is safe."),
                      ("Reference (500)", "<code>.ref</code>, mono caption, for support."), ("Actions", "One primary recovery action, optional secondary.")]),
     variants=ex('<div class="stack" style="width: 100%;">' + _err("404") + _err("403") + _err("500") + "</div>", "Status-code pages. In the product the title is the page's <code>h1</code>; here they are <code>h2</code>.", stack=True, show_code=False)
     + ex('<div class="stack" style="width: 100%;">' + _err("offline") + _err("maintenance") + "</div>", "Icon pages for offline and maintenance.", stack=True, show_code=False),
-    sizes=NA("One size; the code drops from 96px to 36px below 640px with the display style."),
+    sizes=NA("One size. The 96px code (three digits) fits a 320px screen inside the 16px page margins, so it does not scale down."),
     states=state_matrix(["404", "403", "500", "Offline", "Maintenance"], [("Page", lambda s: _err(s))], "Variant")
     + "<h3>Both themes</h3>" + themes(_err("404")),
     responsive=ul("Left-aligned in the content column at every width (not centred), max 32rem, matching the page header.",
-                  "Below 640px the code uses the smaller display size so the title stays above the fold.", "Actions wrap; the primary stays first."),
+                  "Below 640px the title wraps under the 96px code; keep titles to four words so the first action stays above the fold at 360×640.", "Actions wrap; the primary stays first."),
     theming=p("The code is <code>--color-fg-default</code> with the red accent from <code>--color-brand</code>, which stays signal red in both themes (3.3:1 on the dark canvas, used at display size only)."),
     accessibility=a11y(
         pattern="The page keeps its landmarks; the error replaces <code>&lt;main&gt;</code> content. The title is the page's only <code>h1</code> and the document <code>&lt;title&gt;</code> starts with it (<i>Page not found — 12L</i>). The big code is <code>aria-hidden</code> because the title says the same thing.",
@@ -759,7 +759,7 @@ component(
     summary_states="default, hover, focus; saved",
     overview=p(f"Consent is a non-modal region, bottom right (full width on phones), on the inverse surface so it is clearly separate from the page. The page stays usable; nothing waits for an answer. "
                f"<i>Accept analytics</i> and <i>Necessary only</i> are equally easy. After a choice the panel closes and a {comp('toast')} confirms (<i>Cookie choice saved</i>). Details live in the cookie settings {comp('dialog')}, also linked from the {comp('footer')}."),
-    anatomy=anatomy('<div class="ds-stage" style="--stage-height: 16rem; width: 100%;">' + _consent("an-c") + "</div>", [("16%", "22%"), ("16%", "38%"), ("16%", "60%"), ("16%", "80%")],
+    anatomy=anatomy('<div class="ds-stage" style="--stage-height: 16rem; width: 100%;">' + _consent("an-c") + "</div>", [("16%", "21%"), ("16%", "36%"), ("16%", "53%"), ("16%", "67%")],
                     [("Title", "<i>Cookies</i>, <code>h2</code> styled as h4, labels the region."), ("Text", "One sentence in <code>--text-body-sm</code>."),
                      ("Choices", "Primary <i>Accept analytics</i> and secondary <i>Necessary only</i>, re-skinned for the inverse surface."), ("Settings link", "Opens the cookie settings dialog.")]),
     variants=stage(_page("Catalog · guest") + _consent("v-c"), "22rem", "First visit: the panel over the guest catalog.")

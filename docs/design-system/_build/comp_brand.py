@@ -356,8 +356,10 @@ component(
          f"Status is shown by the photo stamp ({comp('photo')}); price stays visible on reserved and sold items.",
          f"For lists of a member's own items (my listings, orders) use an {comp('list', 'item row')} instead; cards are for browsing."),
     anatomy=anatomy(
-        f'<div style="width: 13rem;">{listing_card("iron-ranger")}</div>',
-        [("50%", "36%"), ("3%", "71%"), ("3%", "79%"), ("3%", "88%"), ("93%", "88%")],
+        '<div style="position: relative; width: 13rem;">' + listing_card("iron-ranger")
+        + "".join(f'<span class="ds-callout" style="left: {l}; top: {t};" aria-hidden="true">{i}</span>' for i, (l, t) in enumerate(
+            [("60%", "36%"), ("-16%", "77%"), ("-16%", "85%"), ("-16%", "93%"), ("104%", "93%")], 1)) + "</div>",
+        [],
         [("Photo", f"{comp('photo')} 4:5 with the {comp('size-tag')}; zooms to 104% on hover."),
          ("Brand", "<code>.listing-card__brand</code>, overline, muted."),
          ("Title", "<code>.listing-card__title</code>, body, one line with ellipsis."),
@@ -590,8 +592,10 @@ component(
     + ul("Selecting a thumbnail swaps the main image; it does not open a lightbox.", "On phones the main image swipes horizontally; dots show the position.",
          "A listing with one photo shows the main image only, no strip and no dots."),
     anatomy=anatomy(
-        f'<div style="width: 16rem;">{gallery("iron-ranger", n=4)}</div>',
-        [("50%", "36%"), ("50%", "81%"), ("10%", "92%")],
+        '<div style="position: relative; width: 16rem;">' + gallery("iron-ranger", n=4)
+        + "".join(f'<span class="ds-callout" style="left: {l}; top: {t};" aria-hidden="true">{i}</span>' for i, (l, t) in enumerate(
+            [("62%", "34%"), ("104%", "78%"), ("-14%", "90%")], 1)) + "</div>",
+        [],
         [("Main photo", "<code>.gallery__main</code>: 4:5 <code>.photo</code>, image at 72% width, alt names the position."),
          ("Dots", "<code>.gallery__dots</code>: position indicator, phones only, <code>aria-hidden</code>."),
          ("Thumbnails", "<code>.gallery__thumbs</code>: 64px square buttons; the current one has a 2px ink outline.")]),
