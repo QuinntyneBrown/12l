@@ -1,0 +1,31 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Create a listing
+
+Container(web, "12L Web", "Angular", "SellPage, ListingFormComponent, ListingsApiService")
+Container_Boundary(api, "12L API") {
+  Component(catCtrl, "CategoriesController", "ASP.NET Core controller", "GET /api/categories, GET /api/selling/options")
+  Component(ctrl, "ListingsController", "ASP.NET Core controller", "POST /api/listings, PUT /api/listings/{reference}, POST /api/listings/{reference}/publish")
+  Component(limiter, "listing-publish rate-limit policy", "ASP.NET Core rate limiting", "20 first publishes per member per UTC day")
+  Component(validators, "Listing validators", "FluentValidation", "SaveListingDraftValidator, PublishListingValidator")
+  Component(handlers, "Create, update and publish handlers", "MediatR handlers", "CreateListingDraftCommandHandler, UpdateListingCommandHandler, PublishListingCommandHandler")
+  Component(rules, "CategoryCatalog", "Domain service", "Accepted categories, subcategories and sizes (L2-011)")
+  Component(entity, "Listing", "Domain aggregate", "Owns status transitions and the server-set size")
+  Component(payout, "ISellerPayoutAccountReader", "Application port", "Reports whether payout onboarding is complete")
+  ComponentDb(db, "TwelveLDbContext", "EF Core", "Listings and ListingPhotos tables")
+}
+ContainerDb(cache, "Distributed cache", "Redis", "Rate-limit counters")
+
+Rel(web, catCtrl, "Loads categories and options", "JSON/HTTPS")
+Rel(web, ctrl, "Saves and publishes", "JSON/HTTPS")
+Rel(catCtrl, rules, "Reads")
+Rel(ctrl, limiter, "Publish passes through")
+Rel(limiter, cache, "Increments counter")
+Rel(ctrl, handlers, "Sends commands")
+Rel(handlers, validators, "Validated by pipeline behaviour")
+Rel(handlers, rules, "Resolves size from category")
+Rel(handlers, entity, "Creates and mutates")
+Rel(handlers, payout, "Checks onboarding after publish")
+Rel(handlers, db, "Persists in one unit of work")
+@enduml

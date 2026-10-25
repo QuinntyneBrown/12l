@@ -1,0 +1,26 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Complete an order
+
+Container(web, "12L Web", "Angular", "OrderDetailPage, ConfirmReceiptDialog, OrdersApiService")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "OrdersController", "ASP.NET Core controller", "POST /api/orders/{id}/receipt")
+  Component(h, "ConfirmReceiptCommandHandler", "MediatR handler", "Buyer completes the order")
+  Component(ch, "AutoCompleteOrderCommandHandler", "MediatR handler", "System completes the order")
+  Component(order, "Order", "Domain aggregate", "State machine from ship-order")
+  Component(evt, "OrderCompleted handlers", "Domain event handlers", "OrderCompletedPayoutHandler, UpdateReputationOnOrderCompletedHandler (reviews)")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(job, "OrderAutoCompletionJob", "Hosted service", "Delivered + 3 days, no open problem")
+}
+ContainerDb(db, "12L database", "SQL Server", "Orders")
+Rel(web, ctrl, "Calls", "JSON/HTTPS")
+Rel(ctrl, h, "Sends ConfirmReceiptCommand")
+Rel(job, ch, "Sends AutoCompleteOrderCommand")
+Rel(h, order, "MarkDelivered (if Shipped), Complete")
+Rel(ch, order, "Complete")
+Rel(order, evt, "Raises OrderCompleted")
+Rel(h, db, "Saves", "EF Core")
+Rel(job, db, "Selects due orders", "SQL")
+@enduml

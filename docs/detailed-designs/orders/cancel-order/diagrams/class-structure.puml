@@ -1,0 +1,99 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Cancel an order
+
+enum CancellationReason {
+  ItemDamaged
+  NoLongerHave
+  ListedByMistake
+  BuyerAskedToCancel
+  ShipDeadlinePassed
+}
+enum CancellationRequestStatus {
+  Pending
+  Accepted
+  Declined
+}
+enum CancellationDecision {
+  Accept
+  Decline
+}
+  None
+  Reserved
+  PaidOrder
+  OrderPastPaid
+}
+class Order <<see ship-order>> {
+  +OrderStatus Status
+  +CancellationReason? CancellationReason
+  +string? CancellationNote
+  +Cancel(reason, note, actor, at): void
+}
+class CancellationRequest {
+  +Guid Id
+  +Guid OrderId
+  +string? Message
+  +CancellationRequestStatus Status
+  +DateTimeOffset RequestedAt
+  +DateTimeOffset? RespondedAt
+  +Accept(at): void
+  +Decline(at): void
+}
+class CancelOrderCommand {
+  +Guid OrderId
+  +CancellationReason Reason
+  +string? Note
+  +OrderActorType ActorType
+  +Guid? ActorId
+}
+class CancelOrderCommandValidator
+class CancelOrderCommandHandler {
+  +Handle(cmd): Task<SaleDetailDto>
+}
+class RequestCancellationCommand {
+  +Guid OrderId
+  +string? Message
+}
+class RequestCancellationCommandHandler
+class RespondToCancellationCommand {
+  +Guid OrderId
+  +CancellationDecision Decision
+}
+class RespondToCancellationCommandHandler
+class RefundRequester {
+  +RequestFullRefund(order, reason): Refund
+}
+class Refund <<see checkout-and-pay>>
+class Listing <<listings subsystem>> {
+  +RemoveAfterCancellation(clock): void
+  +Relist(clock): void
+}
+interface INotificationPublisher <<notifications subsystem>> {
+  +Enqueue(type, recipientMemberId, model): void
+}
+Order "1" *-- "0..1" CancellationRequest
+Order --> CancellationReason
+CancellationRequest --> CancellationRequestStatus
+CancelOrderCommandHandler ..> CancelOrderCommand : handles
+CancelOrderCommandValidator ..> CancelOrderCommand : validates
+CancelOrderCommandHandler --> Order : Cancel
+CancelOrderCommandHandler --> Listing : RemoveAfterCancellation
+CancelOrderCommandHandler ..> RefundRequester
+CancelOrderCommandHandler ..> INotificationPublisher
+RefundRequester ..> Refund : creates
+RequestCancellationCommandHandler ..> RequestCancellationCommand : handles
+RequestCancellationCommandHandler --> CancellationRequest : creates
+RespondToCancellationCommandHandler ..> RespondToCancellationCommand : handles
+RespondToCancellationCommandHandler --> CancellationRequest : Accept / Decline
+RespondToCancellationCommandHandler ..> CancelOrderCommand : sends on accept
+@enduml

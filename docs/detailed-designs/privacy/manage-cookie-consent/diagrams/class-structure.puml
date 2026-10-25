@@ -1,0 +1,71 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Manage cookie consent
+
+package "12L Web" {
+  enum ConsentState {
+    unknown
+    necessary
+    analytics
+  }
+  class CookieConsentService {
+    +consent: Signal<ConsentState>
+    +acceptAnalytics(): void
+    +necessaryOnly(): void
+    +save(analytics: boolean): void
+    -readCookie(): ConsentState
+    -writeCookie(state: ConsentState): void
+  }
+  class AnalyticsService {
+    -loaded: boolean
+    +start(): void
+    +stop(): void
+    +trackPageView(url: string): void
+    +trackTiming(name: string, ms: number): void
+    -deleteCookies(names: string[]): void
+  }
+  class CookieConsentBannerComponent {
+    +visible: Signal<boolean>
+    +onAccept(): void
+    +onNecessaryOnly(): void
+    +openSettings(): void
+  }
+  class CookieSettingsDialogComponent {
+    +analytics: WritableSignal<boolean>
+    +onSave(): void
+    +onCancel(): void
+  }
+  class CookieSettingsDialogService {
+    +open(): void
+  }
+  class ToastService {
+    +success(title: string, body: string): void
+  }
+}
+package "TwelveL.Api" {
+  class StrictlyNecessaryCookieOptions {
+    +IReadOnlyList<string> Names
+  }
+  class CookieAllowListMiddleware {
+    +InvokeAsync(context: HttpContext): Task
+  }
+}
+
+CookieConsentService --> ConsentState : holds
+AnalyticsService --> CookieConsentService : reacts to consent
+CookieConsentBannerComponent ..> CookieConsentService
+CookieConsentBannerComponent ..> ToastService
+CookieConsentBannerComponent ..> CookieSettingsDialogService
+CookieSettingsDialogService ..> CookieSettingsDialogComponent : opens
+CookieSettingsDialogComponent ..> CookieConsentService
+CookieAllowListMiddleware --> StrictlyNecessaryCookieOptions
+@enduml

@@ -1,0 +1,23 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Cancel an order
+
+Person(seller, "Seller", "Member")
+Person(buyer, "Buyer", "Member")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "Sale and order pages, cancellation dialogs")
+  Container(api, "12L API", "ASP.NET Core", "Cancellation, request and response endpoints")
+  Container(worker, "12L Worker", ".NET worker service", "Ship deadline job; outbox dispatch of refunds and email")
+  ContainerDb(db, "12L database", "SQL Server", "Orders, cancellation requests, refunds, listings")
+}
+System_Ext(pay, "Payment provider", "Refunds")
+System_Ext(email, "Email provider", "Email")
+Rel(seller, web, "Uses", "HTTPS")
+Rel(buyer, web, "Uses", "HTTPS")
+Rel(web, api, "Calls", "JSON/HTTPS")
+Rel(api, db, "Reads and writes", "EF Core")
+Rel(worker, db, "Reads outbox, cancels overdue orders", "EF Core")
+Rel(worker, pay, "Creates refunds", "HTTPS")
+Rel(worker, email, "Sends email", "HTTPS")
+@enduml

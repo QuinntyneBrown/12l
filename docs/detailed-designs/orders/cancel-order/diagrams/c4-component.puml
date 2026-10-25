@@ -1,0 +1,33 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Cancel an order
+
+Container(web, "12L Web", "Angular", "CancelOrderDialog, RequestCancellationDialog, RespondCancellationDialog")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "OrdersController", "ASP.NET Core controller", "Cancellation endpoints")
+  Component(cancel, "CancelOrderCommandHandler", "MediatR handler", "Paid to Cancelled with full refund")
+  Component(req, "RequestCancellationCommandHandler", "MediatR handler", "Buyer request")
+  Component(resp, "RespondToCancellationCommandHandler", "MediatR handler", "Accept or decline")
+  Component(order, "Order, CancellationRequest", "Domain", "State machine from ship-order")
+  Component(listing, "Listing", "Domain (listings subsystem)", "RemoveAfterCancellation")
+  Component(refund, "RefundRequester", "Application service", "Refund row and IssueRefund outbox message")
+  Component(notify, "INotificationPublisher", "Application port (notifications)", "Enqueues email")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(dl, "ShipDeadlineJob", "Hosted service", "See ship-order")
+}
+ContainerDb(db, "12L database", "SQL Server", "Order state")
+Rel(web, ctrl, "Calls", "JSON/HTTPS")
+Rel(ctrl, cancel, "Sends CancelOrderCommand")
+Rel(ctrl, req, "Sends RequestCancellationCommand")
+Rel(ctrl, resp, "Sends RespondToCancellationCommand")
+Rel(resp, cancel, "On accept, sends CancelOrderCommand")
+Rel(dl, cancel, "Sends CancelOrderCommand (System)")
+Rel(cancel, order, "Cancel(reason, actor)")
+Rel(cancel, listing, "RemoveAfterCancellation")
+Rel(cancel, refund, "Requests full refund")
+Rel(cancel, notify, "OrderCancelled")
+Rel(req, notify, "CancellationRequested")
+Rel(cancel, db, "Saves in one transaction", "EF Core")
+@enduml

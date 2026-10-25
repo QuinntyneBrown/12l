@@ -1,0 +1,76 @@
+@startuml
+title UML sequence behaviour — Edit a listing
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "EditListingPage" as page
+  participant "ListingsApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "MyListingsController" as myctrl
+  participant "ListingsController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "UpdateListingCommandHandler" as handler
+  participant "Listing" as entity
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Open /items/{reference}/edit
+page -> client : getMyListing(id)
+client -> myctrl : GET /api/me/listings/{reference}
+alt not found or not owned (L2-010)
+  myctrl --> client : 404
+  client --> page : Show listing unavailable
+else Reserved
+  myctrl --> client : 200 status Reserved, ETag
+  page --> actor : Locked state "This item is in someone's checkout"
+else editable
+  myctrl --> client : 200 MyListingDetailDto, ETag
+  page --> actor : Prefilled form with Active status badge
+  actor -> page : Change price to 40.00, choose "Save changes"
+  page -> client : updateListing(id, body, If-Match)
+  client -> controller : PUT /api/listings/{reference}
+  controller -> handler : Send UpdateListingCommand (unknown fields ignored, L2-049)
+  handler -> db : Load caller's listing
+  handler -> entity : UpdateDetails(details, sizeConfirmed)
+  alt Reserved or Sold (L2-020)
+    entity --> handler : LISTING_RESERVED or LISTING_SOLD
+    handler --> controller : Conflict
+    controller --> client : 409, listing unchanged
+    client --> page : Locked state or error alert
+  else publish rule fails or size not accepted (L2-013)
+    entity --> handler : Field errors
+    controller --> client : 422 problem details
+    client --> page : Invalid state with error summary
+  else valid
+    entity --> handler : Size reset from category, UpdatedAt set
+    handler -> db : SaveChanges with RowVersion = If-Match
+    alt RowVersion changed (checkout or another tab)
+      db --> handler : DbUpdateConcurrencyException
+      handler -> db : Reload status
+      handler --> controller : LISTING_RESERVED or LISTING_CHANGED
+      controller --> client : 409 or 412
+    else committed
+      db --> handler : New RowVersion
+      handler --> controller : MyListingDetailDto
+      controller --> client : 200 with new ETag
+      client --> page : Success alert "Changes saved"; toast "Price updated to $40" with Undo
+    end
+  end
+end
+@enduml

@@ -1,0 +1,36 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Ship an order
+
+Container(web, "12L Web", "Angular", "SaleDetailPage, AddTrackingDialog, OrdersApiService")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "OrdersController", "ASP.NET Core controller", "POST /api/orders/{id}/shipment")
+  Component(cwh, "CarrierWebhookController", "ASP.NET Core controller", "POST /api/carriers/webhook")
+  Component(h, "AddTrackingCommandHandler", "MediatR handler", "Validates and applies Paid to Shipped")
+  Component(hd, "MarkDeliveredCommandHandler", "MediatR handler", "Applies Shipped to Delivered")
+  Component(order, "Order", "Domain aggregate", "Owns OrderStateMachine and status history")
+  Component(cal, "IBusinessCalendar", "Application port", "Adds US business days")
+  Component(repo, "TwelveLDbContext", "EF Core", "Orders, OrderStatusChanges, OutboxMessages")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(rem, "ShipByReminderJob", "Hosted service", "Reminds sellers after 3 business days")
+  Component(dl, "ShipDeadlineJob", "Hosted service", "Cancels and refunds after 5 business days")
+  Component(poll, "DeliveryPollingJob", "Hosted service", "Polls ICarrierTrackingService")
+  Component(out, "OutboxDispatcher", "Hosted service", "Sends email and refunds with retry")
+}
+ContainerDb(db, "12L database", "SQL Server", "Order state")
+
+Rel(web, ctrl, "Calls", "JSON/HTTPS")
+Rel(ctrl, h, "Sends AddTrackingCommand")
+Rel(cwh, hd, "Sends MarkDeliveredCommand")
+Rel(poll, hd, "Sends MarkDeliveredCommand")
+Rel(h, order, "Calls MarkShipped")
+Rel(hd, order, "Calls MarkDelivered")
+Rel(rem, order, "Records reminder sent")
+Rel(dl, order, "Calls Cancel(ShipDeadlinePassed)")
+Rel(h, repo, "Saves order and outbox in one transaction")
+Rel(dl, cal, "Uses ShipBy computed with")
+Rel(repo, db, "Persists", "SQL")
+Rel(out, db, "Reads pending outbox messages", "SQL")
+@enduml

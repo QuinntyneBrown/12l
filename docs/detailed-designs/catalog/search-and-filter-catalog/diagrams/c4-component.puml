@@ -1,0 +1,46 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Search and filter the catalog
+
+Person(visitor, "Visitor or member", "Narrows the catalog")
+Container_Boundary(web, "12L Web") {
+  Component(search, "CatalogSearchFormComponent", "Angular component", "Top-bar search, truncates to 100 characters")
+  Component(form, "CatalogFiltersFormComponent", "Angular reactive form", "Category, subcategory, brand, condition, price")
+  Component(sidebar, "FiltersSidebarComponent", "Angular component", "Permanent sidebar from 992 px")
+  Component(panel, "FiltersPanelDialogComponent", "Angular dialog", "Full screen under 768 px, side panel 768-991 px")
+  Component(page, "CatalogPageComponent", "Angular route component", "Parses URL, header, chips, no-results")
+  Component(codec, "CatalogQueryParamsCodec", "TypeScript functions", "URL <-> CatalogQuery")
+  Component(client, "CatalogApiService", "Angular HTTP client", "Listings, count, brands")
+}
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "CatalogController", "ASP.NET Core controller", "Catalog read endpoints")
+  Component(val, "SearchCatalogQueryValidator", "FluentValidation", "Known values, price range")
+  Component(search_h, "SearchCatalogQueryHandler", "MediatR handler", "Ranked, sorted page")
+  Component(count_h, "CountCatalogListingsQueryHandler", "MediatR handler", "Live result count")
+  Component(brand_h, "GetCatalogBrandsQueryHandler", "MediatR handler", "Brand facet")
+  Component(rs, "CatalogReadStore", "ICatalogReadStore, EF Core", "Composes criteria into SQL")
+}
+ContainerDb(db, "12L database", "SQL Server", "Listings, full-text index")
+ContainerDb(cache, "Distributed cache", "Redis", "catalog:brands:v1")
+
+Rel(visitor, search, "Types keyword")
+Rel(visitor, panel, "Edits filters")
+Rel(sidebar, form, "Hosts")
+Rel(panel, form, "Hosts")
+Rel(search, codec, "Writes q through")
+Rel(form, codec, "Writes filters through")
+Rel(page, codec, "Parses URL with")
+Rel(page, client, "Requests results")
+Rel(panel, client, "Requests live count")
+Rel(client, ctrl, "GET /api/catalog/...", "JSON/HTTPS")
+Rel(ctrl, val, "Validates criteria with")
+Rel(ctrl, search_h, "SearchCatalogQuery")
+Rel(ctrl, count_h, "CountCatalogListingsQuery")
+Rel(ctrl, brand_h, "GetCatalogBrandsQuery")
+Rel(search_h, rs, "SearchAsync")
+Rel(count_h, rs, "CountAsync")
+Rel(brand_h, cache, "Get or set facet")
+Rel(brand_h, rs, "GetBrandsAsync on miss")
+Rel(rs, db, "CONTAINS and filtered queries", "EF Core")
+@enduml

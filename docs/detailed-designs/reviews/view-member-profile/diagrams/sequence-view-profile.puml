@@ -1,0 +1,83 @@
+@startuml
+title UML sequence behaviour — Open a public profile
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Visitor or member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "MemberProfilePageComponent" as page
+  participant "MembersApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "MembersController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "GetPublicProfileQueryHandler" as qprofile
+  participant "GetMemberListingsQueryHandler" as qlist
+  participant "GetMemberReviewsQueryHandler" as qrev
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Open /members/{displayName}
+page --> actor : Skeleton "Loading profile"
+par profile, listings and reviews
+  page -> client : getProfile(displayName)
+  client -> controller : GET /api/members/{displayName}
+  controller -> controller : PublicReadPolicy, rate limit (L2-051), output cache lookup
+  controller -> qprofile : Send GetPublicProfileQuery
+  qprofile -> db : Select public columns by NormalizedDisplayName, join MemberReputations
+  db --> qprofile : Row or none
+  alt unknown or Closed member (L2-041)
+    qprofile --> controller : MemberUnavailable
+    controller --> client : 404 member.unavailable, Cache-Control no-store
+  else available member
+    qprofile --> controller : PublicProfileDto without email, phone, full name or address (L2-054)
+    controller --> client : 200 PublicProfileDto
+  end
+else
+  page -> client : getListings(displayName, 1)
+  client -> controller : GET /api/members/{displayName}/listings?page=1
+  controller -> qlist : Send GetMemberListingsQuery
+  qlist -> db : Active listings, newest first, 24 per page (L2-041)
+  db --> qlist : Page and total
+  qlist --> controller : PagedResult<ListingCardDto>
+  controller --> client : 200
+else
+  page -> client : getReviews(displayName, 1)
+  client -> controller : GET /api/members/{displayName}/reviews?page=1
+  controller -> qrev : Send GetMemberReviewsQuery
+  qrev -> db : Reviews with Status Published only (L2-040)
+  db --> qrev : Page and total
+  qrev --> controller : PagedResult<PublicReviewDto>
+  controller --> client : 200
+end
+client --> page : Results
+alt any call returned 404 member.unavailable
+  page --> actor : "This member isn’t available" with "Back to shop"
+else any call failed otherwise
+  page --> actor : "Couldn’t load this profile" with Ref and "Try again" (L2-068)
+else all succeeded
+  page --> actor : Header, RatingSummaryComponent "4.3 (3 reviews)" or "No reviews yet" (L2-040), stats, For sale, Reviews
+  opt viewer is the profile owner
+    page --> actor : "Edit profile" and "Reply" links
+  end
+  opt more than 24 Active listings
+    actor -> page : "Load more"
+    page -> client : getListings(displayName, page + 1)
+    client --> page : Next 24 listings
+    page --> actor : Appended cards, "Showing {loaded} of {total}"
+  end
+end
+@enduml

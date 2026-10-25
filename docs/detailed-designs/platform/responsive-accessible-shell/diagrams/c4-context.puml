@@ -1,0 +1,14 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Responsive, accessible application shell
+
+Person(visitor, "Visitor or member", "Phone, tablet or desktop; mouse, touch, keyboard or screen reader")
+Person(admin, "Administrator", "Uses the admin shell")
+System(twelvel, "12L", "Marketplace web application")
+System_Ext(ci, "GitHub Actions CI", "Playwright, axe-core, visual snapshots")
+
+Rel(visitor, twelvel, "Uses from 320 px upwards", "HTTPS")
+Rel(admin, twelvel, "Resolves order problems through", "HTTPS")
+Rel(ci, twelvel, "Checks every page and dialog of the production build")
+@enduml

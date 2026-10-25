@@ -1,0 +1,62 @@
+@startuml
+title UML sequence behaviour — Buyer confirms receipt
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+actor "Buyer" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "OrderDetailPage" as page
+  participant "ConfirmReceiptDialog" as dlg
+  participant "OrdersApiService" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "OrdersController" as ctrl
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "ConfirmReceiptCommandHandler" as h
+  participant "Order" as order
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Choose "I received it"
+page -> dlg : Open "Got it and all good?"
+actor -> dlg : "Yes, complete order"
+dlg -> client : confirmReceipt(orderId) (busy state)
+client -> ctrl : POST /api/orders/{id}/receipt
+ctrl -> h : Send ConfirmReceiptCommand
+h -> db : Load order where BuyerId = caller
+alt not the buyer
+  h --> ctrl : 404
+else buyer
+  alt Status is Shipped
+    h -> order : MarkDelivered(Buyer, now) (L2-032 Shipped to Delivered)
+  end
+  h -> order : Complete(Buyer, now) (L2-034)
+  alt Status not Delivered after the step above, or an open problem exists
+    order --> h : InvalidOrderTransitionException or OpenProblemException
+    h --> ctrl : 409 "order.invalid_transition" or "order.problem_open"
+    ctrl --> dlg : Failed state "That didn't go through"
+  else Delivered
+    order -> order : Append status changes, raise OrderCompleted
+    h -> db : Save order, status changes and payout Releasable in one transaction
+    h --> ctrl : OrderDetailDto (Completed, canReview = true)
+    ctrl --> client : 200
+    client --> page : Updated order
+    page --> actor : "Completed" with the full timeline
+  end
+end
+@enduml

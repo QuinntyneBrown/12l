@@ -1,0 +1,18 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — View a member profile
+
+Person(visitor, "Visitor or member", "Reads a public profile")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "MemberProfilePageComponent at /members/:displayName")
+  Container(api, "12L API", "ASP.NET Core", "Anonymous profile, listings and reviews endpoints; output cache")
+  ContainerDb(db, "12L database", "SQL Server", "Members, MemberReputations, Listings, Reviews")
+  Container(photos, "Photo storage", "Object storage behind a CDN", "Processed avatar and listing photos")
+}
+
+Rel(visitor, web, "Uses", "HTTPS")
+Rel(web, api, "GET /api/members/{displayName}, /listings, /reviews", "JSON/HTTPS")
+Rel(api, db, "Reads public columns only", "EF Core")
+Rel(web, photos, "Loads avatar and listing photos", "HTTPS")
+@enduml

@@ -1,0 +1,66 @@
+@startuml
+title UML sequence behaviour — Signed payment webhook creates the order
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+participant "Payment provider" as pay
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "PaymentWebhookController" as wh
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "ConfirmPaymentCommandHandler" as h
+  participant "Order" as order
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  participant "PaymentProviderAdapter" as ppa
+  database "12L database" as db
+end box
+pay -> wh : POST /api/payments/webhook (raw body + signature header)
+wh -> ppa : VerifyWebhookSignature(body, header)
+alt invalid signature (L2-030 criterion 4)
+  ppa --> wh : false
+  wh -> wh : Log security event payment.webhook.invalid_signature
+  wh --> pay : 400
+else valid
+  wh -> db : INSERT PaymentWebhookEvents (ProviderEventId primary key)
+  alt duplicate event id (L2-030 criterion 5)
+    db --> wh : Unique key violation
+    wh --> pay : 200, nothing changes
+  else new event
+    alt payment.failed
+      wh -> h : RecordPaymentFailureCommand: Payment Failed, Checkout Open with LastDeclineReason
+    else payment.succeeded
+      wh -> h : Send ConfirmPaymentCommand
+      h -> db : Load Payment, Checkout, Listing
+      alt listing Reserved for this checkout or still Active, and no order for this listing
+        h -> order : CreatePaid(checkout, payment, Payouts:FeePercent, now)
+        order --> h : Order Paid + OrderStatusChange (none to Paid, System)
+        h -> db : Insert Order, Payout (Held), mark Listing Sold, Checkout Paid, save address to SavedAddress, INotificationPublisher.Enqueue(SaleMade), one transaction
+        alt UX_Orders_ListingId_NotCancelled or UX_Orders_CheckoutId violated (concurrent confirmation, L2-029)
+          db --> h : Unique key violation
+          h -> db : Retry as duplicate: insert Refund (DuplicatePayment) + outbox IssueRefund
+        else committed
+          db --> h : Committed
+        end
+      else listing already Sold to another order or re-reserved
+        h -> db : Insert Refund (DuplicatePayment, full amount) + outbox IssueRefund; no order (L2-029 criterion 2)
+      end
+    end
+    wh -> db : Set ProcessedAt
+    wh --> pay : 200
+  end
+end
+@enduml

@@ -1,0 +1,55 @@
+@startuml
+title UML sequence behaviour — Keyword search
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Visitor or member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "CatalogSearchFormComponent" as form
+  participant "CatalogPageComponent" as page
+  participant "CatalogStore" as store
+  participant "CatalogApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "CatalogController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "SearchCatalogQueryHandler" as handler
+  participant "SearchTerm" as term
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  participant "CatalogReadStore" as rs
+  database "12L database" as db
+end box
+actor -> form : Submit "air max"
+form -> form : Trim, truncate to 100 characters (L2-023)
+form -> page : navigate("/", q = "air max", keep filters)
+page -> page : CatalogQueryParamsCodec.parse(queryParamMap)
+page -> store : load(query)
+store -> client : getListings(query, 1, 24)
+client -> controller : GET /api/catalog/listings?q=air%20max&page=1&pageSize=24
+controller -> handler : Send SearchCatalogQuery
+handler -> term : SearchTerm.From(q, 100)
+term --> handler : Words ["air", "max"]
+handler -> term : ToFullTextCondition()
+term --> handler : "air*" AND "max*"
+handler -> rs : SearchAsync(criteria, 0, 24, now)
+rs -> db : WHERE CONTAINS(SearchBody, cond) AND filters\nORDER BY tier (CONTAINS(SearchHeadline) ? 0 : 1), sort, Id DESC
+note right of db : Case-insensitive match;\ntitle and brand above description (L2-023)
+db --> rs : Ranked rows and count
+rs --> handler : CatalogSearchResult
+handler --> controller : CatalogPageDto
+controller --> client : 200 OK
+client --> store : CatalogPageDto
+alt totalCount > 0
+  store --> page : loaded
+  page --> actor : Eyebrow "Search", heading “air max”, ranked cards
+else totalCount = 0
+  store --> page : no-results
+  page --> actor : "No items match", "Clear search and filters"
+  actor -> page : Choose "Clear search and filters"
+  page -> page : navigate("/") with no parameters
+end
+@enduml

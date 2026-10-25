@@ -1,0 +1,38 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Send email notifications
+
+Container_Boundary(api, "12L API") {
+  Component(producer, "Feature command handler", "MediatR handler", "For example CompletePurchaseCommandHandler in orders")
+  Component(publisher, "OutboxNotificationPublisher", "INotificationPublisher", "Adds EmailNotificationRequested to the DbContext")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(dispatcher, "OutboxEmailDispatcher", "Hosted service", "Polls every 10 s, claims up to 50 due messages")
+  Component(handler, "SendEmailNotificationHandler", "Application handler", "Resolve, check preference, render, guard, send, record")
+  Component(resolver, "IRecipientResolver", "Read port", "Email address, status and preferences at dispatch")
+  Component(prefs, "INotificationPreferenceReader", "Read port", "Category allowed for the member (L2-043)")
+  Component(renderer, "FluidEmailTemplateRenderer", "IEmailTemplateRenderer", "Liquid templates per NotificationType")
+  Component(links, "DeepLinkBuilder", "Service", "Absolute links from App:PublicBaseUrl")
+  Component(guard, "EmailContentGuard", "Service", "Blocks card numbers, security codes and passwords")
+  Component(sender, "ProviderEmailSender", "IEmailSender", "Email provider adapter, classifies results")
+  Component(outbox, "OutboxMessage", "Entity", "Retry state machine with back-off for 24 hours")
+}
+ContainerDb(db, "12L database", "SQL Server", "OutboxMessages, Members, NotificationPreferences")
+System_Ext(email, "Email provider", "Delivers email")
+
+Rel(producer, publisher, "Enqueue(type, recipient, model)")
+Rel(publisher, db, "Inserts OutboxMessages in the same transaction", "EF Core")
+Rel(dispatcher, db, "Claims due messages", "SQL UPDATE OUTPUT")
+Rel(dispatcher, handler, "Dispatches each claimed message")
+Rel(handler, resolver, "Resolves recipient")
+Rel(handler, prefs, "Checks category")
+Rel(handler, renderer, "Renders subject and bodies")
+Rel(renderer, links, "Builds deep links")
+Rel(handler, guard, "Scans rendered content")
+Rel(handler, sender, "Sends")
+Rel(handler, outbox, "Records Sent, Suppressed, failure")
+Rel(sender, email, "Sends", "HTTPS API")
+Rel(resolver, db, "Reads Members", "EF Core")
+Rel(prefs, db, "Reads NotificationPreferences", "EF Core")
+@enduml

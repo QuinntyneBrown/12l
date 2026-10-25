@@ -1,0 +1,109 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Seller payouts
+
+enum PayoutStatus {
+  Held
+  Releasable
+  Sent
+  Paid
+  Failed
+  Cancelled
+}
+enum PayoutHoldReason {
+  OrderNotCompleted
+  OnboardingIncomplete
+  OpenProblem
+}
+enum OnboardingStatus {
+  NotStarted
+  Pending
+  Complete
+  Restricted
+}
+class Payout <<aggregate root>> {
+  +Guid Id
+  +Guid OrderId
+  +Guid SellerId
+  +Money GrossAmount
+  +decimal FeeRate
+  +Money FeeAmount
+  +Money NetAmount
+  +PayoutStatus Status
+  +PayoutHoldReason? HoldReason
+  +string? ProviderPayoutId
+  +DateTimeOffset? ReleasableAt
+  +DateTimeOffset? SentAt
+  +DateTimeOffset? PaidAt
+  +string? FailureReason
+  +byte[] RowVersion
+  +{static} CreateHeld(order): Payout
+  +MarkReleasable(at): void
+  +Hold(reason): void
+  +Cancel(): void
+  +MarkSent(providerId, at): void
+  +MarkPaid(at): void
+  +MarkFailed(reason): void
+}
+class SellerPayoutAccount {
+  +Guid MemberId
+  +string? ProviderAccountId
+  +OnboardingStatus Status
+  +string? BankName
+  +string? BankLast4
+  +DateTimeOffset UpdatedAt
+}
+class FeeCalculator {
+  +Calculate(itemPrice, shipping, feeRate): (Money fee, Money net)
+}
+class Order <<see ship-order>> {
+  +Money ItemPrice
+  +Money ShippingCost
+  +decimal FeeRate
+  +Money FeeAmount
+  +OrderStatus Status
+}
+interface IPaymentProvider {
+  +CreateConnectedAccountAsync(memberId): Task<string>
+  +CreateOnboardingLinkAsync(accountId, returnUrl, refreshUrl): Task<Uri>
+  +CreatePayoutAsync(accountId, amount, idempotencyKey): Task<string>
+}
+class GetPayoutSummaryQuery
+class GetPayoutSummaryQueryHandler
+class PayoutSummaryDto {
+  +Money PaidOut
+  +Money Pending
+  +OnboardingStatus Onboarding
+  +string? BankDisplay
+  +PayoutBannerKind? Banner
+  +IReadOnlyList<PayoutRowDto> History
+}
+class CreateOnboardingLinkCommandHandler
+class GetFeeScheduleQueryHandler
+class OrderCompletedPayoutHandler
+class PayoutReleaseJob
+Payout --> PayoutStatus
+Payout --> PayoutHoldReason
+Payout "1" --> "1" Order : for
+SellerPayoutAccount --> OnboardingStatus
+Payout ..> FeeCalculator : computed by
+GetPayoutSummaryQueryHandler ..> GetPayoutSummaryQuery : handles
+GetPayoutSummaryQueryHandler ..> PayoutSummaryDto : returns
+CreateOnboardingLinkCommandHandler ..> IPaymentProvider
+CreateOnboardingLinkCommandHandler --> SellerPayoutAccount
+OrderCompletedPayoutHandler --> Payout : MarkReleasable
+PayoutReleaseJob --> Payout : MarkSent
+PayoutReleaseJob ..> SellerPayoutAccount : requires Complete
+PayoutReleaseJob ..> IPaymentProvider : CreatePayoutAsync
+GetFeeScheduleQueryHandler ..> FeeCalculator
+@enduml

@@ -1,0 +1,144 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Create a listing
+
+package "TwelveL.Domain" {
+  enum ListingStatus {
+    Draft
+    Active
+    Reserved
+    Sold
+    Removed
+  }
+  enum ItemCondition {
+    NewWithTags
+    NewWithoutTags
+    UsedExcellent
+    UsedGood
+    UsedFair
+  }
+  class CategoryCatalog {
+    +IReadOnlyList<CategoryDefinition> All
+    +bool IsValid(category: string, subcategory: string?)
+    +string AcceptedSizeFor(category: string)
+  }
+  class CategoryDefinition {
+    +string Name
+    +IReadOnlyList<string> Subcategories
+    +string AcceptedSize
+  }
+  class Listing {
+    +Guid Id
+    +string Reference
+    +Guid SellerId
+    +ListingStatus Status
+    +string Category
+    +string? Subcategory
+    +string Size
+    +string? Title
+    +string? Description
+    +string? Brand
+    +ItemCondition? Condition
+    +string? Flaws
+    +decimal? Price
+    +decimal? ShippingCost
+    +DateTime? SizeConfirmedAt
+    +DateTime CreatedAt
+    +DateTime UpdatedAt
+    +DateTime? PublishedAt
+    +byte[] RowVersion
+    +static CreateDraft(sellerId, details, catalog, clock): Listing
+    +UpdateDetails(details, catalog, clock): void
+    +Publish(sizeConfirmed: bool, clock): void
+  }
+  class ListingPhoto {
+    +Guid Id
+    +Guid? ListingId
+    +int? Position
+    +PhotoStatus Status
+  }
+}
+
+package "TwelveL.Application" {
+  class ListingDetailsDto {
+    +string Category
+    +string? Subcategory
+    +string? Size
+    +string? Title
+    +string? Description
+    +string? Brand
+    +string? Condition
+    +string? Flaws
+    +decimal? Price
+    +decimal? ShippingCost
+    +IReadOnlyList<Guid> PhotoIds
+  }
+  class CreateListingDraftCommand {
+    +ListingDetailsDto Details
+  }
+  class PublishListingCommand {
+    +string Reference
+    +bool SizeConfirmed
+  }
+  class PublishListingResult {
+    +string Reference
+    +string Status
+    +bool PayoutOnboardingRequired
+  }
+  class CreateListingDraftCommandHandler {
+    +Handle(command): Task<string>
+  }
+  class PublishListingCommandHandler {
+    +Handle(command): Task<PublishListingResult>
+  }
+  class SaveListingDraftValidator
+  class PublishListingValidator
+  interface ISellerPayoutAccountReader {
+    +IsOnboardedAsync(memberId: Guid): Task<bool>
+  }
+  interface ICurrentMember {
+    +Guid MemberId
+    +bool CanSell
+  }
+}
+
+package "TwelveL.Api" {
+  class ListingsController {
+    +Create(body: ListingDetailsDto): Task<IActionResult>
+    +Update(id: Guid, body: ListingDetailsDto): Task<IActionResult>
+    +Publish(id: Guid, body: PublishListingRequest): Task<IActionResult>
+  }
+  class CategoriesController {
+    +GetCategories(): IActionResult
+    +GetSellingOptions(): IActionResult
+  }
+}
+
+ListingsController ..> CreateListingDraftCommand : sends
+ListingsController ..> PublishListingCommand : sends
+CategoriesController ..> CategoryCatalog : reads
+CreateListingDraftCommand *-- ListingDetailsDto
+CreateListingDraftCommandHandler ..> CreateListingDraftCommand : handles
+CreateListingDraftCommandHandler ..> Listing : creates
+CreateListingDraftCommandHandler ..> ICurrentMember : uses
+PublishListingCommandHandler ..> PublishListingCommand : handles
+PublishListingCommandHandler ..> PublishListingResult : returns
+PublishListingCommandHandler --> Listing : loads / mutates
+PublishListingCommandHandler ..> ISellerPayoutAccountReader : uses
+SaveListingDraftValidator ..> ListingDetailsDto : validates
+PublishListingValidator ..> Listing : validates publish rules
+Listing ..> CategoryCatalog : resolves size
+Listing --> ListingStatus : has
+Listing --> ItemCondition : has
+Listing "1" o-- "0..8" ListingPhoto : photos
+CategoryCatalog "1" *-- "4" CategoryDefinition
+@enduml

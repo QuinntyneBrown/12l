@@ -1,0 +1,24 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Manage my listings
+
+Container(web, "12L Web", "Angular", "MyListingsPage, ListingStatusFilter, MyListingRow")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "MyListingsController", "ASP.NET Core controller", "GET /api/me/listings")
+  Component(query, "GetMyListingsQueryHandler", "MediatR handler", "Seller's listings, newest first, with status counts")
+  ComponentDb(db, "TwelveLDbContext", "EF Core", "Listings, ListingPhotos, ListingPhotoVersions, OutboxMessages")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(job, "DraftCleanupJob", "Hosted service", "Reminds at day 83, deletes at day 90")
+  Component(outbox, "OutboxDispatcher", "Hosted service", "Sends DraftExpiryReminderEmail through the email adapter")
+}
+System_Ext(email, "Email provider", "Transactional email")
+
+Rel(web, ctrl, "GET with status filter and cursor", "JSON/HTTPS")
+Rel(ctrl, query, "Sends GetMyListingsQuery")
+Rel(query, db, "Projects rows and counts")
+Rel(job, db, "Selects stale drafts, writes outbox, deletes")
+Rel(outbox, db, "Claims messages")
+Rel(outbox, email, "Sends", "HTTPS")
+@enduml

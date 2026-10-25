@@ -1,0 +1,66 @@
+@startuml
+title UML sequence behaviour — Payout onboarding
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "PayoutsPage" as page
+  participant "PayoutsApiService" as client
+end box
+participant "Payment provider" as pay
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "PayoutsController" as ctrl
+  participant "PaymentWebhookController" as wh
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "CreateOnboardingLinkCommandHandler" as h
+  participant "SellerPayoutAccount" as acct
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Open /account/payouts
+page -> client : getSummary()
+client -> ctrl : GET /api/payouts
+ctrl --> client : 200 PayoutSummaryDto (Onboarding NotStarted, held $40.00)
+page --> actor : not-onboarded state: "Set up payouts to get paid" / "Set up payouts"
+actor -> page : Choose "Set up payouts"
+page -> client : createOnboardingLink()
+client -> ctrl : POST /api/payouts/onboarding-link
+ctrl -> h : Send CreateOnboardingLinkCommand
+h -> db : Load SellerPayoutAccount
+opt no provider account yet
+  h -> pay : CreateConnectedAccountAsync(memberId)
+  pay --> h : ProviderAccountId
+  h -> db : Save account (Pending)
+end
+h -> pay : CreateOnboardingLinkAsync(accountId, returnUrl /account/payouts?onboarding=return)
+pay --> h : Hosted onboarding URL
+h --> ctrl : URL
+ctrl --> client : 200 { url }
+client --> page : Redirect
+page --> actor : Browser leaves for provider onboarding
+actor -> pay : Completes identity and bank details
+pay -> wh : account.updated (signed)
+wh -> wh : Verify signature, deduplicate by event id
+wh -> acct : Status Complete, BankName, BankLast4
+wh -> db : Save; held payouts with HoldReason OnboardingIncomplete become Releasable when their order is Completed
+alt seller returns before webhook arrives
+  page -> client : getSummary() (poll)
+  page --> actor : Pending; then success banner "Payouts are set up. You'll be paid when orders complete."
+end
+@enduml

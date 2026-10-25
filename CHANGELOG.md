@@ -8,6 +8,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ### Added
 
+- HTML mocks of every page, dialog and notification in every state, light and dark, responsive, in `docs/mocks/` (278 mocks across 66 screens), styled from the 12L logo.
+- L1 high-level and L2 detailed requirements with acceptance criteria in `docs/specs/`.
 - Documented the technology stack: Angular frontend, .NET backend, full-stack responsive web application.
 - Repository scaffolding: README, contributing guide, code of conduct, security policy, support policy, MIT license, and issue and pull request templates.
 - Agent skills in `.claude/skills` and `.agents/skills`.
