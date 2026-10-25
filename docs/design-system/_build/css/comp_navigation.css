@@ -4,3 +4,8 @@
 .sidebar.ds-sidebar-demo { display: flex; position: static; height: auto; width: var(--layout-sidebar-width); max-width: 100%; }
 .pagination a[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
 .pagination [data-state="hover"] { background: var(--color-bg-subtle); color: var(--color-fg-default); }
+/* Top-bar examples: the bar's breakpoints follow the viewport, so give it room and let narrow frames scroll. */
+.ds-topbar-demo { width: 100%; overflow-x: auto; }
+.ds-topbar-demo .topbar { position: relative; }
+@media (min-width: 48rem) { .ds-topbar-demo .topbar { min-width: 60rem; } }
+.ds-themes.ds-themes--stack { grid-template-columns: minmax(0, 1fr); }

@@ -156,7 +156,7 @@ component(
     + ul("<b>Form</b>: add tracking, change password, report a problem. Primary action names the result (<i>Add tracking</i>).",
          "<b>Destructive</b>: a danger icon, a question title, a description of what will happen and a danger confirm button. The safe button is first and takes initial focus.",
          "<b>Small</b> (24rem) for one-line confirmations such as <i>Got it and all good?</i>; <b>large</b> (48rem) for the cookie and resolution dialogs with long content."),
-    anatomy=anatomy('<div class="ds-dialog-static" style="width: 100%;">' + panel("an", **WITHDRAW).split('<div class="ds-dialog-static"', 1)[1].split(">", 1)[1],
+    anatomy=anatomy(panel("an", **WITHDRAW),
                     [("4%", "8%"), ("20%", "8%"), ("92%", "8%"), ("6%", "50%"), ("60%", "84%")],
                     [("Icon (destructive only)", "40px square, danger tint; <code>aria-hidden</code>."), ("Title and description", "h3-size title is the accessible name; the description is linked with <code>aria-describedby</code>."),
                      ("Close button", "Ghost icon button, <i>Close</i>."), ("Body", "16px × 24px padding; stacks fields with 16px gaps."),
@@ -304,7 +304,7 @@ component(
                     ("do", f'{btn("", "ghost icon", icon="close", attrs="aria-label=\"Close menu\"")}', "Name what the close button closes."),
                     ("dont", '<p class="text-sm">A drawer holding a multi-step checkout.</p>', "Put a long task in a drawer; give it a page.")]),
     tokens=token_table([("Sheet background", "--color-bg-canvas"), ("Drawer background", "--color-bg-surface-raised"), ("Dividers", "--color-border-default"), ("Shadow", "--shadow-4"),
-                        ("Head height", "--layout-topbar-height"), ("Filter sheet width", "--space-24"), ("Layer", "--z-modal"), ("Motion", "--duration-slow / --ease-enter")]),
+                        ("Head height", "--layout-topbar-height"), ("Layer", "--z-modal"), ("Motion", "--duration-slow / --ease-enter")]),
     code=pre("""
 <div class="menu-sheet" id="menu" role="dialog" aria-modal="true" aria-labelledby="menu-title">
   <div class="menu-sheet__head">… <h2 class="visually-hidden" id="menu-title">Menu</h2>
@@ -320,7 +320,6 @@ component(
     sources=sources([("dialogs/nav-menu/default", "member menu sheet"), ("dialogs/nav-menu/guest", "guest menu sheet"), ("dialogs/filters/default", "filter sheet"),
                      ("dialogs/filters/invalid", "price range error"), ("dialogs/filters/busy", "updating count")]),
 )
-# Note: the drawer token row above lists --space-24 for the filter sheet width (24rem); the CSS uses 24rem literally.
 
 
 # ---------------------------------------------------------------------------
@@ -347,8 +346,8 @@ component(
                 + f'<span class="has-tooltip" data-state="hover"><button class="btn btn--ghost btn--icon" type="button" aria-label="Approve report" aria-describedby="tt-v2">{ic("check")}</button><span class="tooltip" role="tooltip" id="tt-v2">Approve <kbd>A</kbd></span></span></div>',
                 "Text, and with a keyboard shortcut.", show_code=False),
     sizes=NA("Tooltips have one size."),
-    states=matrix(["Hidden", "Hover", "Focus"], [("Tooltip", ['<div class="ds-float" style="min-height: 6rem;">' + tip("Save", "Save", "", f"tt-s{i}") + "</div>" if i == 0 else
-                                                              '<div class="ds-float" style="min-height: 6rem;">' + tip("Save", "Save", st, f"tt-s{i}") + "</div>" for i, st in enumerate(["", "hover", "focus"])])], first="Element")
+    states=matrix(["Hidden", "Hover", "Focus"], [("Tooltip", ['<div class="ds-float" style="min-height: 6rem;">' + tip("Save", "Save", st, f"tt-s{i}") + "</div>"
+                                                              for i, st in enumerate(["", "hover", "focus"])])], first="Element")
     + "<h3>Both themes</h3>" + themes('<div class="ds-float" style="min-height: 6rem;">' + tip("Share listing", "Share listing", "hover", "tt-td") + "</div>",
                                       light='<div class="ds-float" style="min-height: 6rem;">' + tip("Share listing", "Share listing", "hover", "tt-tl") + "</div>"),
     responsive=ul("Touch devices have no hover: the tooltip appears on long press only, and never replaces a visible label where space allows.", "Tooltips flip below the trigger when there is no room above."),

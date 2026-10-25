@@ -776,6 +776,16 @@ a[aria-disabled="true"] { color: var(--color-fg-disabled); pointer-events: none;
 .menu { max-width: min(20rem, calc(100vw - 2 * var(--layout-margin))); }
 /* Long link text (tracking numbers, emails) breaks instead of overflowing. */
 .link-standalone { overflow-wrap: anywhere; }
+/* ---- from _build/css/comp_containers.css ---- */
+/* Containers and overlays: documentation statics and small additions. */
+a.panel { transition: border-color var(--duration-fast) var(--ease-standard); }
+a.panel:hover, a.panel[data-state="hover"] { border-color: var(--color-border-strong); }
+.ds-dialog-static { display: block; width: 100%; }
+.ds-dialog-static .dialog__panel { animation: none; border-radius: var(--radius-lg); max-height: none; margin-inline: auto; }
+.ds-dialog-static .dialog__footer { position: static; }
+.ds-stage .dialog.ds-dialog--sheet { place-items: end center; padding: 0; }
+.ds-stage .dialog.ds-dialog--sheet .dialog__panel { border-radius: var(--radius-xl) var(--radius-xl) 0 0; }
+.ds-box { display: flex; align-items: center; justify-content: center; min-height: 2.5rem; padding: var(--space-2) var(--space-3); background: var(--color-accent-subtle); border: var(--border-width-hairline) dashed var(--color-border-strong); font: var(--text-caption); color: var(--color-fg-muted); }
 /* ---- from _build/css/comp_data.css ---- */
 /* Data display additions made during extraction (table row headers, rules list,
    stat order, row states shown statically). Token-only. */
@@ -831,6 +841,11 @@ a.avatar:hover, a.avatar[data-state="hover"] { background: var(--color-accent-su
 .sidebar.ds-sidebar-demo { display: flex; position: static; height: auto; width: var(--layout-sidebar-width); max-width: 100%; }
 .pagination a[aria-disabled="true"] { opacity: 0.5; pointer-events: none; }
 .pagination [data-state="hover"] { background: var(--color-bg-subtle); color: var(--color-fg-default); }
+/* Top-bar examples: the bar's breakpoints follow the viewport, so give it room and let narrow frames scroll. */
+.ds-topbar-demo { width: 100%; overflow-x: auto; }
+.ds-topbar-demo .topbar { position: relative; }
+@media (min-width: 48rem) { .ds-topbar-demo .topbar { min-width: 60rem; } }
+.ds-themes.ds-themes--stack { grid-template-columns: minmax(0, 1fr); }
 /* ---- from _build/css/patterns.css ---- */
 /* Helpers used by the pattern pages' composed examples. Token-only. */
 .ds-plain-list { margin: 0; padding-left: var(--space-5); }

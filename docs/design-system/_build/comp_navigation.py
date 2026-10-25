@@ -22,16 +22,16 @@ def topbar(sid: str, current: str = "Shoes", guest: bool = False) -> str:
         right = (f'<a class="btn btn--ghost btn--icon topbar__search-btn" href="#" aria-label="Search">{ic("search")}</a>'
                  f'<a class="nav-link topbar__sell" href="#">{ic("plus")}Sell</a>'
                  f'<a class="avatar avatar--sm" href="#" aria-label="Your account, Marcus Bell" style="text-decoration: none;">MB</a>')
-    return (f'<header class="topbar"><button class="btn btn--ghost btn--icon topbar__menu" type="button" aria-label="Open menu" aria-expanded="false">{ic("menu")}</button>'
+    return (f'<div class="ds-topbar-demo"><header class="topbar"><button class="btn btn--ghost btn--icon topbar__menu" type="button" aria-label="Open menu" aria-expanded="false">{ic("menu")}</button>'
             f'{logo()}<nav class="topbar__nav" aria-label="Primary">{links}</nav><span class="topbar__spacer"></span>{search}'
-            f'<div class="topbar__actions">{right}</div></header>')
+            f'<div class="topbar__actions">{right}</div></header></div>')
 
 
 def admin_topbar(current: str = "Queue") -> str:
     links = "".join(f'<a class="nav-link" href="#"{" aria-current=\"page\"" if n == current else ""}>{n}</a>' for n in ["Queue", "Audit log"])
-    return (f'<header class="topbar">{logo()}<span class="topbar__admin">Admin</span>'
+    return (f'<div class="ds-topbar-demo"><header class="topbar">{logo()}<span class="topbar__admin">Admin</span>'
             f'<nav class="topbar__nav" aria-label="Primary" style="display: flex;">{links}</nav><span class="topbar__spacer"></span>'
-            f'<span class="avatar avatar--sm" aria-label="Signed in as Ana Ruiz" role="img">AR</span></header>')
+            f'<span class="avatar avatar--sm" aria-label="Signed in as Ana Ruiz" role="img">AR</span></header></div>')
 
 
 def subnav(current: str = "Overview") -> str:
@@ -64,7 +64,7 @@ component(
          "<b>Admin</b>: logo, a red <i>Admin</i> tag, <i>Queue</i> and <i>Audit log</i>, and the administrator's initials. No search, no Sell.",
          f"<b>Compact</b> (below 768px): a menu button opens the full-screen menu sheet ({comp('drawer')}); search collapses to an icon button."),
     anatomy=anatomy(
-        '<div style="width: 100%;">' + topbar("q-anat") + "</div>",
+        topbar("q-anat"),
         [("2%", "8%"), ("9%", "8%"), ("25%", "8%"), ("55%", "8%"), ("88%", "8%")],
         [("Menu button", "Ghost icon button, <code>aria-expanded</code>, visible below 768px only."),
          ("Logo", "Links to the catalog; <code>aria-label=\"12L home\"</code>; 26px tall."),
@@ -81,7 +81,7 @@ component(
                     ("Menu button", lambda s: f'<button class="btn btn--ghost btn--icon" type="button" aria-label="Open menu" aria-expanded="{"true" if s == "current" else "false"}"{_st(s) if s != "current" else ""}>{ic("menu")}</button>')],
                    first="Element")
     + p("For the menu button, “Current” means expanded: <code>aria-expanded=\"true\"</code> while the menu sheet is open.")
-    + "<h3>Both themes</h3>" + themes(topbar("q-th-dark"), light=topbar("q-th-light")),
+    + "<h3>Both themes</h3>" + themes(topbar("q-th-dark"), light=topbar("q-th-light")).replace('class="ds-themes"', 'class="ds-themes ds-themes--stack"'),
     responsive=ul("Below 768px: menu button, logo, spacer, search icon button and avatar. The category links and Sell move into the menu sheet.",
                   "768px–1023px: category links and Sell appear; search is still an icon button that opens the catalog search state.",
                   "1024px and up: the search field appears (max 22rem) and the search icon button hides.",

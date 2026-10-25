@@ -463,8 +463,8 @@ def rejected() -> str:
             f'<button class="btn btn--icon btn--sm uploader__remove" type="button" aria-label="Remove IMG_4471.jpg">{ic("close", "icon icon--sm")}</button></li>')
 
 
-def up(inner: str, width: str = "22rem") -> str:
-    return w(f'<ul class="uploader" role="list">{inner}</ul>', width)
+def up(inner: str, width: str = "30rem", cols: int = 4) -> str:
+    return w(f'<ul class="uploader" role="list" style="grid-template-columns: repeat({cols}, minmax(0, 1fr));">{inner}</ul>', width)
 
 
 component(
@@ -475,15 +475,15 @@ component(
     summary_states="empty, hover, focus, dragging, uploading, rejected, invalid",
     overview=p("Use the uploader for photos of an item: 1–8 on a listing, up to 4 on a problem report. The real control is a visually hidden <code>&lt;input type=\"file\" multiple&gt;</code> inside the Add photos label; drag-and-drop and reordering are enhancements on top.")
     + ul("The first tile is the cover and carries a <i>Cover</i> badge.", "Each tile has a labelled remove button (<i>Remove photo 2</i>).", "Rejected files stay as a red tile naming the file and why, until removed."),
-    anatomy=anatomy(up(tile(1) + add("an", 1), "16rem"), [("10%", "12%"), ("42%", "10%"), ("76%", "50%")],
+    anatomy=anatomy(up(tile(1) + add("an", 1), "16rem", 2), [("30%", "26%"), ("47%", "22%"), ("76%", "55%")],
                     [("Cover badge", "<code>.badge</code> on the first photo."), ("Remove", "Small icon button, surface background, top-right."), ("Add tile", "Dashed 1px <code>--color-border-strong</code>, camera icon, count <i>1 of 8</i>.")]),
-    variants=ex(up(tile(1) + tile(2) + uploading("v") + rejected() + add("v", 3)), "Photos with cover, one uploading, one rejected, and the add tile.")
+    variants=ex(up(tile(1) + tile(2) + uploading("v") + rejected() + add("v", 3), "38rem", 5), "Photos with cover, one uploading, one rejected, and the add tile.")
     + '<span class="field__help">JPEG, PNG or WebP up to 10 MB. Drag to reorder; the first is the cover.</span>',
     sizes=NA("Tiles size to the grid: 3 columns below 640px, 4 from 640px."),
     states=matrix(["Empty", "Hover", "Focus", "Dragging", "Uploading", "Rejected", "Invalid"], [("Uploader", [
-        up(add("s-e", 0), "7rem"), up(add("s-h", 0, "hover"), "7rem"), up(add("s-f", 0, "focus"), "7rem"), up(add("s-d", 0, "dragging"), "7rem"),
-        up(uploading("s-u"), "7rem"), up(rejected(), "7rem"), up(add("s-i", 0, "invalid"), "7rem")])], first="Component")
-    + "<h3>Both themes</h3>" + both(lambda x: up(tile(1) + rejected() + add(f"t{x}", 1), "18rem")),
+        up(add("s-e", 0), "7rem", 1), up(add("s-h", 0, "hover"), "7rem", 1), up(add("s-f", 0, "focus"), "7rem", 1), up(add("s-d", 0, "dragging"), "7rem", 1),
+        up(uploading("s-u"), "7rem", 1), up(rejected(), "7rem", 1), up(add("s-i", 0, "invalid"), "7rem", 1)])], first="Component")
+    + "<h3>Both themes</h3>" + both(lambda x: up(tile(1) + rejected() + add(f"t{x}", 1), "20rem", 3)),
     responsive=ul("3 columns with 8px gaps below 640px; 4 columns with 12px gaps from 640px.", "On phones the file picker offers the camera directly (<code>accept=\"image/*\"</code> types).", "Reordering by drag has a keyboard alternative: Move earlier / Move later buttons in each tile's menu."),
     theming=p("Add tile: <code>--color-border-strong</code> dashed edge, <code>--color-fg-muted</code> text; hover and dragging switch to <code>--color-fg-default</code>. Rejected tile: <code>--color-danger-bg</code> with <code>--color-danger-fg</code>. Photos keep their light studio backdrops in dark theme."),
     accessibility=a11y(
@@ -494,9 +494,9 @@ component(
         contrast=[("Add tile edge", "--color-border-strong", "--color-bg-canvas", 3), ("Add tile text", "--color-fg-muted", "--color-bg-canvas", 4.5), ("Rejected text", "--color-danger-fg", "--color-danger-bg", 4.5)],
         motion="Progress fill animates over <code>--duration-slow</code>; zeroed under reduced motion.", touch="Tiles are at least 96px square; remove buttons are 32px."),
     content=ul("State the formats and limit once, in help: <i>JPEG, PNG or WebP up to 10 MB.</i>", "Rejected tiles show the file name and size, so the member knows which photo failed.", "Show the count against the limit: <i>3 of 8</i>."),
-    do_dont=dodont([("do", up(rejected() + add("dd1", 0), "14rem"), "Keep a rejected file visible with its name and size."),
-                    ("dont", up(add("dd2", 0), "7rem"), "Silently drop a file that was too large."),
-                    ("do", up(tile(1) + add("dd3", 1), "14rem"), "Mark the cover photo."),
+    do_dont=dodont([("do", up(rejected() + add("dd1", 0), "14rem", 2), "Keep a rejected file visible with its name and size."),
+                    ("dont", up(add("dd2", 0), "7rem", 1), "Silently drop a file that was too large."),
+                    ("do", up(tile(1) + add("dd3", 1), "14rem", 2), "Mark the cover photo."),
                     ("dont", w('<div class="uploader__add" role="button" tabindex="0" aria-label="Drop zone">Drop files here</div>', "10rem"), "A drop-only zone with no file input; keyboard and phone users cannot add photos.")]),
     tokens=token_table([("Add tile edge / text", "--color-border-strong / --color-fg-muted"), ("Rejected", "--color-danger-bg / --color-danger-fg"), ("Rejected edge", "--color-danger-solid"),
                         ("Remove button background", "--color-bg-surface"), ("Grid gap phone / tablet", "--space-2 / --space-3"), ("Progress fill", "--color-accent")]),
@@ -595,7 +595,7 @@ component(
                     [("Section heading", "<code>--text-h4</code>; sections separated by a 1px rule and <code>--space-10</code>."), ("Field", "Full width; <code>--space-6</code> between fields."),
                      ("Form row", "Two fields side by side from 640px."), ("Actions", "Primary last; split, sticky or start-aligned variants.")]),
     variants=ex(w(mini_form("v1"), "30rem"), "Sections, a two-up row and split sticky-ready actions (sell form).")
-    + ex(w(summary([("v2-title", "Title must be 5 to 80 characters"), ("v2-price", "Enter a price from $1.00 to $5,000.00")], sid="v2-summary"), "30rem"), "Error summary.")
+    + ex(w(summary([("v1-title", "Title must be 5 to 80 characters"), ("v1-price", "Enter a price from $1.00 to $5,000.00")], sid="v2-summary"), "30rem"), "Error summary.")
     + ex(w('<div class="form-actions form-actions--start">' + btn("Save", "primary") + "</div>", "30rem"), "Start-aligned actions (settings)."),
     sizes=p("Width, not height, varies: <code>.auth-card</code> 24rem for sign-in and register, <code>.page--narrow</code> 40rem, <code>.page--form</code> 44rem for the sell form and profile.")
     + table(["Container", "Max width", "Used by"], [["<code>.auth-card</code>", "24rem", "Sign in, Join, password reset"], ["<code>.page--narrow</code>", "40rem", "Legal and confirmation pages"], ["<code>.page--form</code>", "44rem", "Sell, edit listing, edit profile, emails"]]),
@@ -614,7 +614,7 @@ component(
         contrast=[("Summary text", "--color-danger-fg", "--color-danger-bg", 4.5), ("Summary edge on page", "--color-danger-solid", "--color-bg-canvas", 3), ("Section heading", "--color-fg-default", "--color-bg-canvas", 4.5)],
         motion="None; submit states rely on the button's spinner.", touch="Actions are 40–48px tall with 12px between."),
     content=ul("Section titles are nouns: <i>Photos</i>, <i>Item</i>, <i>Price and shipping</i>.", "Primary action names the outcome: <i>List item</i>, <i>Save profile</i>, <i>Join 12L</i>.", "The summary lists errors in field order."),
-    do_dont=dodont([("do", w(summary([("dd-t", "Title must be 5 to 80 characters")], sid="dd-s1"), "18rem"), "List errors as links at the top and focus the summary."),
+    do_dont=dodont([("do", w(summary([("v1-title", "Title must be 5 to 80 characters")], sid="dd-s1"), "18rem"), "List errors as links at the top and focus the summary."),
                     ("dont", w('<div class="alert alert--danger" role="alert">' + ic("x-circle") + '<div class="alert__body"><div class="alert__title">There were errors</div></div></div>', "18rem"), "A summary that does not say which fields."),
                     ("do", '<div class="form-actions form-actions--split" style="width: 100%;">' + btn("Save draft") + btn("List item", "primary") + "</div>", "Secondary at the start, primary at the end."),
                     ("dont", '<div class="form-actions" style="width: 100%;">' + btn("List item", "primary") + btn("Save draft") + "</div>", "Primary first, secondary last; the order flips between forms.")]),
