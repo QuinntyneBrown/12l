@@ -1,0 +1,55 @@
+@startuml
+title UML sequence behaviour — Reorder and attach photos
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "PhotoUploaderComponent" as up
+  participant "ListingFormComponent" as form
+  participant "ListingsApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "ListingsController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "UpdateListingCommandHandler" as handler
+  participant "ListingPhotoAttacher" as attacher
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> up : Drag photo 3 to position 1, or move it with the keyboard
+up -> form : photoIds = [p3, p1, p2]
+up --> actor : Live region announces "Photo 3 moved to position 1, cover"
+actor -> form : Save
+form -> client : updateListing(id, details with photoIds)
+client -> controller : PUT /api/listings/{reference}
+controller -> handler : Send UpdateListingCommand
+handler -> attacher : AttachAsync(listing, photoIds, sellerId)
+alt more than 8 photo IDs (L2-017)
+  attacher --> handler : PHOTO_LIMIT
+  handler --> controller : 422 problem details
+else a photo ID is unknown, owned by another member or on another listing
+  attacher --> handler : PHOTO_NOT_FOUND
+  handler --> controller : 422 problem details
+else valid
+  attacher -> db : Set Position 0..n-1 in the given order; detach omitted photos
+  handler -> db : Save in one unit of work with RowVersion check
+  db --> handler : Committed
+  handler --> controller : Updated listing
+  controller --> client : 200
+  client --> form : Saved; photo at Position 0 is the catalog cover
+end
+@enduml

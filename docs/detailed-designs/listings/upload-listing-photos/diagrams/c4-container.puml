@@ -1,0 +1,22 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Upload listing photos
+
+Person(seller, "Seller", "Adds photos to a listing")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "PhotoUploaderComponent")
+  Container(api, "12L API", "ASP.NET Core", "Validates and stores uploads, attaches photos to listings")
+  Container(worker, "12L Worker", ".NET worker service", "Strips metadata, re-encodes, writes versions, cleans orphans")
+  ContainerDb(db, "12L database", "SQL Server", "ListingPhotos, ListingPhotoVersions, OutboxMessages")
+  ContainerDb(storage, "Photo storage", "Object storage behind a CDN", "Private originals; public content-addressed versions cached for one year")
+}
+
+Rel(seller, web, "Uses", "HTTPS")
+Rel(web, api, "Uploads files and polls status", "HTTPS multipart / JSON")
+Rel(api, storage, "Writes originals", "SDK over HTTPS")
+Rel(api, db, "Writes photo rows and outbox messages", "EF Core")
+Rel(worker, db, "Reads outbox, updates photo rows", "EF Core")
+Rel(worker, storage, "Reads originals, writes versions", "SDK over HTTPS")
+Rel(web, storage, "Loads thumbnails through the CDN", "HTTPS")
+@enduml

@@ -1,0 +1,32 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Edit and withdraw a listing
+
+Container(web, "12L Web", "Angular", "EditListingPage, ListingFormComponent, WithdrawListingDialog, RelistDialog, ListingsApiService")
+Container_Boundary(api, "12L API") {
+  Component(myCtrl, "MyListingsController", "ASP.NET Core controller", "GET /api/me/listings/{reference}")
+  Component(ctrl, "ListingsController", "ASP.NET Core controller", "PUT /api/listings/{reference}, POST withdraw, POST relist")
+  Component(query, "GetMyListingQueryHandler", "MediatR handler", "Loads the caller's listing for editing")
+  Component(update, "UpdateListingCommandHandler", "MediatR handler", "Applies draft or publish rules by status")
+  Component(withdraw, "WithdrawListingCommandHandler", "MediatR handler", "Active to Removed")
+  Component(relist, "RelistListingCommandHandler", "MediatR handler", "Removed after cancellation to Active")
+  Component(attacher, "ListingPhotoAttacher", "Application service", "Orders and attaches photos")
+  Component(entity, "Listing", "Domain aggregate", "Guards editability and status transitions")
+  ComponentDb(db, "TwelveLDbContext", "EF Core", "Listings (RowVersion), ListingPhotos")
+}
+Rel(web, myCtrl, "Loads listing", "JSON/HTTPS")
+Rel(web, ctrl, "Saves, withdraws, relists", "JSON/HTTPS")
+Rel(myCtrl, query, "Sends GetMyListingQuery")
+Rel(ctrl, update, "Sends UpdateListingCommand")
+Rel(ctrl, withdraw, "Sends WithdrawListingCommand")
+Rel(ctrl, relist, "Sends RelistListingCommand")
+Rel(update, attacher, "Attaches photos")
+Rel(update, entity, "UpdateDetails")
+Rel(withdraw, entity, "Withdraw")
+Rel(relist, entity, "Relist")
+Rel(query, db, "Reads")
+Rel(update, db, "Saves with RowVersion check")
+Rel(withdraw, db, "Saves with RowVersion check")
+Rel(relist, db, "Saves with RowVersion check")
+@enduml

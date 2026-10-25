@@ -1,0 +1,124 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Edit and withdraw a listing
+
+package "TwelveL.Domain" {
+  enum ListingStatus {
+    Draft
+    Active
+    Reserved
+    Sold
+    Removed
+  }
+  enum RemovalReason {
+    Withdrawn
+    OrderCancelled
+    Moderation
+  }
+  class Listing {
+    +Guid Id
+    +string Reference
+    +Guid SellerId
+    +ListingStatus Status
+    +RemovalReason? RemovalReason
+    +string Category
+    +string Size
+    +decimal? Price
+    +DateTime? RemovedAt
+    +byte[] RowVersion
+    +bool IsEditable
+    +UpdateDetails(details, sizeConfirmed: bool, catalog, clock): void
+    +Withdraw(clock): void
+    +RemoveAfterCancellation(clock): void
+    +Relist(clock): void
+  }
+  class ListingNotEditableException {
+    +string Code
+  }
+}
+
+package "TwelveL.Application" {
+  class GetMyListingQuery {
+    +string Reference
+  }
+  class MyListingDetailDto {
+    +Guid Id
+    +string Status
+    +ListingDetailsDto Details
+    +IReadOnlyList<PhotoUploadDto> Photos
+    +DateTime? SizeConfirmedAt
+    +string ETag
+  }
+  class UpdateListingCommand {
+    +string Reference
+    +ListingDetailsDto Details
+    +bool SizeConfirmed
+    +string IfMatch
+  }
+  class WithdrawListingCommand {
+    +string Reference
+  }
+  class RelistListingCommand {
+    +string Reference
+  }
+  class UpdateListingCommandHandler {
+    +Handle(command): Task<MyListingDetailDto>
+  }
+  class WithdrawListingCommandHandler {
+    +Handle(command): Task
+  }
+  class RelistListingCommandHandler {
+    +Handle(command): Task
+  }
+  class UpdateListingValidator
+  class ListingPhotoAttacher
+}
+
+package "TwelveL.Api" {
+  class ListingsController {
+    +Update(id, body, ifMatch): Task<IActionResult>
+    +Withdraw(id): Task<IActionResult>
+    +Relist(id): Task<IActionResult>
+  }
+  class UpdateListingRequest {
+    +string Category
+    +string? Subcategory
+    +string? Size
+    +string? Title
+    +string? Description
+    +string? Brand
+    +string? Condition
+    +string? Flaws
+    +decimal? Price
+    +decimal? ShippingCost
+    +Guid[] PhotoIds
+    +bool SizeConfirmed
+  }
+}
+
+ListingsController ..> UpdateListingRequest : binds (no sellerId or status)
+ListingsController ..> UpdateListingCommand : sends
+ListingsController ..> WithdrawListingCommand : sends
+ListingsController ..> RelistListingCommand : sends
+UpdateListingCommandHandler ..> UpdateListingCommand : handles
+UpdateListingCommandHandler --> Listing : loads / mutates
+UpdateListingCommandHandler ..> ListingPhotoAttacher : uses
+UpdateListingValidator ..> UpdateListingCommand : validates
+WithdrawListingCommandHandler ..> WithdrawListingCommand : handles
+WithdrawListingCommandHandler --> Listing : withdraws
+RelistListingCommandHandler ..> RelistListingCommand : handles
+RelistListingCommandHandler --> Listing : relists
+Listing --> ListingStatus
+Listing --> RemovalReason
+Listing ..> ListingNotEditableException : throws
+GetMyListingQuery ..> MyListingDetailDto : returns
+@enduml

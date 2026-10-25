@@ -1,0 +1,15 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Edit and withdraw a listing
+
+Person(seller, "Seller", "Owner of the listing")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "EditListingPage, WithdrawListingDialog, RelistDialog")
+  Container(api, "12L API", "ASP.NET Core", "Listing update, withdraw and relist endpoints")
+  ContainerDb(db, "12L database", "SQL Server", "Listings with RowVersion, ListingPhotos")
+}
+Rel(seller, web, "Uses", "HTTPS")
+Rel(web, api, "Calls", "JSON/HTTPS")
+Rel(api, db, "Reads and writes with optimistic concurrency", "EF Core")
+@enduml

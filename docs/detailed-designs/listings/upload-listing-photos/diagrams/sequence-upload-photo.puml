@@ -1,0 +1,68 @@
+@startuml
+title UML sequence behaviour — Upload a listing photo
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "PhotoUploaderComponent" as up
+  participant "PhotoUploadService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "PhotoUploadsController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "UploadListingPhotoCommandHandler" as handler
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  participant "ImageInspector" as inspector
+  database "Photo storage" as storage
+  database "12L database" as db
+end box
+actor -> up : Choose or drop files ("Add photos", n of 8)
+up -> up : Disable "Add photos" at 8 photos (L2-017)
+up -> up : Reject files over 10 MB before upload
+loop each accepted file
+  up -> client : upload(file)
+  client -> controller : POST /api/photo-uploads (multipart, anti-forgery header)
+  controller -> controller : Authenticate, apply CanSell policy and upload size limit
+  controller -> handler : Send UploadListingPhotoCommand
+  alt larger than 10 MB
+    handler --> controller : PHOTO_TOO_LARGE
+    controller --> client : 413 "Photos must be 10 MB or smaller"
+  else
+    handler -> inspector : Detect type from magic bytes, read dimensions
+    alt not JPEG, PNG or WebP by content (L2-017)
+      inspector --> handler : Unsupported
+      handler --> controller : PHOTO_TYPE_UNSUPPORTED
+      controller --> client : 415 problem details
+    else shortest side under 800 px
+      inspector --> handler : 600 x 900
+      handler --> controller : PHOTO_TOO_SMALL
+      controller --> client : 422 problem details
+    else valid image
+      inspector --> handler : Jpeg 1200 x 1600
+      handler -> storage : Put originals/{photoId} (private)
+      handler -> db : Insert ListingPhotos row (Processing) and ProcessListingPhoto outbox message, one transaction
+      db --> handler : Committed
+      handler --> controller : PhotoUploadDto(Processing)
+      controller --> client : 201 Created
+      client -> controller : GET /api/photo-uploads/{id} until Ready or Failed
+      controller --> client : 200 PhotoUploadDto(Ready, thumbnailUrl)
+    end
+  end
+  client --> up : Tile with photo, or rejected tile with file name, size and error
+end
+up --> actor : First tile carries the "Cover" badge
+@enduml
