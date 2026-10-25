@@ -105,7 +105,7 @@ component(
          "<b>Selectable</b> rows add a checkbox column and <code>aria-selected</code>; row actions sit in a last, unlabelled column.",
          "12L is mostly read on phones, so tables are reserved for admin and reference content. Member-facing collections are lists."),
     anatomy=anatomy(
-        '<div style="width: 100%;">' + _audit(rows=AUDIT[:2]) + "</div>",
+        '<div style="width: 100%; min-width: 0;">' + _audit(rows=AUDIT[:2]) + "</div>",
         [("4%", "14%"), ("4%", "48%"), ("40%", "48%"), ("2%", "84%")],
         [("Container", "<code>.table-wrap</code>: 1px <code>--color-border-default</code>, <code>--radius-lg</code>, surface background, horizontal scroll."),
          ("Header cell", "Sunken background, <code>--text-label</code> in muted ink, sticky to the top of the scroll area, never wraps."),
@@ -248,7 +248,7 @@ component(
          "<b>Queue</b> (<code>.queue</code>): the admin moderation queue; an order-list row that wraps and carries a badge, a reporter count and the age.",
          "<b>Simple list</b> (<code>.list</code>): title and meta with an optional trailing status; open reports on a member's admin page.",
          "<b>Rules</b> (<code>.rules-list</code>): a numbered <code>&lt;ol&gt;</code> of title and explanation."),
-    anatomy=anatomy('<div style="width: 100%;">' + '<ul class="order-list" role="list">' + _order_li("iron-ranger", "from vintage_lou · Thu 22 Oct", "$244.97", "Shipped") + "</ul></div>",
+    anatomy=anatomy('<div style="width: 100%; min-width: 0;">' + '<ul class="order-list" role="list">' + _order_li("iron-ranger", "from vintage_lou · Thu 22 Oct", "$244.97", "Shipped") + "</ul></div>",
                     [("4%", "40%"), ("22%", "28%"), ("22%", "62%"), ("88%", "28%"), ("84%", "64%")],
                     [("Thumbnail", "<code>.thumb</code>: 56px square photo (80px with <code>.thumb--lg</code>), decorative <code>alt=\"\"</code> because the title names the item."),
                      ("Title", "<code>.item-row__title</code>: <code>--text-label</code> at 16px, truncates with an ellipsis."),
@@ -475,7 +475,7 @@ component(
          "<b>Badge</b> (<code>.badge</code>): an uppercase tag on a tinted block, for attributes and moderation flags: <i>New seller</i>, <i>Hidden</i>, <i>Payout held</i>.",
          "<b>Solid</b> and <b>count</b> badges carry a filled background for counts and admin markers; <b>pill count</b> is the neutral square count in the moderation queue.")
     + p(f"Neither is interactive. A filter you can toggle is a {comp('chip')}; a message is an {comp('alert')}."),
-    anatomy=anatomy('<span class="badge badge--warning">Hidden</span>&nbsp;&nbsp;' + _status("Shipped"), [("10%", "34%"), ("30%", "34%"), ("68%", "34%")],
+    anatomy=anatomy('<span class="cluster" style="flex-wrap: nowrap; gap: var(--space-8);"><span class="badge badge--warning">Hidden</span>' + _status("Shipped") + "</span>", [("30%", "22%"), ("42%", "22%"), ("62%", "22%")],
                     [("Dot", "6px round on badges, 8px square on statuses; <code>currentColor</code>."), ("Badge label", "<code>--text-overline</code>, uppercase, wide tracking, on the tone's <code>-bg</code>."),
                      ("Status label", "<code>--text-body-sm</code> in the tone's <code>-fg</code>, sentence case.")]),
     variants="<h3>Badge tones</h3>" + ex(BADGES, "Neutral, info, success, warning, danger.")

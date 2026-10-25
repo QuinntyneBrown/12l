@@ -94,8 +94,8 @@ def _t_state(kind: str):
             return _toast(kind, title, text, attrs=' data-state="hover"')
         if state == "focus":
             return _toast(kind, title, text).replace('class="close" type="button"', 'class="close" type="button" data-state="focus"')
-        return _toast(kind, title, text, attrs=' data-state="leaving"')
-    return make
+        return _toast(kind, title, text, attrs=' data-state="leaving" style="animation: none; opacity: 0.5; translate: 0 var(--space-2);"')
+    return lambda state: '<div style="width: 17rem;">' + make(state) + "</div>"
 
 
 component(
@@ -115,7 +115,7 @@ component(
     + p(f"Rules for which feedback to use live in {patt('notifications')} and {patt('feedback-and-loading')}."),
     anatomy=anatomy(
         '<div style="width: min(100%, 24rem);">' + _toast("success", "Listing published", "Air Force 1 '07 is live.", "View listing") + "</div>",
-        [("8%", "22%"), ("12%", "36%"), ("40%", "36%"), ("30%", "70%"), ("90%", "30%"), ("5%", "88%")],
+        [("14%", "45%"), ("20%", "6%"), ("34%", "6%"), ("30%", "85%"), ("78%", "6%"), ("56%", "85%")],
         [("Status edge", "3px leading rule in the tone colour on ink (<code>--toast-edge</code>); the brand red when untoned."),
          ("Icon", "20px tone icon: info, check-circle, alert, x-circle. Paired with text, never alone."),
          ("Title", "<code>--text-label</code>, one line: what happened."),
@@ -225,7 +225,7 @@ def _a_state(kind: str):
         if state == "focus":
             return _alert(kind, t, x, close=True).replace('class="close" type="button"', 'class="close" type="button" data-state="focus"')
         return _banner(kind, t)
-    return make
+    return lambda state: '<div style="width: 20rem;">' + make(state) + "</div>"
 
 
 component(
@@ -244,7 +244,7 @@ component(
          "<b>Flaws note</b> (<code>.flaws</code>): the warning-toned rule on a Used - Fair listing that states its flaws. It is content, not a status, so it has no icon or role."),
     anatomy=anatomy(
         '<div style="width: min(100%, 30rem);">' + _alert("warning", "Verify your email to buy and sell", "We sent a link to marcus.bell@example.com.", btn("Resend link", "sm"), icon="mail", close=True) + "</div>",
-        [("2%", "50%"), ("10%", "22%"), ("22%", "22%"), ("22%", "48%"), ("22%", "76%"), ("94%", "22%")],
+        [("3%", "45%"), ("11%", "4%"), ("28%", "4%"), ("60%", "84%"), ("26%", "84%"), ("93%", "20%")],
         [("Leading edge", "4px rule (<code>--border-width-heavy</code>) in the tone border colour; 1px on the other sides."),
          ("Icon", "20px, <code>--alert-icon</code>; can be swapped for a more specific one (mail, clock, lock, flag, wifi-off)."),
          ("Title", "<code>--text-label</code>; the whole message when it fits in one line."),
@@ -370,7 +370,7 @@ component(
          "<b>Secure note</b> (<code>.secure-note</code>): reassurance under the card field (<i>Card details go straight to our payment provider. 12L never sees them.</i>)."),
     anatomy=anatomy(
         '<div style="width: min(100%, 22rem);">' + _field("anat-flaws", "Describe the flaws", "", "error") + "</div>",
-        [("4%", "14%"), ("4%", "38%"), ("4%", "62%"), ("4%", "84%")],
+        [("4%", "18%"), ("4%", "38%"), ("4%", "54%"), ("4%", "68%")],
         [("Label", "The field's name; see " + comp("form-field") + "."), ("Control", "Marked <code>aria-invalid</code> when the error shows."),
          ("Hint", "<code>--text-body-sm</code>, muted, always visible."), ("Error", "<code>--text-body-sm</code> in <code>--color-danger-fg</code> with a ⚠ marker; below the hint.")]),
     variants=ex('<div class="stack" style="width: min(100%, 24rem);">' + _field("v-hint", "Price", "45.00", "hint") + _field("v-err", "Describe the flaws", "", "error") + "</div>",
@@ -384,7 +384,7 @@ component(
          + f'<p class="secure-note">{ic("lock", "icon icon--sm")}Card details go straight to our payment provider. 12L never sees them.</p>',
          "Reservation timer in three tones, and the secure note from checkout."),
     sizes=NA("Inline messages take the size of their text role (body-sm, label or caption); there are no size variants."),
-    states=state_matrix(["Hint", "Invalid", "Success"], [("Field", lambda s: _field(f"st-{s}", "Display name", "marcus_12" if s != "invalid" else "", {"hint": "hint", "invalid": "error", "success": "success"}[s]))], "Context")
+    states=state_matrix(["Hint", "Invalid", "Success"], [("Field", lambda s: '<div style="width: 16rem;">' + _field(f"st-{s}", "Display name", "marcus_12" if s != "invalid" else "", {"hint": "hint", "invalid": "error", "success": "success"}[s]) + "</div>")], "Context")
     + state_matrix(["Neutral", "Warning", "Danger"], [("Timer", lambda s: _timer({"neutral": "9:41", "warning": "0:48", "danger": "0:00"}[s], "" if s == "neutral" else s))], "Context")
     + "<h3>Both themes</h3>"
     + themes('<div class="stack">' + _field("th-field", "Price", "5200", "error").replace('id="th-field', 'id="th-field') + _timer("0:48", "warning") + "</div>",
@@ -697,7 +697,7 @@ component(
     + ul("<b>404</b> <i>Page not found</i>, and the listing-specific <i>This item isn’t available</i>.", "<b>403</b> <i>You can’t open this</i> / <i>Admins only</i>.",
          "<b>500</b> <i>Something went wrong</i> with <i>Try again</i> and the reference.", "<b>Offline</b> <i>You’re offline</i>, with an icon instead of a code.",
          "<b>Maintenance</b> <i>Back at 3:00 AM ET</i>, served statically."),
-    anatomy=anatomy(_err("500"), [("4%", "12%"), ("4%", "44%"), ("4%", "56%"), ("4%", "68%"), ("4%", "84%")],
+    anatomy=anatomy(_err("500"), [("4%", "29%"), ("4%", "45%"), ("4%", "54%"), ("4%", "61%"), ("4%", "73%")],
                     [("Code", "<code>--text-display</code> at 96px, black weight, middle digit in <code>--color-brand</code>; <code>aria-hidden</code>."),
                      ("Title", "The page heading (<code>h1</code> in the product)."), ("Text", "What happened and what is safe."),
                      ("Reference (500)", "<code>.ref</code>, mono caption, for support."), ("Actions", "One primary recovery action, optional secondary.")]),
@@ -759,7 +759,7 @@ component(
     summary_states="default, hover, focus; saved",
     overview=p(f"Consent is a non-modal region, bottom right (full width on phones), on the inverse surface so it is clearly separate from the page. The page stays usable; nothing waits for an answer. "
                f"<i>Accept analytics</i> and <i>Necessary only</i> are equally easy. After a choice the panel closes and a {comp('toast')} confirms (<i>Cookie choice saved</i>). Details live in the cookie settings {comp('dialog')}, also linked from the {comp('footer')}."),
-    anatomy=anatomy(stage(_consent("an-c"), "18rem", show_code=False), [("70%", "38%"), ("70%", "52%"), ("70%", "70%"), ("70%", "86%")],
+    anatomy=anatomy('<div class="ds-stage" style="--stage-height: 16rem; width: 100%;">' + _consent("an-c") + "</div>", [("16%", "22%"), ("16%", "38%"), ("16%", "60%"), ("16%", "80%")],
                     [("Title", "<i>Cookies</i>, <code>h2</code> styled as h4, labels the region."), ("Text", "One sentence in <code>--text-body-sm</code>."),
                      ("Choices", "Primary <i>Accept analytics</i> and secondary <i>Necessary only</i>, re-skinned for the inverse surface."), ("Settings link", "Opens the cookie settings dialog.")]),
     variants=stage(_page("Catalog · guest") + _consent("v-c"), "22rem", "First visit: the panel over the guest catalog.")

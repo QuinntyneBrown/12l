@@ -252,7 +252,7 @@ def themes(html: str, light: str | None = None) -> str:
 
 def keys(rows: list[tuple[str, str]]) -> str:
     body = "".join(f"<tr><td>{k}</td><td>{a}</td></tr>" for k, a in rows)
-    return f'<table class="ds-table ds-keys"><thead><tr><th scope="col">Key</th><th scope="col">Action</th></tr></thead><tbody>{body}</tbody></table>'
+    return f'<div class="ds-table-wrap"><table class="ds-table ds-keys"><thead><tr><th scope="col">Key</th><th scope="col">Action</th></tr></thead><tbody>{body}</tbody></table></div>'
 
 
 def kbd(*names: str) -> str:
@@ -302,7 +302,7 @@ def token_table(rows: list[tuple[str, str]]) -> str:
 
 def classes(rows: list[tuple[str, str]], head: tuple[str, str] = ("Class / attribute", "Effect")) -> str:
     body = "".join(f"<tr><td>{c}</td><td>{e}</td></tr>" for c, e in rows)
-    return f'<table class="ds-table"><thead><tr><th scope="col">{head[0]}</th><th scope="col">{head[1]}</th></tr></thead><tbody>{body}</tbody></table>'
+    return f'<div class="ds-table-wrap"><table class="ds-table"><thead><tr><th scope="col">{head[0]}</th><th scope="col">{head[1]}</th></tr></thead><tbody>{body}</tbody></table></div>'
 
 
 def table(head: list[str], rows: list[list[str]]) -> str:

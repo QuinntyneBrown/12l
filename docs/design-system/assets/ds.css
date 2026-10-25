@@ -200,3 +200,5 @@ pre code { background: none; padding: 0; }
 .ds-icon-sheet figure { display: flex; flex-direction: column; align-items: center; gap: var(--space-2); padding: var(--space-3); border: var(--border-width-hairline) solid var(--color-border-default); background: var(--color-bg-surface); }
 .ds-icon-sheet figcaption { font: var(--text-caption); color: var(--color-fg-muted); font-family: var(--font-family-mono); }
 .ds-icon-sheet .icon { width: 1.5rem; height: 1.5rem; }
+/* Narrow screens: let code in tables wrap instead of forcing the page sideways. */
+@media (max-width: 47.99rem) { .ds-table code { white-space: normal; overflow-wrap: anywhere; } }
