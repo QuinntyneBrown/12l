@@ -169,7 +169,7 @@ def _():
 @s.state("success", "Published: the item is live, with a nudge to set up payouts.")
 def _():
     main = (f'<div class="center-state"><div class="empty__icon">{ic("check", "icon icon--lg")}</div><h1>It’s live</h1>'
-            f'<div class="panel" style="width: 100%;">{item_row("air-max-90", "Nike · Men’s US 12 · $60.00")}</div>'
+            f'<div class="panel" style="width: 100%;">{item_row("air-max-90", "Nike · Men’s US 12 · $60.00").replace("Air Max 90, white", NEW["title"])}</div>'
             f'<p class="text-muted"><a href="{P("payouts", "not-onboarded")}">Set up payouts</a> so you’re paid when it sells.</p>'
             f'<div class="actions">{btn("View listing", "primary", P("listing-detail", "own"))}{btn("Sell another", href=P("sell"))}</div></div>')
     return Page(main=main, nav="sell")

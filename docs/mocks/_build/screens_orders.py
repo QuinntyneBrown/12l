@@ -48,7 +48,7 @@ def error_state(title: str, ref: str, back_label: str, back_href: str, account: 
 # ---------------------------------------------------------------------------
 def timer(text: str = "9:41", kind: str = "") -> str:
     k = f" timer--{kind}" if kind else ""
-    return f'<p class="timer{k}" role="timer" aria-live="off">{ic("clock")}Reserved for you · <span class="num">{text}</span> left</p>'
+    return f'<p class="timer{k}" role="timer" aria-live="off">{ic("clock")}<span>Reserved for you · <span class="num">{text}</span> left</span></p>'
 
 
 def saved_address(checked: bool = True) -> str:
