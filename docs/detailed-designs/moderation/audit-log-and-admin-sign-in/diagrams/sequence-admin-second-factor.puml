@@ -1,0 +1,63 @@
+@startuml
+title UML sequence behaviour — Administrator sign-in with TOTP second factor
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Administrator" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SignInPageComponent" as signin
+  participant "AdminVerifyPageComponent" as page
+  participant "AdminAuthService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "AuthController" as auth
+  participant "AdminVerificationController" as controller
+end box
+box "Backend — TwelveL.Application" #ECFDF3
+  participant "VerifyAdminSecondFactorCommandHandler" as handler
+  participant "ITotpVerifier" as totp
+  participant "ISessionTokenService" as tokens
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "Distributed cache" as cache
+end box
+actor -> signin : Email and password
+signin -> auth : POST /api/auth/sign-in (accounts, L2-006)
+auth --> signin : 200 {secondFactorRequired: true}; cookies with amr pwd only
+signin -> page : Navigate /admin/verify?returnUrl=/admin/queue
+actor -> page : Enter 6-digit code, "Verify"
+page -> page : Button "Verifying", field read-only
+page -> client : verify(code)
+client -> controller : POST /api/admin/verify
+controller -> controller : Require authenticated session with Administrator role
+alt not an administrator
+  controller --> client : 403
+end
+controller -> cache : Increment admin-verify attempt counter
+alt attempts over limit
+  controller --> client : 429 with Retry-After
+end
+controller -> handler : Send VerifyAdminSecondFactorCommand
+handler -> db : Load AdministratorTotpCredential
+handler -> totp : Verify(credential, code, now)
+alt code wrong, expired or already used in this time step
+  totp --> handler : Invalid
+  handler --> controller : Invalid
+  controller --> client : 422 admin.totp_invalid
+  client --> page : "That code didn't work. Codes change every 30 seconds."
+else unexpected failure
+  controller --> client : 500 problem details with correlation ID
+  client --> page : "Couldn't verify right now" with Ref
+end
+totp --> handler : Valid at time step T
+handler -> db : Save LastAcceptedTimeStep = T (RowVersion)
+handler -> tokens : UpgradeToSecondFactorAsync(sessionId) (L2-047)
+tokens -> db : Session.SecondFactorVerifiedAt = now
+tokens --> handler : New access and refresh cookies with amr pwd, otp
+controller --> client : 204 No Content + Set-Cookie
+client --> page : Verified
+page --> actor : Navigate to returnUrl (moderation queue)
+@enduml

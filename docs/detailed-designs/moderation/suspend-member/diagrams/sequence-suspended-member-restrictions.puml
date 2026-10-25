@@ -1,0 +1,45 @@
+@startuml
+title UML sequence behaviour — Suspended member restrictions
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Suspended member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "AccountBannerComponent" as banner
+  participant "SellPageComponent" as sell
+  participant "SaleDetailPageComponent" as sale
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "NotSuspendedAuthorizationHandler" as policy
+  participant "ListingsController" as listings
+  participant "OrdersController" as orders
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  participant "IMemberStatusReader" as reader
+  participant "Distributed cache" as cache
+  database "12L database" as db
+end box
+actor -> banner : Sign in (session issued as usual)
+banner -> banner : GET /api/me returns status Suspended
+banner --> actor : "Your account is suspended. You can still ship open orders." + Details
+actor -> sell : Open /sell
+sell -> listings : POST /api/listings
+listings -> policy : Evaluate NotSuspended
+policy -> reader : GetStatusAsync(memberId)
+reader -> cache : GET member:status:{memberId}
+alt cache miss
+  reader -> db : Read Members.Status
+  reader -> cache : SET with TTL
+end
+reader --> policy : Suspended
+policy --> listings : Fail
+listings --> sell : 403 account.suspended (L2-046, L2-010)
+sell --> actor : "Selling is paused on your account"
+actor -> sale : Add tracking on a Paid sale
+sale -> orders : POST /api/orders/{id}/shipment
+orders -> orders : Seller policy only, no NotSuspended requirement
+orders --> sale : 200 OK, order Shipped (L2-046)
+sale --> actor : Tracking saved
+@enduml

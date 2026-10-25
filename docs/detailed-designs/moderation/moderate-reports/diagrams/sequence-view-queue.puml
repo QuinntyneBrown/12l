@@ -1,0 +1,54 @@
+@startuml
+title UML sequence behaviour — Open the moderation queue
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Administrator" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "ModerationQueuePageComponent" as page
+  participant "ModerationApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "ModerationQueueController" as controller
+end box
+box "Backend — TwelveL.Application" #ECFDF3
+  participant "GetModerationQueueQueryHandler" as handler
+  participant "IOrderProblemQueueSource" as problems
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Open /admin/queue
+page -> page : Show loading skeleton rows
+page -> client : getQueue()
+client -> controller : GET /api/admin/queue
+controller -> controller : Policy AdministratorWithSecondFactor (L2-010, L2-047)
+alt caller lacks Administrator role
+  controller --> client : 403
+  client --> page : Forbidden
+  page --> actor : "Admins only" page
+end
+controller -> handler : Send GetModerationQueueQuery
+handler -> db : Open Reports with reporter count, top reason, hidden flag
+db --> handler : Report rows
+handler -> problems : GetOpenProblemsAsync()
+problems -> db : Open OrderProblems (orders subsystem)
+db --> problems : Problem rows
+problems --> handler : Queue items with PayoutHeld
+handler -> handler : Merge and sort by OpenedAt ascending (L2-045)
+handler --> controller : ModerationQueuePage {items, totalOpen}
+alt database failure
+  controller --> client : 500 problem details with correlation ID
+  client --> page : Error
+  page --> actor : "Couldn't load the queue" with Ref and "Try again"
+end
+controller --> client : 200 OK
+client --> page : Items
+alt no items
+  page --> actor : "Queue clear" empty state
+else items
+  page --> actor : "N open · oldest first" with reason, reporter count, Hidden badge
+end
+@enduml

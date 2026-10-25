@@ -1,0 +1,12 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Report a listing or member
+
+Person(member, "Verified member", "Reports a listing or member that breaks the marketplace rules")
+Person(admin, "Administrator", "Reviews open reports in the moderation queue")
+System(twelvel, "12L", "Marketplace for men's US size 12 shoes and size L clothing")
+
+Rel(member, twelvel, "Reports listings and members using", "HTTPS")
+Rel(admin, twelvel, "Reviews reports using", "HTTPS")
+@enduml

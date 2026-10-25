@@ -1,0 +1,51 @@
+@startuml
+title UML sequence behaviour — Dismiss a report
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Administrator" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "ResolveReportDialogComponent" as dialog
+  participant "ModerationApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "AdminReportsController" as controller
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "ResolveReportCommandHandler" as handler
+  participant "Report" as report
+  participant "Listing" as listing
+  participant "IAuditLog" as audit
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> dialog : Choose "Dismiss report", enter reason
+dialog -> dialog : Reason required ("Add a reason. The member sees it.")
+dialog -> client : resolve(number, {decision: Dismiss, reason})
+client -> controller : POST /api/admin/reports/{number}/resolution
+controller -> controller : Policy AdministratorWithSecondFactor; validate
+controller -> handler : Send ResolveReportCommand
+handler -> db : Load Report with RowVersion and target Listing
+alt report not Open
+  handler --> controller : Conflict
+  controller --> client : 409 report.already_resolved
+  client --> dialog : Reload report detail
+end
+handler -> report : Resolve(Dismiss, reason, admin, now)
+handler -> listing : ReturnToCatalog() clears IsHiddenPendingReview (L2-045)
+handler -> audit : Record("Report dismissed", R-number, reason) (L2-047)
+handler -> db : SaveChanges in one transaction
+alt save fails
+  db --> handler : Exception
+  controller --> client : 500 problem details
+  client --> dialog : "Couldn't save the decision" Nothing changed, Ref
+end
+db --> handler : Committed
+handler --> controller : ReportResolutionDto
+controller --> client : 200 OK
+client --> dialog : Close dialog
+dialog --> actor : Report detail in resolved state
+@enduml
