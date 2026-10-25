@@ -33,6 +33,20 @@ The removed requirement numbers `L2-038`, `L2-039`, `L2-044` to `L2-047`, `L2-05
 Administrators still resolve order problems (`L2-036`) through the admin shell, guarded
 by the `Administrator` role check of `L2-010`. That is the only administrator feature.
 
+## Testing rules (CRITICAL)
+
+- **Backend tests never touch a real database.** Unit, integration and architecture tests
+  under `tests/TwelveL.*.Tests/` use mocks, fakes or an in-memory substitute (the EF Core
+  in-memory or SQLite in-memory provider). No SQL Server, LocalDB, Testcontainers, Docker or
+  connection string to a live database in any test, fixture or CI job. The same applies to
+  Redis and every other external system: fake the port.
+- **Playwright tests never run the backend.** Every e2e test in `src/frontend/e2e/` serves
+  the `12L API` through `page.route` fixtures or an equivalent fake. No test starts, waits
+  for, or calls `TwelveL.Api`, `TwelveL.Worker` or a database. The frontend under test is
+  the built Angular application only.
+- These rules are absolute. Do not add an opt-in flag, an "integration" tag or a separate
+  CI lane that relaxes them.
+
 ## Folder structure (MANDATORY)
 
 This layout is required. Every file you create must land in one of the folders below;
@@ -115,6 +129,19 @@ library per area, all registered in `angular.json`. Follow these rules:
 - Component selector prefix is `tl`. Standalone components, signals and lazy routes
   throughout. Formatting by Prettier, linting by angular-eslint, `npm run build:all`
   compiles every library and the application.
+
+## Components library is mandatory (CRITICAL)
+
+- The `twelvel` application and every feature library MUST be built from
+  `@12l/components` (`src/frontend/projects/components/`). Never hand-write markup, CSS,
+  icons, overlays or toasts the library already provides. Use the `tl-*` component,
+  `DialogService`, `SheetService` and `ToastService`.
+- `docs/screen-composition.md` is binding. Before implementing any page, dialog,
+  notification or shell part, read its entry and use exactly the components it lists.
+  Build locally only the UI it marks as local.
+- If the library lacks something the entry needs, STOP. Update
+  `docs/design-system/` and the library first. Do not work around it in the app.
+- Keep `docs/screen-composition.md` aligned with the mocks and `docs/design-system/`.
 
 ## Working in this repository
 
