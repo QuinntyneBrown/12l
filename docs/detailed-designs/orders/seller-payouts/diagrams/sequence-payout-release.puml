@@ -1,0 +1,61 @@
+@startuml
+title UML sequence behaviour — Payout release after completion
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "OrderCompletedPayoutHandler" as evh
+  participant "Payout" as payout
+end box
+box "Backend — 12L Worker application (TwelveL.Worker)" #D1FADF
+  participant "PayoutReleaseJob" as job
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+participant "Payment provider" as pay
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "PaymentWebhookController" as wh
+end box
+== Order reaches Completed (complete-order or resolve-order-problems) ==
+evh -> db : Load Payout by OrderId
+evh -> payout : MarkReleasable(now)
+alt seller onboarding not Complete (L2-031 criterion 1)
+  payout -> payout : Hold(OnboardingIncomplete)
+end
+evh -> db : Save in the OrderCompleted unit of work
+== Every Payouts:ReleaseJobInterval ==
+job -> db : SELECT payouts p JOIN orders o WHERE p.Status='Releasable' AND o.Status='Completed' AND account.Status='Complete' AND no open problem
+note right of job : Paid, Shipped and Delivered orders never match (L2-031 criterion 3)
+db --> job : Releasable payouts
+loop each payout
+  job -> pay : CreatePayoutAsync(accountId, NetAmount, idempotency key = Payout.Id)
+  alt accepted
+    pay --> job : ProviderPayoutId
+    job -> payout : MarkSent(id, now)
+    job -> db : Save
+  else provider error
+    pay --> job : Error
+    job -> db : Keep Releasable, log, retry next run
+  end
+end
+pay -> wh : payout.paid or payout.failed (signed)
+alt payout.paid
+  wh -> db : Payout Paid, PaidAt
+else payout.failed
+  wh -> db : Payout Failed, FailureReason; banner "Your last payout was returned by the bank."
+end
+@enduml

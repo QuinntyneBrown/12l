@@ -1,0 +1,57 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Complete an order
+
+class Order <<see ship-order>> {
+  +OrderStatus Status
+  +DateTimeOffset? DeliveredAt
+  +DateTimeOffset? CompletedAt
+  +DateTimeOffset AutoCompleteAt
+  +bool HasOpenProblem
+  +MarkDelivered(actor, at): void
+  +Complete(actor, at): void
+}
+class ConfirmReceiptCommand {
+  +Guid OrderId
+}
+class ConfirmReceiptCommandHandler {
+  +Handle(cmd): Task<OrderDetailDto>
+}
+class AutoCompleteOrderCommand {
+  +Guid OrderId
+}
+class AutoCompleteOrderCommandHandler
+class OrderAutoCompletionJob {
+  +ExecuteAsync(ct): Task
+}
+class OrderCompleted <<domain event>> {
+  +Guid OrderId
+  +Guid BuyerId
+  +Guid SellerId
+  +DateTimeOffset CompletedAt
+}
+class OrderCompletedPayoutHandler <<see seller-payouts>>
+class UpdateReputationOnOrderCompletedHandler <<reviews subsystem>>
+class OrderProblem <<see resolve-order-problems>> {
+  +ProblemStatus Status
+}
+ConfirmReceiptCommandHandler ..> ConfirmReceiptCommand : handles
+ConfirmReceiptCommandHandler --> Order : loads / mutates
+AutoCompleteOrderCommandHandler ..> AutoCompleteOrderCommand : handles
+AutoCompleteOrderCommandHandler --> Order : loads / mutates
+OrderAutoCompletionJob ..> AutoCompleteOrderCommand : sends
+Order "1" o-- "0..1" OrderProblem : open problem blocks completion
+Order ..> OrderCompleted : raises
+OrderCompletedPayoutHandler ..> OrderCompleted : handles
+UpdateReputationOnOrderCompletedHandler ..> OrderCompleted : handles
+@enduml

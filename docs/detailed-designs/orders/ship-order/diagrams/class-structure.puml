@@ -1,0 +1,132 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Ship an order (order state machine)
+
+enum OrderStatus {
+  Paid
+  Shipped
+  Delivered
+  Completed
+  Cancelled
+  Refunded
+}
+enum OrderActorType {
+  Buyer
+  Seller
+  Administrator
+  System
+  Carrier
+}
+enum Carrier {
+  USPS
+  UPS
+  FedEx
+  DHL
+}
+class Order <<aggregate root>> {
+  +Guid Id
+  +string Number
+  +Guid ListingId
+  +Guid BuyerId
+  +Guid SellerId
+  +Money ItemPrice
+  +Money ShippingCost
+  +Money SalesTax
+  +Money Total
+  +OrderStatus Status
+  +DateTimeOffset PaidAt
+  +DateTimeOffset ShipBy
+  +DateTimeOffset ShipReminderDue
+  +DateTimeOffset? ShipReminderSentAt
+  +DateTimeOffset? ShippedAt
+  +DateTimeOffset? DeliveredAt
+  +DateTimeOffset? CompletedAt
+  +DateTimeOffset? EndedAt
+  +Carrier? Carrier
+  +string? TrackingNumber
+  +ShippingAddress ShippingAddress
+  +byte[] RowVersion
+  +MarkShipped(carrier, tracking, actor, at): void
+  +MarkDelivered(actor, at): void
+  +Complete(actor, at): void
+  +Cancel(reason, actor, at): void
+  +Refund(actor, at): void
+  -TransitionTo(to, actor, at, note): void
+}
+class OrderStatusChange {
+  +long Id
+  +Guid OrderId
+  +OrderStatus? From
+  +OrderStatus To
+  +DateTimeOffset OccurredAt
+  +OrderActorType ActorType
+  +Guid? ActorId
+  +string? Note
+}
+class OrderStateMachine <<static>> {
+  +{static} Allowed: IReadOnlySet<(OrderStatus, OrderStatus, OrderActorType)>
+  +{static} EnsureAllowed(from, to, actor): void
+}
+class InvalidOrderTransitionException {
+  +OrderStatus From
+  +OrderStatus To
+  +string ErrorCode = "order.invalid_transition"
+}
+class AddTrackingCommand {
+  +Guid OrderId
+  +Carrier Carrier
+  +string TrackingNumber
+}
+class AddTrackingCommandValidator
+class AddTrackingCommandHandler {
+  +Handle(cmd): Task<SaleDetailDto>
+}
+class MarkDeliveredCommand {
+  +Guid OrderId
+  +OrderActorType Source
+  +DateTimeOffset DeliveredAt
+}
+class MarkDeliveredCommandHandler
+interface IBusinessCalendar {
+  +AddBusinessDays(start, days): DateTimeOffset
+}
+interface ICarrierTrackingService {
+  +GetStatusAsync(carrier, tracking): Task<TrackingStatus>
+  +BuildTrackingUrl(carrier, tracking): Uri
+}
+class ShipByReminderJob
+class ShipDeadlineJob
+class DeliveryPollingJob
+class OrderShipped <<domain event>>
+class OrderDelivered <<domain event>>
+
+Order "1" *-- "1..*" OrderStatusChange : history
+Order --> OrderStatus
+Order ..> OrderStateMachine : validates with
+OrderStateMachine ..> InvalidOrderTransitionException : throws
+OrderStatusChange --> OrderActorType
+Order --> Carrier
+AddTrackingCommandHandler ..> AddTrackingCommand : handles
+AddTrackingCommandValidator ..> AddTrackingCommand : validates
+AddTrackingCommandHandler --> Order : loads / mutates
+AddTrackingCommandHandler ..> ICarrierTrackingService : builds tracking link
+MarkDeliveredCommandHandler ..> MarkDeliveredCommand : handles
+MarkDeliveredCommandHandler --> Order : loads / mutates
+DeliveryPollingJob ..> ICarrierTrackingService : polls
+DeliveryPollingJob ..> MarkDeliveredCommand : sends
+ShipByReminderJob --> Order : reads ShipReminderDue
+ShipDeadlineJob --> Order : Cancel(ShipDeadlinePassed)
+ShipDeadlineJob ..> IBusinessCalendar
+Order ..> OrderShipped : raises
+Order ..> OrderDelivered : raises
+@enduml

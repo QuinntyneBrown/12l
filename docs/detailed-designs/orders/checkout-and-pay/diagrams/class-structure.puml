@@ -1,0 +1,146 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+hide empty members
+title Class structure — Check out and pay
+
+enum CheckoutStatus {
+  Open
+  Processing
+  Paid
+  Released
+  Expired
+}
+enum PaymentStatus {
+  Pending
+  Succeeded
+  Failed
+  Refunded
+}
+enum ListingStatus {
+  Draft
+  Active
+  Reserved
+  Sold
+  Removed
+}
+class Listing <<listings subsystem>> {
+  +Guid Id
+  +Guid SellerId
+  +ListingStatus Status
+  +Guid? ReservedByCheckoutId
+  +DateTimeOffset? ReservedUntil
+  +Money Price
+  +Money ShippingCost
+  +byte[] RowVersion
+  +Reserve(checkoutId, until): void
+  +ReleaseReservation(checkoutId): void
+  +MarkSold(checkoutId): void
+}
+class Checkout <<aggregate root>> {
+  +Guid Id
+  +Guid ListingId
+  +Guid BuyerId
+  +CheckoutStatus Status
+  +DateTimeOffset StartedAt
+  +DateTimeOffset ExpiresAt
+  +Money ItemPrice
+  +Money ShippingCost
+  +Money? SalesTax
+  +Money? Total
+  +ShippingAddress? Address
+  +string? LastDeclineReason
+  +Guid? OrderId
+  +byte[] RowVersion
+  +SetAddress(address, tax): void
+  +BeginPayment(idempotencyKey): void
+  +RecordDecline(reason): void
+  +Release(reason): void
+}
+class Payment {
+  +Guid Id
+  +Guid CheckoutId
+  +string IdempotencyKey
+  +string? ProviderPaymentId
+  +Money Amount
+  +PaymentStatus Status
+  +string? CardBrand
+  +string? CardLast4
+  +string? DeclineReason
+}
+class PaymentWebhookEvent {
+  +string ProviderEventId
+  +string Type
+  +DateTimeOffset ReceivedAt
+  +DateTimeOffset? ProcessedAt
+}
+class Refund {
+  +Guid Id
+  +Guid PaymentId
+  +Guid? OrderId
+  +Money Amount
+  +RefundReason Reason
+  +RefundStatus Status
+  +string? ProviderRefundId
+}
+class SavedAddress {
+  +Guid MemberId
+  +ShippingAddress Address
+  +DateTimeOffset UpdatedAt
+}
+class ShippingAddress <<value object>> {
+  +string FullName
+  +string Street
+  +string? Apartment
+  +string City
+  +UsState State
+  +string Zip
+  +string Country
+}
+class Order <<see ship-order>> {
+  +{static} CreatePaid(checkout, payment, feeRate, at): Order
+}
+interface IPaymentProvider {
+  +CreatePaymentAsync(amount, methodToken, idempotencyKey, metadata): Task<ProviderPayment>
+  +QuoteTaxAsync(address, taxableAmount): Task<Money>
+  +RefundAsync(providerPaymentId, amount, idempotencyKey): Task<ProviderRefund>
+  +VerifyWebhookSignature(payload, signatureHeader): bool
+}
+class StartCheckoutCommandHandler
+class SetCheckoutAddressCommandHandler
+class SubmitPaymentCommandHandler
+class ConfirmPaymentCommandHandler
+class RecordPaymentFailureCommandHandler
+class ReleaseCheckoutCommandHandler
+class ReservationExpiryJob
+
+Checkout --> CheckoutStatus
+Checkout --> ShippingAddress
+Checkout "1" o-- "1" Listing : reserves
+Checkout "1" *-- "0..*" Payment : attempts
+Payment --> PaymentStatus
+Payment "1" o-- "0..*" Refund
+Listing --> ListingStatus
+SavedAddress --> ShippingAddress
+StartCheckoutCommandHandler --> Listing : Reserve
+StartCheckoutCommandHandler --> Checkout : creates
+StartCheckoutCommandHandler ..> SavedAddress : offers by default
+SetCheckoutAddressCommandHandler ..> IPaymentProvider : QuoteTaxAsync
+SubmitPaymentCommandHandler ..> IPaymentProvider : CreatePaymentAsync
+SubmitPaymentCommandHandler --> Payment : creates
+ConfirmPaymentCommandHandler ..> PaymentWebhookEvent : deduplicates
+ConfirmPaymentCommandHandler ..> Order : CreatePaid
+ConfirmPaymentCommandHandler ..> Refund : duplicate payment
+RecordPaymentFailureCommandHandler --> Checkout : RecordDecline
+ReleaseCheckoutCommandHandler --> Checkout : Release
+ReleaseCheckoutCommandHandler --> Listing : ReleaseReservation
+ReservationExpiryJob ..> ReleaseCheckoutCommandHandler
+@enduml
