@@ -528,6 +528,8 @@ a.tab { text-decoration: none; }
 .seller__meta { font: var(--text-body-sm); color: var(--color-fg-muted); }
 .buy-bar { position: sticky; bottom: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--space-4); padding: var(--space-3) var(--layout-margin); margin-inline: calc(-1 * var(--layout-margin)); background: var(--color-bg-surface); border-top: 1px solid var(--color-border-default); }
 .buy-bar .btn { flex: 1; min-height: var(--control-height-lg); }
+.buy-bar .btn { min-width: 0; padding-inline: var(--space-3); }
+.buy-bar:has(.btn + .btn) .buy-bar__price { display: none; }
 .buy-bar__price { display: flex; flex-direction: column; }
 @media (min-width: 62rem) { .buy-bar { position: static; padding: 0; margin: 0; border: 0; background: none; } .buy-bar__price { display: none; } }
 .flaws { padding: var(--space-4); background: var(--color-warning-bg); color: var(--color-warning-fg); border-left: 3px solid var(--color-warning-solid); font: var(--text-body-sm); }
