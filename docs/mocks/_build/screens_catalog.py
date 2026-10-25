@@ -184,7 +184,7 @@ def detail(key: str, *, actions: str, stamp: str | None = None, user: str = "mem
             f'<div class="detail__price"><span class="price price--lg">{money(it["price"])}</span>'
             f'<span class="text-muted text-sm">{ship_text(it["ship"])} · <span class="num">{money(total)}</span> total before tax</span></div>'
             f'{extra_info}'
-            f'<div class="buy-bar"><div class="buy-bar__price"><span class="price">{money(total)}</span><span class="text-caption">incl. shipping</span></div>{actions}</div>'
+            f'{buy_bar(total, actions)}'
             f'{flaws}<p>{esc(DESC.get(key, "Clean pair, light wear. Ships in the original box."))}</p>'
             f'<dl class="facts"><dt>Size</dt><dd>{size_long(it)}</dd><dt>Category</dt><dd>{it["cat"]} · {it["sub"]}</dd>'
             f'<dt>Condition</dt><dd>{esc(it["cond"])}</dd><dt>Listed</dt><dd><time datetime="2026-10-25">{it["listed"]}</time></dd></dl>'
@@ -192,6 +192,13 @@ def detail(key: str, *, actions: str, stamp: str | None = None, user: str = "mem
     crumbs = (f'<nav aria-label="Breadcrumb" style="margin-top: var(--space-6);"><ol class="breadcrumb"><li><a href="{P("catalog")}">Shop</a></li>'
               f'<li><a href="{P("catalog", "category")}">{it["cat"]}</a></li><li aria-current="page">{it["sub"]}</li></ol></nav>')
     return Page(main=f'{crumbs}<div class="detail">{gallery(key)}{info}</div>{below}', user=user, nav=it["cat"].lower())
+
+
+def buy_bar(total: float, actions: str) -> str:
+    if not actions:
+        return ""
+    return (f'<div class="buy-bar"><div class="buy-bar__price"><span class="price">{money(total)}</span>'
+            f'<span class="text-caption">incl. shipping</span></div>{actions}</div>')
 
 
 def similar(keys) -> str:
@@ -314,7 +321,8 @@ def _():
 @f.state("invalid", "Minimum price above maximum: inline error, Apply blocked until fixed.")
 def _():
     form = filters_form("m", cat="Shoes", lo="200", hi="50", invalid=True)
-    return Dialog(bg=("catalog", "default"), html=filter_sheet(form, btn("Show items", "primary", attrs="disabled")))
+    top = error_summary([("m-min", "Minimum price must be lower than maximum")], title="Check the price range")
+    return Dialog(bg=("catalog", "default"), html=filter_sheet(form, btn("Show items", "primary", attrs="disabled"), top=top))
 
 
 @f.state("busy", "Counting results after a change: Apply is busy, the panel stays usable.")
