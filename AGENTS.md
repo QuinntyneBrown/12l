@@ -66,6 +66,7 @@ first and record the change as an ADR.
 │   ├── design-system/           tokens and components extracted from the mocks
 │   ├── detailed-designs/        {subsystem}/{feature}/README.md + diagrams/
 │   ├── estimates/               README.md + one file per subsystem
+│   ├── prompts/                 ready-to-run implementation prompts, NN-journey.md in build order
 │   └── adr/                     {category}/NNNN-title.md
 ├── src/
 │   ├── backend/                 .NET solution, namespace prefix TwelveL
