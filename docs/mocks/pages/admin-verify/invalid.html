@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Admin verification · invalid — 12L mocks</title>
+<meta name="mock:kind" content="page">
+<meta name="mock:screen" content="admin-verify">
+<meta name="mock:state" content="invalid">
+<meta name="mock:requirements" content="L2-047 L2-006">
+<meta name="description" content="Wrong or expired code: inline error, field keeps focus.">
+<link rel="icon" href="../../../design-system/assets/favicon.ico">
+<link rel="stylesheet" href="../../assets/tokens.css">
+<link rel="stylesheet" href="../../assets/ui.css">
+<link rel="stylesheet" href="../../assets/mock.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<div class="auth-layout"><a class="logo logo--lg" href="../../pages/catalog/default.html" aria-label="12L home"><svg viewBox="-4 -4 192 108" aria-hidden="true" focusable="false"><polygon class="logo__ink" points="0,14 20,0 40,0 40,100 20,100 20,24 0,38"/><polygon class="logo__ink" points="52,0 112,0 112,50 78,80 112,80 112,100 52,100 52,76 92,41 92,20 52,20"/><polygon class="logo__l" points="124,0 144,0 144,80 170,80 184,66 184,88 172,100 124,100"/></svg></a><main id="main" class="auth-card"><div class="stack stack--sm"><span class="topbar__admin" style="align-self: flex-start;">Admin</span><h1>Enter your code</h1></div><form class="stack stack--lg"><div class="field"><label class="field__label" for="totp">6-digit code</label><input class="input input--lg otp" id="totp" name="totp" inputmode="numeric" autocomplete="one-time-code" maxlength="6" value="482913" aria-describedby="totp-help totp-error" aria-invalid="true" autofocus><span class="field__help" id="totp-help">From your authenticator app.</span><span class="field__error" id="totp-error">That code didn’t work. Codes change every 30 seconds.</span></div><button class="btn btn--primary btn--block btn--lg" type="submit">Verify</button></form></main></div><div class="toast-region" role="status" aria-live="polite"></div>
+
+<nav class="mock-bar" aria-label="Mock navigation"><a class="mock-bar__home" href="../../index.html" aria-label="All mocks">⌂</a><span class="mock-bar__screen">Admin verification</span><ul class="mock-bar__states"><li><a href="default.html">default</a></li><li><a href="invalid.html" aria-current="page">invalid</a></li><li><a href="submitting.html">submitting</a></li><li><a href="error.html">error</a></li></ul><button type="button" data-theme-toggle aria-pressed="false">☾ Dark</button><button type="button" data-chrome-toggle aria-label="Hide mock chrome">×</button></nav>
+<script src="../../assets/mock.js"></script>
+</body>
+</html>
