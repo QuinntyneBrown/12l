@@ -117,7 +117,7 @@ def page_bg(text: str = "Order 12L-48302 · Paid · ship by Fri 30 Oct") -> str:
 
 WITHDRAW = dict(title="Withdraw this listing?", desc="Iron Ranger 8111 boots leaves the catalog now. You can relist it from Your listings.",
                 body='<p class="text-sm text-muted">Nobody has reserved it, so no buyer is affected.</p>',
-                footer=btn("Keep listing", attrs="autofocus") + btn("Withdraw", "danger"), icon="danger")
+                footer=btn("Keep listing") + btn("Withdraw", "danger"), icon="danger")
 
 
 def _reasons(did: str, invalid: bool) -> str:
@@ -432,7 +432,7 @@ component(
          "<b>Grid</b> is the column grid (4 / 8 / 12 columns); <code>.grid--auto</code> fits 18rem cards.",
          "<b>Split</b> is the detail layout: one column, then 3fr / 2fr from 1024px (order, sale and checkout pages)."),
     anatomy=anatomy('<div class="ds-grid-demo" style="width: 100%;">' + "".join(f"<span>{i}</span>" for i in range(1, 13)) + "</div>",
-                    [("1%", "10%"), ("8%", "50%"), ("15%", "50%")],
+                    [("1%", "10%"), ("20%", "20%"), ("37%", "20%")],
                     [("Margin", "<code>--layout-margin</code>: 16 / 32 / 48px."), ("Column", "<code>--layout-columns</code>: 4 / 8 / 12."), ("Gutter", "<code>--layout-gutter</code>: 16 / 24 / 32px.")]),
     variants="<h3>Live grid</h3>" + p("Resize the window: the grid shows the current column count, gutter and margin from the tokens.")
     + ex('<div class="ds-grid-demo" style="width: 100%;">' + "".join(f"<span>{i}</span>" for i in range(1, 13)) + "</div>", "4 columns below 768px, 8 to 1023px, 12 from 1024px.", show_code=False)

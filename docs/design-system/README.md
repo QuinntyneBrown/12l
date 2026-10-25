@@ -176,10 +176,21 @@ Values and markup in the mocks that disagreed with the system, and what was done
 | assets/tokens.css | The prefers-color-scheme dark block repeated the four --color-inverse-* lines and differed from the [data-theme=dark] block. | Both dark blocks are now generated identical. |
 | assets/tokens.css | Dark --color-bg-surface-sunken was a raw #080808 inside the theme block. | Added primitive --palette-ink-1000 and aliased it. |
 | assets/tokens.css | Dark --color-focus-ring-offset and --shadow-focus resolved against the light surface inside nested [data-theme=dark] containers. | Redeclared both in the dark theme. |
-| assets/ui.css | Spinner, shimmer and pulse used raw 0.8s, 1.4s and 1.6s durations; borders used raw 1-4px widths. | Added --duration-cycle-fast (800ms) and --duration-cycle (1400ms; pulse snapped from 1.6s) and --border-width-accent/heavy; components.css uses tokens only. |
-| assets/ui.css | The global reduced-motion rule also stopped the spinner and the loading button, hiding a status indicator. | Spinners keep turning under reduced motion; decorative motion still stops. |
-| pages/catalog/default (category tiles) | Size tags were fixed ink on paper in both themes, so outside a photo they vanished into dark-theme surfaces (1.1:1). | Size tags use --color-accent / --color-fg-on-accent by default and switch to the fixed --color-size-tag-* only on photos. |
+| assets/ui.css | Borders used raw 1px, 2px, 3px and 4px widths. | Added --border-width-accent (3px) and --border-width-heavy (4px) beside hairline and thick; components.css uses tokens only. |
+| pages/listing-detail/default, pages/sell/default | Size tags were fixed ink on paper in both themes, so outside a photo (next to the listing title, in the sell form) they vanished into the dark-theme canvas (1.1:1). | Size tags use --color-accent / --color-fg-on-accent by default and switch to the fixed --color-size-tag-* only on photos. |
 
 ## Verification
 
-Not yet verified.
+Run on 25 Oct 2026 after the last rebuild:
+
+| Check | Command | Result |
+|---|---|---|
+| Contrast, light and dark | `python .claude/skills/extracting-design-systems/scripts/check_contrast.py docs/design-system/tokens/tokens.css` | 156 pairs passed, 0 failed (78 pairs × 2 themes) |
+| Structure, links, labels, raw colours | `python .claude/skills/extracting-design-systems/scripts/check_design_system.py docs/design-system` | 74 pages (53 components, 8 patterns, 12 foundations, index), 0 errors, 0 warnings |
+| DTCG export | `python .claude/skills/extracting-design-systems/scripts/tokens_to_json.py docs/design-system/tokens/tokens.css` | 284 tokens written to `tokens/tokens.json` |
+| Mocks on the system CSS | `python .claude/skills/writing-html-mocks/scripts/check_mocks.py docs/mocks` | 66 screens, 278 mocks, 0 errors, 0 warnings |
+| Reflow at 360px | Playwright: `scrollWidth` of every page, both themes | No page scrolls sideways; no script errors |
+| Screenshots | Index, button, dialog, listing card and color at 360 and 1280 px, light and dark; plus menu, file upload, text field, table, badge, toast, alert, error page, gallery, buy bar, top bar, layout primitives and the forms and dialogs patterns | Reviewed; fixed nav wrapping, anatomy overflow, unreadable ramp labels and the dark-theme size tag |
+| Mocks before vs after | Pixel diff of catalog, listing detail and checkout at 360 and 1280 px against the mocks' own CSS | Identical; only the 992–1023 px range changes (breakpoint normalisation, see drift) |
+
+Remaining differences, recorded rather than fixed in the mocks: components that no mock uses yet (sidebar navigation, numbered pagination, stepper, menu, button group, tooltip, progress bar, category tile) are documented from the kit and say so on their pages.

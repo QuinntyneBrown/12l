@@ -212,7 +212,7 @@ d = screen("listing-detail", "page", "Listing detail", route="/items/{id}", reqs
 @d.state("default", "An active listing seen by another member: gallery, price with shipping, seller reputation, Buy now.")
 def _():
     pg = detail("air-max-90", actions=btn("Buy now", "primary lg", P("checkout")))
-    pg.notes = note("Under 992px: one column, swipeable gallery, Buy now bar fixed to the bottom while scrolling.", "top: 8rem; right: 1rem;")
+    pg.notes = note("Under 1024px: one column, swipeable gallery, Buy now bar fixed to the bottom while scrolling.", "top: 8rem; right: 1rem;")
     return pg
 
 

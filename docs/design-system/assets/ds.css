@@ -202,3 +202,11 @@ pre code { background: none; padding: 0; }
 .ds-icon-sheet .icon { width: 1.5rem; height: 1.5rem; }
 /* Narrow screens: let code in tables wrap instead of forcing the page sideways. */
 @media (max-width: 47.99rem) { .ds-table code { white-space: normal; overflow-wrap: anywhere; } }
+/* Narrow screens: anatomy figures and do/don't canvases never push the page wider. */
+.ds-anatomy__figure > *, .ds-do > .ds-example__canvas > *, .ds-dont > .ds-example__canvas > * { max-width: 100%; min-width: 0; }
+.ds-anatomy__figure { grid-template-columns: minmax(0, 1fr); justify-items: center; }
+@media (max-width: 47.99rem) { .ds-anatomy__figure { padding: var(--space-8) var(--space-3); } }
+/* Scroll frames contain their absolutely positioned content (visually hidden inputs, tooltips). */
+.ds-matrix, .ds-table-wrap, .ds-example, .ds-anatomy__figure { position: relative; }
+.ds-nav__home span:last-child, .ds-theme-toggle { white-space: nowrap; }
+.ds-nav__brand { flex-wrap: wrap; }
