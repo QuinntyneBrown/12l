@@ -22,8 +22,7 @@ The feature builds no product behaviour. The shell components it ships are the s
 needs (skip link, guest top bar, footer, toast region); the rest of that design, the
 accounts subsystem's `AuthState`, HTTP interceptors beyond the base URL provider, EF
 Core, the outbox, Redis, Docker, dependency scanning (`L2-052`, `L2-053`), visual
-snapshots, axe runs over every route and Lighthouse CI are deferred to their own
-features.
+snapshots and axe runs over every route are deferred to their own features.
 
 ## Description
 
@@ -184,6 +183,5 @@ same command on Linux.
   routes to them.
 - `ToastService`, `SheetService` and `DialogService` are `<TO SUPPLY>` by
   responsive-accessible-shell; the toast region ships empty.
-- Dependency scanning (`L2-053`), axe runs over every route, visual snapshots and
-  Lighthouse CI are deferred to protect-credentials-and-supply-chain,
-  responsive-accessible-shell and meet-performance-and-scale.
+- Dependency scanning (`L2-053`), axe runs over every route and visual snapshots are
+  deferred to protect-credentials-and-supply-chain and responsive-accessible-shell.

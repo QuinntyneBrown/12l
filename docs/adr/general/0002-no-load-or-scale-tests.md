@@ -27,8 +27,9 @@ tests are specified, designed, estimated or built.
 - `L2-060` keeps its statelessness statement. Its acceptance criteria now check design
   (an architecture test and where state is stored), not behaviour under a three-instance
   deployment.
-- `meet-performance-and-scale` keeps the frontend budgets (`L2-058`), the Lighthouse CI
-  and bundle checks, the stateless wiring and `StatelessApiTests`. The load and scale
+- `meet-performance-and-scale` keeps the stateless wiring and `StatelessApiTests`
+  (the frontend budgets it also kept at the time were later removed by
+  [ADR-0003](0003-no-frontend-performance-testing.md)). The load and scale
   test sections, diagrams and estimate rows are removed.
 - `AGENTS.md` lists load and scale testing as out of scope, and `tests/` holds only the
   per-project unit, integration and architecture test projects.
@@ -81,6 +82,6 @@ tests are specified, designed, estimated or built.
 ## References
 
 - [ADR-0001](0001-defer-moderation-reviews-and-data-export.md)
-- `docs/specs/L2.md` (`L2-058`, `L2-060`, traceability note)
+- `docs/specs/L2.md` (`L2-060`, traceability note)
 - `docs/detailed-designs/platform/meet-performance-and-scale/README.md`
 - `docs/estimates/platform/meet-performance-and-scale.md`

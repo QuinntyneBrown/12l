@@ -22,7 +22,7 @@ The slice runs from the catalog page in `12L Web` through `12L API` to the `12L 
 
 ### Frontend — `12L Web`, feature area `src/frontend/src/app/catalog/`
 
-- **`CATALOG_ROUTES`** — lazy-loaded route set. The empty path `''` maps to `CatalogPageComponent`; the route has no guard, so anonymous visitors reach it. Selling, checkout and administration code is not imported by this route (`L2-058`).
+- **`CATALOG_ROUTES`** — lazy-loaded route set. The empty path `''` maps to `CatalogPageComponent`; the route has no guard, so anonymous visitors reach it. Selling, checkout and administration code is not imported by this route (lazy routes are a workspace convention, see `AGENTS.md`).
 - **`CatalogPageComponent`** — route component for `/`. It renders the hero ("Size 12. Size L. *Nothing else.*" with the lead "Every listing fits. Men’s US 12 shoes and men’s L clothing, new and used."), the filter sidebar slot, the toolbar and the grid. It reads all state from `CatalogStore` and renders exactly one of these view states:
   - `loading` — 8 skeleton cards in the final grid shape (`aria-busy="true"`, label "Loading listings"); the toolbar count shows a text skeleton.
   - `loaded` — the listing grid, the count "1,284 items" (formatted with thousands separators) and the load-more bar.
