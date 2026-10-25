@@ -42,15 +42,17 @@ git clone https://github.com/QuinntyneBrown/12l.git
 cd 12l
 ```
 
-Setup steps for the application will be added to the [README](README.md#getting-started) as the code is introduced.
+12L is a full-stack web application: an Angular frontend in `src/frontend` and a .NET (ASP.NET Core) backend in `src/backend`. See the [README](README.md#prerequisites) for prerequisites. Run instructions will be added as the code is introduced.
 
 ## Making changes
 
 1. Fork the repository and create a branch from `main`.
 2. Keep the change small and focused on one issue.
 3. Follow the existing code style. Do not reformat or refactor code you are not changing.
-4. Update documentation when behaviour or design changes.
-5. Add an entry to [CHANGELOG.md](CHANGELOG.md) under **Unreleased**.
+4. Keep the frontend responsive. Every screen must work on phone, tablet and desktop widths.
+5. Enforce business rules, such as the accepted sizes, in the .NET backend. The Angular app may validate too, but never as the only check.
+6. Update documentation when behaviour or design changes.
+7. Add an entry to [CHANGELOG.md](CHANGELOG.md) under **Unreleased**.
 
 ## Submitting a pull request
 

@@ -9,3 +9,9 @@ playwright-report/
 !.env.example
 *.log
 .DS_Store
+.angular/
+bin/
+obj/
+.vs/
+*.user
+*.suo
