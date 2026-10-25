@@ -76,7 +76,6 @@ secret store.
   | `EmailProvider--ApiKey` | `EmailProvider:ApiKey` | email adapter |
   | `PhotoStorage--ConnectionString` | `PhotoStorage:ConnectionString` | photo storage adapter |
   | `Auth--TokenSigningKey` | `Auth:TokenSigningKey` | access-token issuer (accounts) |
-  | `Auth--TotpEncryptionKey` | `Auth:TotpEncryptionKey` | administrator TOTP (moderation) |
 
   The secret refresh interval is 30 minutes; rotation procedure per secret is
   `<TO SUPPLY>`.

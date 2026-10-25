@@ -5,12 +5,12 @@ title Containers — Resolve order problems
 
 Person(buyer, "Buyer", "Member")
 Person(seller, "Seller", "Member")
-Person(admin, "Administrator", "TOTP-verified")
+Person(admin, "Administrator", "Administrator role")
 System_Boundary(twelvel, "12L") {
   Container(web, "12L Web", "Angular", "Report problem dialog, order and sale pages, admin problem detail")
-  Container(api, "12L API", "ASP.NET Core", "Problem endpoints; IOrderProblemQueueSource")
+  Container(api, "12L API", "ASP.NET Core", "Problem endpoints")
   Container(worker, "12L Worker", ".NET worker service", "Outbox dispatch, payout release")
-  ContainerDb(db, "12L database", "SQL Server", "Order problems, orders, refunds, payouts, audit log")
+  ContainerDb(db, "12L database", "SQL Server", "Order problems, orders, refunds, payouts")
   Container(photos, "Photo storage", "Object storage", "Private problem photos")
 }
 System_Ext(pay, "Payment provider", "Refunds and payouts")

@@ -48,15 +48,12 @@ error code `order.invalid_transition` (`L2-032` criteria 1 and 3).
 |------|----|----------------|------------------------|---------------|
 | *(none)* | `Paid` | System | Signed payment webhook (checkout-and-pay) | `Order.CreatePaid(...)` factory |
 | `Paid` | `Shipped` | Seller | Add tracking (this feature) | `MarkShipped` |
-| `Paid` | `Cancelled` | Seller, System, Administrator | Seller cancels or accepts a buyer request (cancel-order); ship deadline job (this feature); administrator removes a listing with a Paid order (`L2-045`, moderation subsystem) | `Cancel` |
+| `Paid` | `Cancelled` | Seller, System | Seller cancels or accepts a buyer request (cancel-order); ship deadline job (this feature) | `Cancel` |
 | `Shipped` | `Delivered` | Carrier, Buyer | Carrier delivery event (this feature); buyer confirms receipt (complete-order) | `MarkDelivered` |
 | `Delivered` | `Completed` | Buyer, System, Administrator | Buyer confirms receipt; auto-completion job (complete-order); problem resolved in the seller's favour (resolve-order-problems, `L2-036` criterion 4) | `Complete` |
 | `Shipped`, `Delivered` | `Refunded` | Administrator | Problem resolved in the buyer's favour (resolve-order-problems) | `Refund` |
 
-The Administrator actor on `Paid → Cancelled` comes from `L2-045` criterion 4, which
-cancels and refunds a Paid order when an administrator removes its listing; `L2-032`
-names only the seller and the deadline as triggers, so this row should be confirmed
-with the requirement owner. The Administrator actor on `Delivered → Completed` comes from `L2-036` criterion 4. Releasing the
+The Administrator actor on `Delivered → Completed` comes from `L2-036` criterion 4. Releasing the
 payout on a problem opened while the order is still `Shipped` (for example "not received")
 would need an Administrator `Shipped → Delivered` step that `L2-032` does not list; the design
 refuses that release with `order.invalid_transition` until the rule is `<TO SUPPLY>`.
@@ -83,7 +80,7 @@ the `MemberReputation` projection.
 ### API (`TwelveL.Api`)
 
 - **`OrdersController`**
-  - `POST /api/orders/{id}/shipment` — body `{ carrier, trackingNumber }`. Policy `VerifiedMember`; a suspended seller is allowed (`L2-046` criterion 2). Responses: `200` with `SaleDetailDto`; `400` `tracking.invalid` with field errors; `401` anonymous; `404` when the caller is not the order's seller (`L2-010`); `409` `order.invalid_transition` when the order is not Paid; `409` `concurrency.conflict` when the row version changed.
+  - `POST /api/orders/{id}/shipment` — body `{ carrier, trackingNumber }`. Policy `VerifiedMember`. Responses: `200` with `SaleDetailDto`; `400` `tracking.invalid` with field errors; `401` anonymous; `404` when the caller is not the order's seller (`L2-010`); `409` `order.invalid_transition` when the order is not Paid; `409` `concurrency.conflict` when the row version changed.
 - **`CarrierWebhookController`**
   - `POST /api/carriers/webhook` — anonymous; verifies the carrier tracking service signature. `200` on accepted or duplicate event; `400` and a security log entry on an invalid signature. Whether delivery arrives by webhook, by polling, or both depends on the carrier tracking service, which is `<TO SUPPLY>`.
 

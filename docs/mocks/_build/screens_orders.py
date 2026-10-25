@@ -176,7 +176,7 @@ def _():
     steps = ('<ol class="next-steps">'
              '<li><b>kicks_12 ships it</b><span>Within 5 business days. We’ll email the tracking.</span></li>'
              '<li><b>You get it</b><span>Confirm it arrived, or tell us within 3 days if something’s wrong.</span></li>'
-             '<li><b>You both review</b><span>Reviews show once you’ve both left one.</span></li></ol>')
+             '<li><b>Confirm it arrived</b><span>The order completes and the seller is paid.</span></li></ol>')
     main = (f'<div class="confirm"><div class="confirm__mark" aria-hidden="true">{ic("check")}</div>'
             f'<p class="eyebrow">Order 12L-48377</p><h1>It’s yours.</h1>'
             f'<div class="confirm__item">{item_row(BUY, f"Paid {money(BUY_TOTAL)} · {CARD[0]} ending {CARD[1]}")}</div>'
@@ -265,7 +265,7 @@ def _():
 
 
 # ---------------------------------------------------------------------------
-# Order detail, buyer view (L2-032 – L2-036, L2-038, L2-039)
+# Order detail, buyer view (L2-032 – L2-036)
 # ---------------------------------------------------------------------------
 STEPS = ["Paid", "Shipped", "Delivered", "Completed"]
 
@@ -304,7 +304,7 @@ def order_page(oid: str, *, head: str, body: str, side_extra: str = "", party: s
 
 SHIP_DATES = {"Paid": "Thu 22 Oct", "Shipped": "Fri 23 Oct"}
 
-od = screen("order-detail", "page", "Order (buyer)", route="/orders/{id}", reqs=["L2-032", "L2-033", "L2-034", "L2-035", "L2-036", "L2-038", "L2-039"],
+od = screen("order-detail", "page", "Order (buyer)", route="/orders/{id}", reqs=["L2-032", "L2-033", "L2-034", "L2-035", "L2-036"],
             na={"empty": "An order always has an item, a status and a history."})
 
 
@@ -331,12 +331,9 @@ def _():
     return order_page("12L-48140", head="Delivered", body=body)
 
 
-@od.state("completed", "Completed: leave a review; it stays hidden until both sides review or 30 days pass.")
+@od.state("completed", "Completed: full timeline; the order is closed.")
 def _():
-    body = (timeline("Completed", {"Paid": "Tue 13 Oct", "Shipped": "Wed 14 Oct", "Delivered": "Fri 16 Oct", "Completed": "Sat 17 Oct"}) +
-            f'<div class="panel panel--sunken stack"><h2 class="panel__title">How was jaybird?</h2>'
-            f'<p class="text-muted text-sm">Your review stays hidden until jaybird reviews you too, or until Mon 16 Nov.</p>'
-            f'<div>{btn("Leave a review", "primary", D("leave-review"), icon="star")}</div></div>')
+    body = timeline("Completed", {"Paid": "Tue 13 Oct", "Shipped": "Wed 14 Oct", "Delivered": "Fri 16 Oct", "Completed": "Sat 17 Oct"})
     return order_page("12L-47790", head="Completed", body=body)
 
 
@@ -669,51 +666,6 @@ def _():
 @rp.state("failed", "Sending failed: everything kept, retry.")
 def _():
     return Dialog(bg=("order-detail", "delivered"), html=dialog("Report a problem", problem_body("Wrong size", "Label inside says M, not L.", photos=2, af=False), foot("Try again"), desc=RP_DESC, top=failed("Your photos and description are saved here. Try again.")))
-
-
-# Leave a review -----------------------------------------------------------------
-def star_input(value: int = 0, err: bool = False) -> str:
-    words = ["Poor", "Fair", "Good", "Great", "Excellent"]
-    lab = "".join(
-        f'<label class="{"is-on" if i <= value else ""}"><input type="radio" name="stars" value="{i}"{" checked" if i == value else ""}{" aria-invalid=\"true\"" if err else ""}{" autofocus" if i == 1 and value == 0 and not err else ""}>'
-        f'{ic("star")}<span class="visually-hidden">{i} star{"s" if i > 1 else ""}, {words[i - 1]}</span></label>' for i in range(1, 6))
-    e = '<span class="field__error" id="stars-error">Choose a rating from 1 to 5 stars</span>' if err else ""
-    caption = f'<span class="text-sm text-muted">{words[value - 1]}</span>' if value else ""
-    return f'<fieldset{" aria-describedby=\"stars-error\"" if err else ""}><legend>Rating</legend><div class="cluster" style="gap: var(--space-3);"><div class="star-input">{lab}</div>{caption}</div>{e}</fieldset>'
-
-
-def review_body(value=0, text="", err_stars=False, err_text=None) -> str:
-    count = f"{len(text)} / 500"
-    return star_input(value, err_stars) + field("rev", "Comment", f'<textarea class="textarea" id="rev" rows="3"{{db}}>{esc(text)}</textarea>', optional=True, error=err_text, counter=count)
-
-
-lr = screen("leave-review", "dialog", "Leave a review", opens_from="order-detail", reqs=["L2-038", "L2-039", "L2-040"])
-LR_DESC = "Hidden until jaybird reviews you too, or until Mon 16 Nov. You can’t edit it after."
-LONG = "Shoes arrived double boxed and exactly as pictured. " * 10
-LONG = LONG[:501]
-
-
-@lr.state("default", "Stars plus an optional comment.")
-def _():
-    return Dialog(bg=("order-detail", "completed"), html=dialog("Review jaybird", review_body(), foot("Post review", "Later"), desc=LR_DESC))
-
-
-@lr.state("invalid", "No rating chosen and a 501-character comment: both errors inline.")
-def _():
-    return Dialog(bg=("order-detail", "completed"), html=dialog("Review jaybird", review_body(0, LONG, True, "Keep it to 500 characters"), foot("Post review", "Later"), desc=LR_DESC,
-                                                                top=error_summary([("stars-error", "Choose a rating"), ("rev", "Keep the comment to 500 characters")])))
-
-
-@lr.state("busy", "Posting the review.")
-def _():
-    return Dialog(bg=("order-detail", "completed"), html=dialog("Review jaybird", review_body(5, "Tags still on, shipped next day. Easy."), foot("Post review", "Later", busy=True, disabled_cancel=True), desc=LR_DESC))
-
-
-@lr.state("success", "Review saved and hidden until both sides review.")
-def _():
-    body = (f'<div class="center-state" style="padding-block: var(--space-6); align-items: center; text-align: center;"><div class="confirm__mark" aria-hidden="true">{ic("check")}</div>'
-            '<p>Thanks. We’ll publish it once jaybird reviews you, or on Mon 16 Nov.</p></div>')
-    return Dialog(bg=("order-detail", "completed"), html=dialog("Review saved", body, '<button class="btn btn--primary" type="button" autofocus>Done</button>', size="sm"))
 
 
 # ---------------------------------------------------------------------------

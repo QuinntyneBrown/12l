@@ -36,7 +36,7 @@ actor -> ld : Choose "Buy now"
 ld -> page : Navigate to /checkout/{reference} (loading skeleton)
 page -> client : startCheckout(listingReference)
 client -> ctrl : POST /api/checkouts { listingReference }
-ctrl -> ctrl : Authenticate; policies VerifiedMember and NotSuspended (403 account.suspended, L2-010)
+ctrl -> ctrl : Authenticate; policy VerifiedMember (L2-010)
 ctrl -> h : Send StartCheckoutCommand
 h -> db : Load listing by Reference
 h -> listing : EnsureCanBePurchasedBy(buyerId)

@@ -1,4 +1,4 @@
-"""Selling: listing form, edit, my listings, payouts (L1-003, L1-004, L1-007 payouts, L1-012 reports)."""
+"""Selling: listing form, edit, my listings, payouts (L1-003, L1-004, L1-007 payouts)."""
 from mk import *
 
 FEE = FEE_PERCENT / 100
@@ -179,12 +179,6 @@ def _():
 def _():
     return blocked("mail", "Verify your email to sell", "We sent a link to marcus.bell@example.com.",
                    btn("Resend link", "primary", D("verify-email-prompt")) + btn("Back to shop", href=P("catalog")))
-
-
-@s.state("suspended", "Suspended member: selling is off; orders stay reachable (HTTP 403).")
-def _():
-    return blocked("lock", "Selling is paused on your account", "You can still manage open orders.",
-                   btn("View your sales", "primary", P("sales")) + btn("Marketplace rules", href=P("rules")))
 
 
 @s.state("limited", "Daily limit reached: 20 new listings per day (HTTP 429).")
@@ -414,54 +408,6 @@ def _():
 @w.state("failed", "Withdraw failed: the listing is unchanged, retry.")
 def _():
     return withdraw(btn("Try again", "danger"), top=alert("danger", "Couldn’t withdraw", "Your listing is still live."))
-
-
-# ---------------------------------------------------------------------------
-# Report listing
-# ---------------------------------------------------------------------------
-r = screen("report-listing", "dialog", "Report listing", opens_from="listing-detail", reqs=["L2-044"])
-REASONS = ["Wrong size", "Counterfeit", "Prohibited item", "Misleading description", "Offensive content", "Other"]
-
-
-def report_body(chosen: str = "", details: str = "", error: str | None = None) -> str:
-    opts = "".join(f'<label class="choice"><input type="radio" name="reason"{" checked" if o == chosen else ""}><span>{o}</span></label>' for o in REASONS)
-    det = field("details", "Details", f'<textarea class="textarea" id="details" rows="3"{{db}}>{esc(details)}</textarea>',
-                optional=chosen != "Other", error=error)
-    return f'<fieldset><legend>Reason</legend>{opts}</fieldset>{det}'
-
-
-def report(body: str, primary: str, bg_state: str = "default") -> Dialog:
-    html = dialog("Report this listing", body, btn("Cancel") + primary, desc="Air Max 90, white · kicks_12")
-    return Dialog(bg=("listing-detail", bg_state), html=html)
-
-
-@r.state("default", "Choose a reason; details optional unless Other.")
-def _():
-    return report(report_body("Wrong size"), btn("Send report", "primary"))
-
-
-@r.state("invalid", "Other chosen without details: inline error, focus on details.")
-def _():
-    return report(report_body("Other", error="Tell us what’s wrong"), btn("Send report", "primary"))
-
-
-@r.state("busy", "Sending the report.")
-def _():
-    return report(report_body("Wrong size"), btn("Send report", "primary", attrs='aria-busy="true"'))
-
-
-@r.state("success", "Report received: confirmation inside the dialog.")
-def _():
-    body = f'<div class="empty empty--compact"><div class="empty__icon">{ic("check", "icon icon--lg")}</div><p class="empty__title">Thanks, our team will review this</p></div>'
-    html = dialog("Report sent", body, btn("Done", "primary", attrs="autofocus"), size="sm")
-    return Dialog(bg=("listing-detail", "default"), html=html)
-
-
-@r.state("already", "Already reported by this member (HTTP 409).")
-def _():
-    body = alert("info", "You’ve already reported this listing", "We’ll take it from here.")
-    html = dialog("Report this listing", body, btn("Close", "primary", attrs="autofocus"), size="sm")
-    return Dialog(bg=("listing-detail", "default"), html=html)
 
 
 # ---------------------------------------------------------------------------

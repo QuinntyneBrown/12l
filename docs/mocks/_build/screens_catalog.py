@@ -176,8 +176,7 @@ def detail(key: str, *, actions: str, stamp: str | None = None, user: str = "mem
     total = it["price"] + it["ship"]
     flaws = f'<div class="flaws"><strong>Flaws:</strong> {esc(it["flaws"])}</div>' if it.get("flaws") else ""
     status_line = f'<span class="photo__stamp{" photo__stamp--sold" if stamp == "Sold" else ""}" style="position: static; align-self: flex-start;">{stamp}</span>' if stamp else ""
-    rep = f'<a class="text-sm text-muted" href="{D("report-listing")}">{ic("flag", "icon icon--sm")} Report this listing</a>' if report else ""
-    rep = rep.replace('<a class="text-sm text-muted"', '<a class="text-sm text-muted" style="display: inline-flex; gap: var(--space-2); align-items: center;"')
+    rep = ""
     info = (f'<div class="detail__info">'
             f'<div class="stack stack--sm">{status_line}<span class="eyebrow">{esc(it["brand"])}</span><h1 class="detail__title">{esc(it["title"])}</h1>'
             f'<div class="cluster" style="gap: var(--space-3);">{size_tag(it, "size-tag--lg")}<span class="text-muted">{esc(it["cond"])}</span></div></div>'

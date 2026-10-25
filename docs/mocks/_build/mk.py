@@ -266,7 +266,7 @@ def btn(label: str, kind: str = "", href: str | None = None, icon: str | None = 
 def status(label: str) -> str:
     mod = {"Draft": "draft", "Active": "active", "Reserved": "reserved", "Sold": "sold", "Removed": "removed",
            "Paid": "info", "Shipped": "info", "Delivered": "info", "Completed": "active", "Cancelled": "removed", "Refunded": "removed",
-           "Open": "reserved", "Suspended": "removed"}.get(label, "draft")
+           "Open": "reserved"}.get(label, "draft")
     return f'<span class="status status--{mod}">{esc(label)}</span>'
 
 
@@ -367,10 +367,9 @@ def note(text: str, pos: str = "top: 6rem; right: 1rem;") -> str:
 class Page:
     main: str
     nav: str = ""            # shop | shoes | tops | outerwear | bottoms | sell
-    user: str = "member"     # member | guest | unverified | suspended | admin
+    user: str = "member"     # member | guest | unverified | admin
     shell: str = "app"       # app | auth | admin | bare
     account: str = ""        # active account subnav tab: overview | listings | purchases | sales | payouts | profile | notifications | settings
-    admin_tab: str = ""      # queue | audit
     top: str = ""            # banners above the header
     after: str = ""          # toasts, sticky bars, overlays after main
     footer: bool = True
@@ -423,10 +422,7 @@ def topbar(pg: Page) -> str:
 
 
 def admin_topbar(pg: Page) -> str:
-    tabs = [("queue", "Queue", P("moderation-queue")), ("audit", "Audit log", P("audit-log"))]
-    nav = "".join(f'<a class="nav-link" href="{h}"{" aria-current=\"page\"" if pg.admin_tab == k else ""}>{t}</a>' for k, t, h in tabs)
-    return (f'<header class="topbar">{logo(P("moderation-queue"))}<span class="topbar__admin">Admin</span>'
-            f'<nav class="topbar__nav" aria-label="Primary" style="display: flex;">{nav}</nav><span class="topbar__spacer"></span>'
+    return (f'<header class="topbar">{logo(P("catalog"))}<span class="topbar__admin">Admin</span><span class="topbar__spacer"></span>'
             f'<span class="avatar avatar--sm" aria-label="Signed in as {ADMIN["name"]}" role="img">{ADMIN["initials"]}</span></header>')
 
 

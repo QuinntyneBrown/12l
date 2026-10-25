@@ -11,8 +11,7 @@ problem.
 
 Completion is the hinge between three other features. It is a transition of the
 order state machine defined in [ship-order](../ship-order/README.md). It releases the
-payout in [seller-payouts](../seller-payouts/README.md). It opens reviews in the
-reviews subsystem (`L2-038`). An open problem from
+payout in [seller-payouts](../seller-payouts/README.md). An open problem from
 [resolve-order-problems](../resolve-order-problems/README.md) blocks automatic
 completion.
 
@@ -29,14 +28,14 @@ Terms used in this design:
 
 - **`OrderDetailPage`** (route `/orders/:id`, mock `docs/mocks/pages/order-detail/`) — buyer view; the full page is described in [order-history](../order-history/README.md). This feature owns two of its states:
   - `delivered` — heading "Delivered", timeline at Delivered, "Completes automatically on {date} unless you report a problem.", primary "I received it", ghost "Report a problem". The default `Shipped` state also offers receipt confirmation through the same dialog, because `L2-034` permits confirming a Shipped order.
-  - `completed` — heading "Completed", full timeline, and a sunken panel "How was {seller}?" with "Leave a review". The review panel and dialog belong to the reviews subsystem.
+  - `completed` — heading "Completed" and the full timeline. Review authoring is deferred ([ADR 0001](../../../adr/general/0001-defer-moderation-reviews-and-data-export.md)), so no review panel is shown.
 - **`ConfirmReceiptDialog`** (mock `docs/mocks/dialogs/confirm-receipt/`) — small dialog titled "Got it and all good?" showing the item row. The description reads "This completes the order and pays {seller}. You can't report a problem afterwards." Buttons are "Not yet" and primary "Yes, complete order". States: `default`; `busy` (primary `aria-busy`, "Not yet" disabled); `failed` ("That didn't go through", primary becomes "Try again"). It has no `invalid` state because it has no inputs.
 - **`OrdersApiService`** — `confirmReceipt(orderId)` returns `OrderDetail`.
 
 ### API (`TwelveL.Api`)
 
 - **`OrdersController`**
-  - `POST /api/orders/{id}/receipt` — no body. Policy `VerifiedMember`; suspension does not block it, so open orders continue (`L2-046`). Responses: `200` `OrderDetailDto` with `status: "Completed"` and `canReview: true`; `401`; `404` when the caller is not the buyer (`L2-010`); `409` `order.invalid_transition` when the order is not Shipped or Delivered; `409` `order.problem_open` when a problem is open; `409` `concurrency.conflict`.
+  - `POST /api/orders/{id}/receipt` — no body. Policy `VerifiedMember`. Responses: `200` `OrderDetailDto` with `status: "Completed"` and `canReview: true`; `401`; `404` when the caller is not the buyer (`L2-010`); `409` `order.invalid_transition` when the order is not Shipped or Delivered; `409` `order.problem_open` when a problem is open; `409` `concurrency.conflict`.
 
 ### Application and domain
 

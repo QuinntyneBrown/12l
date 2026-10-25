@@ -151,7 +151,6 @@ with a correlation ID (`L2-068`).
   - The two marketing timestamps, `LastMarketingChangeSource tinyint NULL` and
     `UpdatedAt`.
   - `RowVersion rowversion` as the concurrency token. The API exposes it as the `ETag`.
-- The data export (`L2-055`) includes this row as "notification settings".
 - Erasure of a closed account (`L2-005`) deletes the row with the member.
 
 ### Configuration

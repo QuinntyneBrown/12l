@@ -46,7 +46,7 @@ General marketplaces make you filter through thousands of listings that will nev
 2. **List.** Sellers photograph an item, describe its condition, and set a price.
 3. **Browse.** Buyers browse a catalog where everything is already in their size.
 4. **Buy.** Buyers purchase the item and the seller ships it.
-5. **Review.** Buyers and sellers rate each other after the sale.
+5. **Complete.** The buyer confirms receipt and the seller is paid. (Reviews between buyers and sellers are deferred; see `docs/adr/`.)
 
 ## What you can sell
 

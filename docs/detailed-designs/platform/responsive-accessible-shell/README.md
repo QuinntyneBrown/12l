@@ -59,8 +59,8 @@ with tokens in `docs/mocks/assets/tokens.css` and components in
     "Search" below 992 px.
   - Member: "Sell" link (from 768 px) and avatar link "Your account,
     {display name}". Guest: "Sell" and "Sign in".
-- **`AdminTopbarComponent`** — logo, "Admin" tag, tabs "Queue" and "Audit log",
-  avatar "Signed in as {administrator name}". No footer.
+- **`AdminTopbarComponent`** — logo, "Admin" tag and avatar "Signed in as
+  {administrator name}". No footer.
 - **`AuthShellComponent`** — large logo above a centred card (`main#main`).
 - **`BareShellComponent`** — logo-only top bar, used for the maintenance and
   offline pages.

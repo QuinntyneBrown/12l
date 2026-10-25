@@ -85,13 +85,6 @@ class ResolveProblemCommand {
 }
 class ResolveProblemCommandValidator
 class ResolveProblemCommandHandler
-interface IOrderProblemQueueSource <<moderation port>> {
-  +GetOpenProblemsAsync(ct): Task<IReadOnlyList<ModerationQueueItemDto>>
-}
-class OrderProblemQueueSource
-interface IAuditLog <<moderation port>> {
-  +Record(action, targetType, targetKey, targetDisplayId, reason): void
-}
 class GetProblemDetailQueryHandler
 OrderProblem --> ProblemReason
 OrderProblem --> ProblemStatus
@@ -109,7 +102,5 @@ ResolveProblemCommandValidator ..> ResolveProblemCommand : validates
 ResolveProblemCommandHandler --> OrderProblem : Resolve
 ResolveProblemCommandHandler --> Order : Refund / Complete
 ResolveProblemCommandHandler --> Payout : Cancel / MarkReleasable
-ResolveProblemCommandHandler ..> IAuditLog
-OrderProblemQueueSource ..|> IOrderProblemQueueSource
 GetProblemDetailQueryHandler ..> OrderProblem
 @enduml

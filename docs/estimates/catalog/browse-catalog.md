@@ -37,6 +37,6 @@ The minimal version ships the API endpoint with visibility, newest-first order, 
 | Offline snapshot and offline banner state | The catalog shows the error state instead of the last visit's items when offline | 3 |
 | WebP sources in `ResponsivePhotoComponent`; keep JPEG `srcset` | Larger photo downloads; `L2-059` WebP clause unmet | 2 |
 | Expired-reservation display rule in `CatalogVisibility` | Cards may show "Reserved" for up to one worker interval after expiry | 1 |
-| Covering index `IX_Listings_Catalog_Newest` | Read latency at 100,000 listings depends on the base indexes; `L2-057` at risk | 2 |
+| Covering index `IX_Listings_Catalog_Newest` | Read latency at 100,000 listings depends on the base indexes | 2 |
 | Visual snapshots at five breakpoints | Layout regressions caught only by manual review | 3 |
 | Load-more failure toast; keep silent retry | No feedback when a next page fails | 1 |

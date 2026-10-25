@@ -41,7 +41,7 @@ loop Every scrape interval
   metrics --> mon : Request rate, errors, latency, checkout, webhook, job metrics (L2-069)
 end
 mon -> mon : Evaluate alerts.yml
-alt 5xx > 1% for 5 min, or p95 over L2-057 targets for 10 min, or webhook failure
+alt 5xx > 1% for 5 min, or p95 over the latency alert thresholds for 10 min, or webhook failure
   mon -> oncall : Send alert (L2-069)
 end
 @enduml

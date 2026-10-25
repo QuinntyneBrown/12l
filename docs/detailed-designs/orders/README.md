@@ -5,9 +5,7 @@ reserves a listing, the payment provider's signed webhook creates a `Paid` order
 the seller ships the item. The order then completes, is cancelled or is refunded after
 a problem, and the seller's payout follows the outcome. One order state machine, defined
 in [ship-order](ship-order/README.md), governs every status change across the seven
-features below. The moderation subsystem reads open order problems through
-`IOrderProblemQueueSource` and cancels orders through `IOrderModerationPort`, both
-implemented here.
+features below.
 
 | Feature | L2 requirements | Estimate |
 |---------|-----------------|----------|

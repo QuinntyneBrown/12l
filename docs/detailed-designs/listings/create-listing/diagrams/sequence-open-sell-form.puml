@@ -27,11 +27,9 @@ box "Backend — TwelveL Application and Domain" #ECFDF3
   participant "CategoryCatalog" as catalog
 end box
 actor -> page : Open /sell
-page -> page : Read member state from AuthState (verified, suspended)
+page -> page : Read member state from AuthState (verified)
 alt email not verified
   page --> actor : "Verify your email to sell" (unverified state)
-else member suspended
-  page --> actor : "Selling is paused on your account" (suspended state)
 else member may sell (L2-003)
   page -> opts : load()
   opts -> ctrl : GET /api/categories and GET /api/selling/options

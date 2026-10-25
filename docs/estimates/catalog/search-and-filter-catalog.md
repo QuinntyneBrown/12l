@@ -30,13 +30,13 @@ The hours assume an intermediate Angular/TypeScript and ASP.NET Core/C# develope
 
 ## Minimal scope
 
-The minimal version ships keyword search with case-insensitive `LIKE` matching on title, brand and description and a title-or-brand tier, 100-character truncation, the five filters with AND logic, the three sorts, the URL contract and codec, the no-results state, the sidebar from 992 px and a full-screen filter panel with "Clear" and "Apply" under 992 px. It leaves out the full-text index, the live result count, the count endpoint, the brands endpoint (the brand list comes from a fixed client-side list `<TO SUPPLY>`), the side-panel layout for 768 to 991 px and the phone search button. It satisfies `L2-023`, `L2-024` and the filter clauses of `L2-062` except the medium-viewport side panel, which is deferred. Read latency at 100,000 listings under `L2-057` is at risk without full-text search. Minimal scope totals **50** hours.
+The minimal version ships keyword search with case-insensitive `LIKE` matching on title, brand and description and a title-or-brand tier, 100-character truncation, the five filters with AND logic, the three sorts, the URL contract and codec, the no-results state, the sidebar from 992 px and a full-screen filter panel with "Clear" and "Apply" under 992 px. It leaves out the full-text index, the live result count, the count endpoint, the brands endpoint (the brand list comes from a fixed client-side list `<TO SUPPLY>`), the side-panel layout for 768 to 991 px and the phone search button. It satisfies `L2-023`, `L2-024` and the filter clauses of `L2-062` except the medium-viewport side panel, which is deferred. Keyword search is slower on a large catalog without full-text search. Minimal scope totals **50** hours.
 
 ## Partial descoping
 
 | Descope | What is lost | Hours saved |
 |---------|--------------|------------:|
-| Full-text index; use `LIKE` with a tier `CASE` expression | Slower keyword search at scale; `L2-057` at risk | 4 |
+| Full-text index; use `LIKE` with a tier `CASE` expression | Slower keyword search at scale | 4 |
 | Live count in the filter panel and the count endpoint | Apply reads "Show items" with no count | 4 |
 | Brands endpoint and cache; fixed brand list | Brand filter does not reflect what is in stock | 3 |
 | Side-panel layout for 768 to 991 px; use full screen | `L2-062` medium-viewport clause unmet | 2 |

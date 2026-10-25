@@ -41,7 +41,7 @@ Screens, states and copy come from `docs/mocks/pages/my-listings/`, `docs/mocks/
 
 ### API (`TwelveL.Api`)
 
-- **`MyListingsController`** — requires an authenticated member; anonymous calls return `401`. Suspended members may still read their own listings.
+- **`MyListingsController`** — requires an authenticated member; anonymous calls return `401`.
   - `GET /api/me/listings?status={Draft|Active|Reserved|Sold|Removed}&cursor={opaque}&pageSize={1..100}` — returns `200` with `MyListingsPage { items, counts, nextCursor }`. Errors: `400` for an unknown status or bad cursor; `401`.
   - `pageSize` defaults to 50. The mocks show no pagination control; behaviour beyond the first page ("Load more" or infinite scroll) is `<TO SUPPLY>`.
   - `GET /api/me/listings/{reference}` serves the edit form and is described in [edit-and-withdraw-listing](../edit-and-withdraw-listing/README.md).

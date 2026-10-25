@@ -19,7 +19,7 @@ Terms used throughout:
 - **rating summary** — average star rating rounded to one decimal place plus the count of published reviews, calculated from published reviews only (`L2-040`)
 - **completed sale** — order in which the member was the seller and that reached the Completed status (`L2-032`)
 - **Active listing** — listing that is live in the catalog (`L2-019`)
-- **unavailable member** — member who is suspended (`L2-046`) or whose account is closed (`L2-005`)
+- **unavailable member** — member whose account is closed (`L2-005`)
 - **member reputation** — stored projection of each member's published-review count, star total and completed-sale count, kept current by domain events
 
 The rating summary also appears beside the seller on listing cards and the listing detail
@@ -27,10 +27,9 @@ page (`catalog` subsystem). This feature owns its calculation and exposes it thr
 read port so every screen shows the same figure.
 
 The feature sits in the `reviews` subsystem. It reads member data owned by `accounts`,
-listings owned by `listings`, and reviews written through
-[leave-review](../leave-review/README.md). The "Report member" link on the profile opens
-the `ReportMemberDialogComponent` owned by the `moderation` subsystem; this design covers
-only that entry point.
+listings owned by `listings`, and published reviews. Review authoring, review replies
+and member reporting are deferred ([ADR 0001](../../../adr/general/0001-defer-moderation-reviews-and-data-export.md)),
+so until they return every profile shows "No reviews yet".
 
 ## Description
 
@@ -49,9 +48,7 @@ The slice runs from the profile route of `12L Web` through anonymous read endpoi
     grid, `aria-busy="true"` and the hidden heading "Loading profile".
   - *default* — header, stats, "For sale" section and "Reviews" section.
   - *own* — when the signed-in member's ID equals the profile's member ID, the header
-    action is "Edit profile" (link to `/account/profile`). A "Reply" link appears under
-    each published review without a reply. It opens `ReplyToReviewDialogComponent` from
-    [leave-review](../leave-review/README.md).
+    action is "Edit profile" (link to `/account/profile`).
   - *empty* — "For sale" shows the compact empty state "No items for sale" with
     "{displayName} hasn’t listed anything yet."; "Reviews" shows "No reviews yet" when
     there are none.
@@ -64,10 +61,7 @@ The slice runs from the profile route of `12L Web` through anonymous read endpoi
     you." with the correlation ID as "Ref {id}", and the actions "Try again" and "Back to
     shop" (`L2-068`).
 - **`ProfileHeaderComponent`** — `avatar--xl`, display name as the `h1`, map-pin icon
-  with the public location, `RatingSummaryComponent`, and the bio. For other members it
-  shows the muted flag-icon link "Report member", which opens the moderation subsystem's
-  `ReportMemberDialogComponent` (`docs/mocks/dialogs/report-member/`). A guest who
-  selects it is sent to sign in first; that redirect belongs to `accounts`.
+  with the public location, `RatingSummaryComponent`, and the bio.
 - **`ProfileStatsComponent`** — two stats: completed sales with the label "Sales", and
   the member-since month and year with the label "Member since" (for example "Jan 2025").
 - **`ProfileListingsComponent`** — section "For sale" with the Active listing total
@@ -94,12 +88,12 @@ callers and 300 per minute per member (`L2-051`). `displayName` matches ignoring
 
 | Verb and path | Purpose | Responses |
 |---------------|---------|-----------|
-| `GET /api/members/{displayName}` | Profile header, stats and rating summary | 200 `PublicProfileDto`; 404 `member.unavailable` for an unknown, suspended or closed member |
+| `GET /api/members/{displayName}` | Profile header, stats and rating summary | 200 `PublicProfileDto`; 404 `member.unavailable` for an unknown or closed member |
 | `GET /api/members/{displayName}/listings?page={n}` | Active listings, newest first, 24 per page | 200 `PagedResult<ListingCardDto>`; 400 `paging.invalid`; 404 `member.unavailable` |
 | `GET /api/members/{displayName}/reviews?page={n}` | Published reviews about the member, newest first, with replies | 200 `PagedResult<PublicReviewDto>`; 400 `paging.invalid`; 404 `member.unavailable` |
 
-The three cases of the 404 share one response body, so the API does not reveal whether
-a display name exists, is suspended or is closed. Every error is an RFC 9457 problem
+The two cases of the 404 share one response body, so the API does not reveal whether
+a display name exists or is closed. Every error is an RFC 9457 problem
 details response with a correlation ID (`L2-068`).
 
 **Response contracts.** These DTOs are dedicated public types. No handler serializes the
@@ -123,14 +117,14 @@ against an allow-list, so adding a field such as `email` fails the build.
 
 - **`GetPublicProfileQuery`** (`DisplayName`) and **`GetPublicProfileQueryHandler`** —
   loads the member by `NormalizedDisplayName`. It returns `MemberUnavailable` when the
-  member is missing, `Suspended` or `Closed`. Otherwise it projects straight into
+  member is missing or `Closed`. Otherwise it projects straight into
   `PublicProfileDto`, joining `MemberReputations` and counting Active listings. The
   projection selects only the public columns, so private columns are never read into
   memory.
 - **`GetMemberListingsQuery`** (`DisplayName`, `Page`) and its handler — Active listings
   of the member, `PageSize` fixed at 24 (`L2-041`), newest first.
 - **`GetMemberReviewsQuery`** (`DisplayName`, `Page`) and its handler — reviews with
-  `SubjectMemberId` equal to the member and `Status = Published` only (`L2-039`), newest
+  `SubjectMemberId` equal to the member and `Status = Published` only (`L2-040`), newest
   `PublishedAt` first.
 - **`MemberReputation`** (entity, one row per member): `Guid MemberId`,
   `int PublishedReviewCount`, `int PublishedStarsTotal`, `int CompletedSalesCount`,
@@ -144,7 +138,7 @@ against an allow-list, so adding a field such as `email` fails the build.
   of 3 (`L2-040`). Hidden reviews never reach the projection, because only
   `ReviewPublished` updates it.
 - **`UpdateReputationOnReviewPublishedHandler`** — handles `ReviewPublished` from
-  [leave-review](../leave-review/README.md) inside the publishing transaction. It
+  the deferred review-authoring feature inside the publishing transaction. It
   upserts the `MemberReputation` row and calls `ApplyPublishedReview`.
 - **`UpdateReputationOnOrderCompletedHandler`** — handles `OrderCompleted` from `orders`
   and calls `ApplyCompletedSale` for the seller.
@@ -163,8 +157,8 @@ against an allow-list, so adding a field such as `email` fails the build.
   lookup.
 - Index **`IX_Listings_SellerId_Status_PublishedAt`** (owned by `listings`) serves the
   listings page.
-- Index **`IX_Reviews_SubjectMemberId_Status_PublishedAt`** (owned by
-  [leave-review](../leave-review/README.md)) serves the reviews page.
+- Index **`IX_Reviews_SubjectMemberId_Status_PublishedAt`** (owned by the deferred
+  review-authoring feature) serves the reviews page.
 - **Caching.** The API sets `Cache-Control: public, max-age={Profiles:CacheSeconds}` on
   the three 200 responses and `Cache-Control: no-store` on the 404. It also applies
   ASP.NET Core output caching under the tag `profile:{normalizedDisplayName}`.
@@ -224,7 +218,7 @@ public DTOs that hold no private fields.
 
 ### Behaviour — open a public profile
 
-The page requests the profile, listings and reviews in parallel. An unknown, suspended or
+The page requests the profile, listings and reviews in parallel. An unknown or
 closed member returns one uniform HTTP 404 and the "This member isn’t available" page
 (`L2-041`).
 

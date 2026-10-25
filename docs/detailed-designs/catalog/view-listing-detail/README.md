@@ -21,11 +21,11 @@ The page shows the same listing differently depending on its status and on who v
 
 A seller with no completed sales shows "New seller" in place of a rating. A Used - Fair listing shows its flaws (`L2-016`). On viewports narrower than 992 px the page uses one column with a swipeable gallery and a "Buy now" bar fixed to the bottom of the screen; from 992 px it uses two columns with the gallery on the left (`L2-063`).
 
-The `Listing` entity, editing and withdrawing belong to the [listings](../../listings/) subsystem; checkout and the reservation itself belong to [orders](../../orders/); reporting a listing belongs to [moderation](../../moderation/). This feature reads the listing, decides what the page shows, and supplies the domain guard that stops a member from buying their own listing.
+The `Listing` entity, editing and withdrawing belong to the [listings](../../listings/) subsystem; checkout and the reservation itself belong to [orders](../../orders/). This feature reads the listing, decides what the page shows, and supplies the domain guard that stops a member from buying their own listing.
 
 ## Description
 
-Screens and copy come from `docs/mocks/pages/listing-detail/` (states `default`, `guest`, `own`, `new-seller`, `reserved`, `sold`, `loading`, `error`, `unavailable`). The "Report this listing" link opens `docs/mocks/dialogs/report-listing/`, and the guest return flow ends on `docs/mocks/pages/sign-in/return.html`.
+Screens and copy come from `docs/mocks/pages/listing-detail/` (states `default`, `guest`, `own`, `new-seller`, `reserved`, `sold`, `loading`, `error`, `unavailable`). The the guest return flow ends on `docs/mocks/pages/sign-in/return.html`.
 
 ### Frontend — `12L Web`, feature area `src/frontend/src/app/catalog/`
 
@@ -53,7 +53,6 @@ Screens and copy come from `docs/mocks/pages/listing-detail/` (states `default`,
   - `manage` — primary "Edit listing" linking to `/items/{reference}/edit` and secondary "Withdraw" opening `WithdrawListingDialogComponent` (listings subsystem). On success the store reloads and the page shows the Removed listing to its seller.
   - `none` — the bar is not rendered.
   Below 992 px the bar is `position: sticky; bottom: 0` with safe-area padding, so "Buy now" stays visible while scrolling (`L2-063`). Every control in the bar and gallery is at least 44 × 44 CSS px below 992 px.
-- **Report entry point** — "Report this listing" is shown only when `viewer.relation` is `OtherMember` and the listing is not Sold. It opens `ReportListingDialogComponent` from the moderation feature area with the listing ID; the dialog, its states and its endpoint are designed in `moderation/report-listing-or-member`.
 - **Similar items** — for a Sold listing the store calls `CatalogApiService.getListings({ category, sort: 'newest' }, 1, 4)` from browse-catalog and renders the cards under "More in size 12".
 - **`ListingDetailApiService`** — `getListing(reference): Observable<ListingDetailDto>` calling `GET /api/catalog/listings/{reference}` with credentials, so a signed-in viewer is recognised.
 - **Layout** — `.detail` uses one column below 992 px (gallery above the info) and `grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)` from 992 px with the gallery on the left (`L2-063`).
@@ -79,7 +78,7 @@ Screens and copy come from `docs/mocks/pages/listing-detail/` (states `default`,
 
 - **`ListingDetailReadStore`** — EF Core `AsNoTracking()` projection by `Reference`, joining `Listings`, `ListingPhotos` (all positions, ordered), `ListingPhotoVersions`, `Members` (`DisplayName`, `PublicLocation`, `AvatarPhotoId`) and the seller reputation figures (`RatingAverage`, `PublishedReviewCount`, `CompletedSalesCount`). Where the reputation figures are stored is decided by `reviews/view-member-profile` and `orders/complete-order`; this store reads them through the `MemberReputation` view `<TO SUPPLY>` until those designs fix the column names.
 - **Index used** — unique index `UX_Listings_Reference` on `Listings (Reference)`, introduced by `listings/create-listing`.
-- **Query count** — one round trip for the listing, photos and seller (split query disabled), which supports the 300 ms 95th-percentile read target (`L2-057`).
+- **Query count** — one round trip for the listing, photos and seller (split query disabled), which keeps the detail read to one round trip.
 
 ### Error codes
 

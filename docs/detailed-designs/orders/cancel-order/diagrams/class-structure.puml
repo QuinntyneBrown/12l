@@ -18,7 +18,6 @@ enum CancellationReason {
   ListedByMistake
   BuyerAskedToCancel
   ShipDeadlinePassed
-  ListingRemovedByAdministrator
 }
 enum CancellationRequestStatus {
   Pending
@@ -29,7 +28,6 @@ enum CancellationDecision {
   Accept
   Decline
 }
-enum ListingOrderState {
   None
   Reserved
   PaidOrder
@@ -72,11 +70,6 @@ class RespondToCancellationCommand {
   +CancellationDecision Decision
 }
 class RespondToCancellationCommandHandler
-interface IOrderModerationPort {
-  +GetListingOrderStateAsync(listingId): Task<ListingOrderState>
-  +CancelForListingRemovalAsync(listingId, reason, administratorId): Task
-}
-class OrderModerationPort
 class RefundRequester {
   +RequestFullRefund(order, reason): Refund
 }
@@ -103,7 +96,4 @@ RequestCancellationCommandHandler --> CancellationRequest : creates
 RespondToCancellationCommandHandler ..> RespondToCancellationCommand : handles
 RespondToCancellationCommandHandler --> CancellationRequest : Accept / Decline
 RespondToCancellationCommandHandler ..> CancelOrderCommand : sends on accept
-OrderModerationPort ..|> IOrderModerationPort
-OrderModerationPort ..> CancelOrderCommand : sends for PaidOrder
-OrderModerationPort --> ListingOrderState
 @enduml

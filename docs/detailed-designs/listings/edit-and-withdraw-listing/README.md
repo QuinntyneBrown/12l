@@ -11,7 +11,7 @@ Terms used in this design:
 - **editable listing** — listing in status `Draft` or `Active`, or `Removed` after a cancelled sale; only these accept an update
 - **reserved listing** — listing held for 10 minutes for one buyer in checkout (`L2-028`), neither editable nor withdrawable
 - **withdraw** — seller action that moves an `Active` listing to `Removed` and takes it out of the catalog and search; it cannot be undone
-- **removal reason** — recorded cause of a `Removed` status: `Withdrawn`, `OrderCancelled` or `Moderation`
+- **removal reason** — recorded cause of a `Removed` status: `Withdrawn` or `OrderCancelled`
 - **relist** — seller action that returns a listing removed after a cancelled order to `Active` with its original details (`L2-035`)
 - **ETag** — opaque version of a listing, derived from its `RowVersion`, that the client sends back in `If-Match` so a stale form cannot overwrite newer data
 
@@ -80,7 +80,6 @@ Every action requires an authenticated member and the anti-forgery token on stat
 - **`Listings` table** — adds `RemovalReason nvarchar(16) null` to the columns of [create-listing](../create-listing/README.md). The `RowVersion rowversion` column is the concurrency token for edit, withdraw, relist and reservation. A checkout and an edit racing on the same listing therefore cannot both succeed (`L2-029`).
 - **ETag format** — `W/"{base64(RowVersion)}"`.
 - **Catalog freshness** — the catalog and search read `Listings` filtered to `Active` and `Reserved`. A price change appears in the catalog and on the detail page, and a withdrawn listing leaves search, as soon as any catalog cache expires. The cache lifetime belongs to the catalog subsystem.
-- **Audit** — seller actions are not administrator actions, so no `AuditEntry` is written. Structured logs record listing ID, seller ID, transition and correlation ID (`L2-069`).
 
 ### Error codes
 
@@ -88,7 +87,7 @@ Every action requires an authenticated member and the anti-forgery token on stat
 |------|-----:|-------------|
 | `LISTING_RESERVED` | 409 | Update or withdraw of a `Reserved` listing; message "This item is in someone's checkout" |
 | `LISTING_SOLD` | 409 | Update or withdraw of a `Sold` listing |
-| `LISTING_NOT_EDITABLE` | 409 | Update of a withdrawn or moderated listing, or withdraw of a draft |
+| `LISTING_NOT_EDITABLE` | 409 | Update of a withdrawn listing, or withdraw of a draft |
 | `LISTING_NOT_RELISTABLE` | 409 | Relist of a listing that was not removed after a cancelled order |
 | `LISTING_CHANGED` | 412 | `If-Match` does not match the current version |
 | `PRECONDITION_REQUIRED` | 428 | `PUT` without `If-Match` |

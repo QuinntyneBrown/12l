@@ -18,8 +18,8 @@ designs.
 |-----------|------------|----------------|
 | `12L Web` | Angular (TypeScript), standalone components, signals, lazy-loaded routes, in `src/frontend` | Responsive single-page application for visitors, members and administrators |
 | `12L API` | ASP.NET Core Web API (C#), in `src/backend` | REST API over HTTPS; source of truth for every business rule, including the size rules |
-| `12L Worker` | .NET worker service, in `src/backend` | Background jobs: outbox email dispatch, reservation expiry, order auto-completion, payouts, photo processing, data export and erasure |
-| `12L database` | SQL Server through EF Core | Members, listings, orders, reviews, reports, audit log, outbox |
+| `12L Worker` | .NET worker service, in `src/backend` | Background jobs: outbox email dispatch, reservation expiry, order auto-completion, payouts, photo processing and erasure |
+| `12L database` | SQL Server through EF Core | Members, listings, orders, reviews, outbox |
 | `Distributed cache` | Redis | Rate-limit counters, refresh-token families and other state shared across API instances (`L2-060`) |
 | `Photo storage` | Object storage behind a CDN | Original uploads (private) and processed, content-addressed photo versions (public through the CDN) |
 
@@ -41,7 +41,7 @@ The C# namespace prefix is `TwelveL`, because a C# identifier cannot start with 
 |---------|-------|-------|
 | `TwelveL.Api` | API | Controllers, endpoint policies, middleware (problem details, correlation ID, security headers, rate limiting, anti-forgery) |
 | `TwelveL.Application` | Application | MediatR commands, queries and handlers; FluentValidation validators; DTOs; interfaces for infrastructure ports |
-| `TwelveL.Domain` | Domain | Entities, value objects, enumerations, domain events and state machines (`Member`, `Listing`, `Order`, `Review`, `Report`) |
+| `TwelveL.Domain` | Domain | Entities, value objects, enumerations, domain events and state machines (`Member`, `Listing`, `Order`, `Review`) |
 | `TwelveL.Infrastructure` | Infrastructure | `TwelveLDbContext` (EF Core), repositories, outbox, adapters for the payment provider, email provider, photo storage and cache |
 | `TwelveL.Worker` | Worker | Hosted background services that run the jobs listed above |
 
@@ -49,7 +49,7 @@ The C# namespace prefix is `TwelveL`, because a C# identifier cannot start with 
 
 The Angular application groups code into lazy-loaded feature areas under
 `src/frontend/src/app/`: `accounts`, `catalog`, `listings`, `orders`, `reviews`,
-`moderation`, `privacy`, plus `core` (HTTP interceptors, auth state, error handling) and
+`privacy`, plus `core` (HTTP interceptors, auth state, error handling) and
 `shared` (design-system components). Each feature area exposes route components
 (pages), dialog components and a typed API service that calls `12L API`.
 
@@ -59,7 +59,6 @@ The Angular application groups code into lazy-loaded feature areas under
 - **Authorisation.** Every endpoint applies a policy; resources the caller may not see return HTTP 404 (`L2-010`).
 - **Errors.** Every API error is an RFC 9457 problem details response with a stable error code and a correlation ID (`L2-068`).
 - **Outbox.** Handlers that must send email or call an external system write an outbox message in the same database transaction as the state change; `12L Worker` dispatches it with retry and back-off (`L2-042`).
-- **Audit.** Every administrator action writes an append-only `AuditEntry` (`L2-047`).
 
 ## Subsystems
 
@@ -69,8 +68,11 @@ The Angular application groups code into lazy-loaded feature areas under
 | [listings](listings/) | `L1-003`, `L1-004` | create-listing, upload-listing-photos, edit-and-withdraw-listing, manage-my-listings |
 | [catalog](catalog/) | `L1-005`, `L1-006` | browse-catalog, search-and-filter-catalog, view-listing-detail |
 | [orders](orders/) | `L1-007`, `L1-008` | checkout-and-pay, seller-payouts, ship-order, complete-order, cancel-order, resolve-order-problems, order-history |
-| [reviews](reviews/) | `L1-009`, `L1-010` | leave-review, view-member-profile |
+| [reviews](reviews/) | `L1-009`, `L1-010` | view-member-profile |
 | [notifications](notifications/) | `L1-011` | send-email-notifications, manage-notification-preferences |
-| [moderation](moderation/) | `L1-012` | report-listing-or-member, moderate-reports, suspend-member, audit-log-and-admin-sign-in |
-| [privacy](privacy/) | `L1-014` | protect-personal-data, export-personal-data, manage-cookie-consent |
+| [privacy](privacy/) | `L1-014` | protect-personal-data, manage-cookie-consent |
 | [platform](platform/) | `L1-013`, `L1-015` to `L1-018` | harden-http-and-api, protect-credentials-and-supply-chain, meet-performance-and-scale, responsive-accessible-shell, report-errors-and-observe, keep-available-and-recoverable |
+
+## Deferred
+
+Moderation (reporting, the moderation queue, member suspension, the administrator audit log and administrator second factor), review authoring and data export have no detailed design, mocks, specs or estimates at this time. See [ADR 0001](../adr/general/0001-defer-moderation-reviews-and-data-export.md). Administrators still resolve order problems through [resolve-order-problems](orders/resolve-order-problems/README.md), guarded by the `Administrator` policy of `L2-010`.
