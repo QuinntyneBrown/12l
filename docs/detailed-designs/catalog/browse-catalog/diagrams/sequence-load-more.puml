@@ -1,0 +1,49 @@
+@startuml
+title UML sequence behaviour — Load the next catalog page
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Visitor or member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "LoadMoreComponent" as more
+  participant "CatalogStore" as store
+  participant "CatalogApiService" as client
+  participant "ResponsivePhotoComponent" as photo
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "CatalogController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "SearchCatalogQueryHandler" as handler
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "Photo CDN" as cdn
+end box
+actor -> more : Choose "Load more"
+more -> store : loadMore()
+store --> more : busy
+store -> client : getListings(query, page + 1, 24)
+client -> controller : GET /api/catalog/listings?page=2&pageSize=24
+controller -> handler : Send SearchCatalogQuery(2, 24, criteria)
+handler -> db : Page skip 24 take 24, same order and visibility (L2-022)
+db --> handler : Rows
+handler --> controller : CatalogPageDto
+alt success
+  controller --> client : 200 OK
+  client --> store : CatalogPageDto
+  store -> store : Append items, drop ids already shown
+  store --> more : "Showing 38 of 1,284", hide button when all shown
+  more --> actor : New cards appended, count announced politely
+  photo -> photo : loading="lazy", width and height set (L2-059)
+  actor -> cdn : Scroll near card: GET {hash}/400.webp chosen by srcset and sizes
+  cdn --> actor : Image, Cache-Control max-age=31536000 immutable
+else failure
+  controller --> client : 500 problem details
+  client --> store : ApiError
+  store --> more : Not busy, keep loaded cards
+  more --> actor : Error toast with correlation ID and "Try again"
+end
+@enduml

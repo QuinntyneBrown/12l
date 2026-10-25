@@ -1,0 +1,67 @@
+@startuml
+title UML sequence behaviour — Open the catalog
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Visitor or member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "CatalogPageComponent" as page
+  participant "CatalogStore" as store
+  participant "CatalogSnapshotStore" as snap
+  participant "CatalogApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "CatalogController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "SearchCatalogQueryHandler" as handler
+  participant "CatalogVisibility" as vis
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  participant "CatalogReadStore" as rs
+  database "12L database" as db
+end box
+actor -> page : Open /
+page -> store : load(CatalogQuery.default)
+store --> page : viewState = loading (8 skeleton cards)
+store -> client : getListings(query, page 1, pageSize 24)
+alt device offline
+  client --> store : OfflineError
+  store -> snap : read 12l.catalog.snapshot.v1
+  snap --> store : last first page or nothing
+  store --> page : viewState = offline
+  page --> actor : Banner "You're offline. Showing items from your last visit."
+else online
+  client -> controller : GET /api/catalog/listings?page=1&pageSize=24
+  controller -> controller : Apply PublicRead policy and rate limit
+  controller -> handler : Send SearchCatalogQuery(1, 24, Empty)
+  handler -> handler : Cap PageSize at 48 (L2-022)
+  handler -> rs : SearchAsync(Empty, skip 0, take 24, now)
+  rs -> vis : Visible statuses = Active, Reserved (L2-022)
+  rs -> db : COUNT and page ordered by PublishedAt DESC, Id DESC
+  db --> rs : Rows with cover photo versions
+  rs --> handler : CatalogSearchResult
+  handler -> vis : DisplayStatus per row (expired reservation shows Active)
+  handler -> handler : Build ListingCardDto with CDN photo URLs
+  handler --> controller : CatalogPageDto
+  alt query succeeded
+    controller --> client : 200 OK CatalogPageDto
+    client --> store : CatalogPageDto
+    store -> snap : save first page
+    alt totalCount = 0
+      store --> page : viewState = empty
+      page --> actor : "Nothing listed yet" with "Sell an item"
+    else totalCount > 0
+      store --> page : viewState = loaded
+      page --> actor : Grid of 24 cards, "Reserved" stamp where held
+    end
+  else unhandled failure
+    controller --> client : 500 problem details with correlation ID (L2-068)
+    client --> store : ApiError(500, correlationId)
+    store --> page : viewState = error
+    page --> actor : "Couldn't load items", Ref, "Try again"
+  end
+end
+@enduml

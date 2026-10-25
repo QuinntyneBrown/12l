@@ -1,0 +1,44 @@
+@startuml
+title UML sequence behaviour — Open a shared result-set URL
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Visitor in a new browser" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "CatalogPageComponent" as page
+  participant "CatalogQueryParamsCodec" as codec
+  participant "CatalogFacetsService" as facets
+  participant "CatalogStore" as store
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "CatalogController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "SearchCatalogQueryHandler" as handler
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Open /?category=shoes&condition=new-with-tags&min=20&max=200&sort=price-asc
+page -> facets : categories and brands
+facets --> page : Reference lists (L2-011)
+page -> codec : parse(queryParamMap, reference)
+alt URL holds unknown values
+  codec --> page : CatalogQuery without the unknown values
+  page -> page : router.navigate(canonical params, replaceUrl: true)
+else URL is canonical
+  codec --> page : CatalogQuery
+end
+page -> page : Patch sidebar form, chips and sort select from query
+page -> store : load(query)
+store -> controller : GET /api/catalog/listings?category=shoes&condition=new-with-tags&minPrice=20&maxPrice=200&sort=price-asc&page=1&pageSize=24
+controller -> handler : Send SearchCatalogQuery
+handler -> db : Same filters, ORDER BY Price ASC, Id DESC
+db --> handler : Same rows as the sharer saw
+handler --> controller : CatalogPageDto
+controller --> store : 200 OK
+store --> page : loaded
+page --> actor : Same filters, sort and results (L2-024)
+@enduml

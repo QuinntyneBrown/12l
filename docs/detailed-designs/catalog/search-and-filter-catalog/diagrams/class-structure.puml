@@ -1,0 +1,115 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Search and filter the catalog
+
+class CatalogCriteria <<record>> {
+  +SearchTerm? Term
+  +Category? Category
+  +IReadOnlyList<Subcategory> Subcategories
+  +IReadOnlyList<string> Brands
+  +IReadOnlyList<ItemCondition> Conditions
+  +PriceRange? Price
+  +CatalogSort Sort
+}
+
+class SearchTerm <<value object>> {
+  +string Value
+  +IReadOnlyList<string> Words
+  +{static} From(raw: string, maxLength: int = 100): SearchTerm?
+  +ToFullTextCondition(): string
+}
+
+class PriceRange <<value object>> {
+  +decimal? Min
+  +decimal? Max
+  +{static} Create(min: decimal?, max: decimal?): Result<PriceRange>
+}
+
+enum CatalogSort {
+  Newest
+  PriceAscending
+  PriceDescending
+}
+
+enum ItemCondition {
+  NewWithTags
+  NewWithoutTags
+  UsedExcellent
+  UsedGood
+  UsedFair
+}
+
+class SearchCatalogQuery <<record>> {
+  +int Page
+  +int PageSize
+  +CatalogCriteria Criteria
+}
+
+class CountCatalogListingsQuery <<record>> {
+  +CatalogCriteria Criteria
+}
+
+class GetCatalogBrandsQuery <<record>>
+
+class SearchCatalogQueryValidator {
+  -ICategoryCatalog categories
+}
+
+interface ICategoryCatalog {
+  +IsValid(category: string, subcategory: string?): bool
+}
+
+class SearchCatalogQueryHandler {
+  +Handle(q: SearchCatalogQuery): Task<CatalogPageDto>
+}
+class CountCatalogListingsQueryHandler {
+  +Handle(q: CountCatalogListingsQuery): Task<int>
+}
+class GetCatalogBrandsQueryHandler {
+  -IDistributedCache cache
+  +Handle(q: GetCatalogBrandsQuery): Task<BrandFacetDto[]>
+}
+
+interface ICatalogReadStore {
+  +SearchAsync(criteria, skip, take, now, ct): Task<CatalogSearchResult>
+  +CountAsync(criteria, ct): Task<int>
+  +GetBrandsAsync(ct): Task<BrandFacetDto[]>
+}
+
+class CatalogReadStore {
+  -TwelveLDbContext db
+  -Apply(query: IQueryable<Listing>, c: CatalogCriteria): IQueryable<Listing>
+  -Order(query, c: CatalogCriteria): IOrderedQueryable<Listing>
+}
+
+class BrandFacetDto {
+  +string Name
+  +int ListingCount
+}
+
+CatalogCriteria *-- SearchTerm
+CatalogCriteria *-- PriceRange
+CatalogCriteria --> CatalogSort
+CatalogCriteria --> "0..5" ItemCondition
+SearchCatalogQuery --> CatalogCriteria
+CountCatalogListingsQuery --> CatalogCriteria
+SearchCatalogQueryValidator ..> SearchCatalogQuery : validates
+SearchCatalogQueryValidator --> ICategoryCatalog
+SearchCatalogQueryHandler ..> SearchCatalogQuery : handles
+CountCatalogListingsQueryHandler ..> CountCatalogListingsQuery : handles
+GetCatalogBrandsQueryHandler ..> GetCatalogBrandsQuery : handles
+SearchCatalogQueryHandler --> ICatalogReadStore
+CountCatalogListingsQueryHandler --> ICatalogReadStore
+GetCatalogBrandsQueryHandler --> ICatalogReadStore
+CatalogReadStore ..|> ICatalogReadStore
+ICatalogReadStore ..> BrandFacetDto : returns
+@enduml
