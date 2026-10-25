@@ -1,0 +1,19 @@
+/* Helpers used by the pattern pages' composed examples. Token-only. */
+.ds-plain-list { margin: 0; padding-left: var(--space-5); }
+.ds-grow { flex: 1; min-width: 0; }
+.ds-h1 { font: var(--text-h1); letter-spacing: var(--letter-spacing-display); }
+.ds-h4 { font: var(--text-h4); letter-spacing: var(--letter-spacing-tight); }
+.ds-dialog-desc { margin-top: var(--space-2); }
+.ds-dialog-top { padding: var(--space-4) var(--space-6) 0; }
+.ds-no-underline { text-decoration: none; }
+.ds-form-demo { width: 100%; max-width: 44rem; }
+.ds-form-demo--narrow { max-width: 24rem; }
+.ds-skel-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-5); width: 100%; }
+.ds-skel-row { display: flex; align-items: center; gap: var(--space-4); }
+.ds-skel-thumb { width: 3.5rem; height: 3.5rem; flex: none; }
+.ds-shell-demo { width: 100%; border: var(--border-width-hairline) solid var(--color-border-default); background: var(--color-bg-canvas); }
+.ds-shell-demo .topbar { position: relative; }
+.ds-shell-demo__body { padding-inline: var(--space-4); }
+.ds-shell-demo .page-header { margin-block: var(--space-6); }
+.ds-flush { padding: 0; }
+.ds-dot-only { display: inline-block; width: 0.5rem; height: 0.5rem; background: var(--color-info-fg); }

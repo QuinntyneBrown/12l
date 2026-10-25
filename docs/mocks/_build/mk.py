@@ -508,8 +508,8 @@ def render(s: Screen, state: str) -> str:
 <meta name="mock:requirements" content="{reqs}">
 <meta name="description" content="{esc(desc)}">
 <link rel="icon" href="../../../design-system/assets/favicon.ico">
-<link rel="stylesheet" href="../../assets/tokens.css">
-<link rel="stylesheet" href="../../assets/ui.css">
+<link rel="stylesheet" href="../../../design-system/tokens/tokens.css">
+<link rel="stylesheet" href="../../../design-system/assets/components.css">
 <link rel="stylesheet" href="../../assets/mock.css">
 </head>
 <body>

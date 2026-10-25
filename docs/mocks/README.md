@@ -52,12 +52,16 @@ Orders: `12L-48213` (Marcus buys the Red Wings, Shipped), `12L-48140` (Patagonia
 ## How the mocks are built
 
 The HTML files are generated so that ~250 mocks share one shell, one token file
-and one component kit:
+and one component kit. Since 25 Oct 2026 the tokens and kit live in the
+[design system](../design-system/README.md); every mock loads
+`docs/design-system/tokens/tokens.css` and `docs/design-system/assets/components.css`
+directly, so a change there shows up here.
 
 ```
 docs/mocks/
-  assets/tokens.css    design tokens (12L palette, type, space, shape, motion); the only place colours live
-  assets/ui.css        component kit, including the 12L brand layer (size tag, listing card, gallery…)
+  assets/tokens.css    forwards to docs/design-system/tokens/tokens.css (kept for the gallery page)
+  assets/ui.css        forwards to docs/design-system/assets/components.css
+  assets/mock.css      mock chrome only (state bar, notes); never part of the product
   assets/items/*.svg   product illustrations used as listing photos
   _build/mk.py         shell, components and helpers
   _build/data.py       cast and catalog
