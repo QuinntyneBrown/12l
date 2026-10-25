@@ -102,6 +102,7 @@ cd 12l
 ├── .agents/skills/        Agent skills (shared, tool-agnostic copy)
 ├── .claude/skills/        Agent skills for Claude Code
 ├── .github/               Issue templates, pull request template, Copilot instructions
+├── docs/specs/            L1 and L2 requirements
 ├── src/backend/           .NET backend (planned)
 ├── src/frontend/          Angular frontend (planned)
 ├── AGENTS.md              Working agreement for coding agents
@@ -117,6 +118,7 @@ cd 12l
 
 ## Documentation
 
+- [docs/specs/L1.md](docs/specs/L1.md) and [docs/specs/L2.md](docs/specs/L2.md) are the high-level and detailed requirements, with acceptance criteria.
 - [CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes.
 - [AGENTS.md](AGENTS.md) is the working agreement for AI coding agents.
 - [CHANGELOG.md](CHANGELOG.md) records notable changes.
