@@ -1,6 +1,9 @@
 import { Routes } from '@angular/router';
 
+import { HomePlaceholderPage } from './home-placeholder/home-placeholder';
+
 export const routes: Routes = [
+  { path: '', component: HomePlaceholderPage, title: '12L' },
   { path: 'account', loadChildren: () => import('@12l/accounts').then((m) => m.routes) },
   { path: 'items', loadChildren: () => import('@12l/catalog').then((m) => m.routes) },
   { path: 'sell', loadChildren: () => import('@12l/listings').then((m) => m.routes) },

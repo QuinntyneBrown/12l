@@ -1,0 +1,44 @@
+<header class="topbar">
+  <button
+    class="btn btn--ghost btn--icon topbar__menu"
+    type="button"
+    aria-label="Open menu"
+    aria-expanded="false"
+    aria-controls="menu"
+  >
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path d="M4 7h16M4 12h16M4 17h16" />
+    </svg>
+  </button>
+  <tl-logo />
+  <nav class="topbar__nav" aria-label="Primary">
+    @for (item of categories; track item.path) {
+      <a
+        class="nav-link"
+        [routerLink]="item.path"
+        routerLinkActive
+        #rla="routerLinkActive"
+        [attr.aria-current]="rla.isActive ? 'page' : null"
+        >{{ item.label }}</a
+      >
+    }
+  </nav>
+  <span class="topbar__spacer"></span>
+  <form class="search" role="search" action="/search">
+    <label class="visually-hidden" for="q">Search 12L</label>
+    <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <circle cx="11" cy="11" r="7" />
+      <path d="m20 20-3.5-3.5" />
+    </svg>
+    <input class="input" id="q" name="q" type="search" placeholder="Search brands and items" />
+  </form>
+  <div class="topbar__actions">
+    <a class="btn btn--ghost btn--icon topbar__search-btn" routerLink="/search" aria-label="Search"
+      ><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" /></svg
+    ></a>
+    <a class="btn btn--ghost topbar__sell" routerLink="/sell">Sell</a>
+    <a class="btn" routerLink="/sign-in">Sign in</a>
+  </div>
+</header>

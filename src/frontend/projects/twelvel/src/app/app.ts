@@ -1,10 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { SkipLinkComponent, ToastRegionComponent } from '@12l/components';
 
-/** Root component. The shell arrives in the next slice. */
+import { AppShellComponent } from './app-shell/app-shell';
+
+/** Root component: skip link, the app shell and the toast region (responsive-accessible-shell). */
 @Component({
   selector: 'tl-root',
-  imports: [RouterOutlet],
+  imports: [SkipLinkComponent, AppShellComponent, ToastRegionComponent],
   templateUrl: './app.html',
   styleUrl: './app.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

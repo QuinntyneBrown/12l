@@ -50,7 +50,11 @@
                 "input": "projects/twelvel/public"
               }
             ],
-            "styles": ["projects/twelvel/src/styles.css"]
+            "styles": [
+              "projects/components/src/styles/tokens.css",
+              "projects/components/src/styles/components.css",
+              "projects/twelvel/src/styles.css"
+            ]
           },
           "configurations": {
             "production": {
@@ -71,7 +75,13 @@
             "development": {
               "optimization": false,
               "extractLicenses": false,
-              "sourceMap": true
+              "sourceMap": true,
+              "fileReplacements": [
+                {
+                  "replace": "projects/twelvel/src/environments/environment.ts",
+                  "with": "projects/twelvel/src/environments/environment.development.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
