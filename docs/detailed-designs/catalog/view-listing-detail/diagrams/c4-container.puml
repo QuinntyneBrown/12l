@@ -1,0 +1,19 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — View a listing's detail
+
+Person(viewer, "Visitor or member", "Views one listing")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "Listing detail page, gallery, buy bar")
+  Container(api, "12L API", "ASP.NET Core", "GET /api/catalog/listings/{reference}; checkout start (orders)")
+  Container(worker, "12L Worker", ".NET worker service", "Returns expired reservations to Active")
+  ContainerDb(db, "12L database", "SQL Server", "Listings, photos, members, reputation figures")
+  ContainerDb(photos, "Photo storage", "Object storage behind a CDN", "Gallery photo versions")
+}
+Rel(viewer, web, "Uses", "HTTPS")
+Rel(web, api, "Requests listing with session cookie", "JSON/HTTPS")
+Rel(web, photos, "Loads photos", "HTTPS via CDN")
+Rel(api, db, "Reads listing and seller", "EF Core")
+Rel(worker, db, "Expires reservations", "EF Core")
+@enduml

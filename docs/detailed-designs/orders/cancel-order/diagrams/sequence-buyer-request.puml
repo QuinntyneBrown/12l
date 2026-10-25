@@ -1,0 +1,66 @@
+@startuml
+title UML sequence behaviour — Buyer asks to cancel and seller responds
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+actor "Buyer" as buyer
+actor "Seller" as seller
+box "Frontend — 12L Web application" #E0F2FE
+  participant "RequestCancellationDialog" as rq
+  participant "RespondCancellationDialog" as rs
+  participant "OrdersApiService" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "OrdersController" as ctrl
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "RequestCancellationCommandHandler" as rh
+  participant "RespondToCancellationCommandHandler" as sh
+  participant "CancelOrderCommandHandler" as ch
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+buyer -> rq : "Ask to cancel", optional message, "Send request"
+rq -> client : requestCancellation(orderId, message)
+client -> ctrl : POST /api/orders/{id}/cancellation-request
+ctrl -> rh : RequestCancellationCommand
+rh -> db : Load order where BuyerId = caller
+alt order not Paid
+  rh --> ctrl : 409 "order.invalid_transition"
+else a request was already made
+  rh --> ctrl : 409 "cancellation.already_requested"
+else Paid, no request yet
+  rh -> db : Insert CancellationRequest (Pending), enqueue CancellationRequested to seller (L2-035 criterion 2)
+  ctrl --> client : 201
+  rq --> buyer : Close; order stays "Waiting to ship"
+end
+seller -> rs : On sale "Buyer asked to cancel", choose "Respond"
+alt "Accept and refund"
+  rs -> client : respondToCancellation(orderId, Accept)
+  client -> ctrl : POST /api/orders/{id}/cancellation-request/response
+  ctrl -> sh : RespondToCancellationCommand(Accept)
+  sh -> ch : CancelOrderCommand(BuyerAskedToCancel, actor Seller)
+  ch -> db : Paid to Cancelled, full refund, request Accepted, OrderCancelled email, one transaction
+  ctrl --> rs : 200; sale shows "Cancelled"
+else "Decline"
+  rs -> client : respondToCancellation(orderId, Decline)
+  client -> ctrl : POST /api/orders/{id}/cancellation-request/response
+  ctrl -> sh : RespondToCancellationCommand(Decline)
+  sh -> db : Request Declined; order stays Paid
+  ctrl --> rs : 200; seller still ships by the ship-by date
+end
+@enduml

@@ -1,0 +1,125 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — View a listing's detail
+
+enum ViewerRelation {
+  Anonymous
+  Seller
+  OtherMember
+}
+
+enum ListingStatus {
+  Draft
+  Active
+  Reserved
+  Sold
+  Removed
+}
+
+class Listing <<aggregate, listings>> {
+  +Guid Id
+  +string Reference
+  +Guid SellerId
+  +ListingStatus Status
+  +DateTimeOffset? ReservedUntil
+  +decimal Price
+  +decimal ShippingCost
+  +string? Flaws
+  +byte[] RowVersion
+  +EnsureCanBePurchasedBy(buyerId: Guid): void
+}
+
+class ListingDetailVisibility <<specification>> {
+  +CanView(status: ListingStatus, sellerId: Guid, viewerId: Guid?): bool
+}
+
+class GetListingDetailQuery <<record>> {
+  +string Reference
+  +Guid? ViewerMemberId
+}
+
+class GetListingDetailQueryHandler {
+  +Handle(q: GetListingDetailQuery): Task<Result<ListingDetailDto>>
+}
+
+interface IListingDetailReadStore {
+  +GetAsync(reference: string, ct): Task<ListingDetailRow?>
+}
+
+class ListingDetailReadStore {
+  -TwelveLDbContext db
+}
+
+interface IPhotoUrlBuilder {
+  +Build(version): string
+}
+
+class ListingDetailDto {
+  +Guid Id
+  +string Reference
+  +string Title
+  +string Brand
+  +string Category
+  +string Subcategory
+  +string Size
+  +string Condition
+  +string? Flaws
+  +string Description
+  +string Price
+  +string ShippingCost
+  +string Total
+  +ListingStatus DisplayStatus
+  +DateTimeOffset PublishedAt
+  +ViewerDto Viewer
+}
+
+class ViewerDto {
+  +ViewerRelation Relation
+}
+
+class SellerSummaryDto {
+  +string DisplayName
+  +string PublicLocation
+  +decimal? RatingAverage
+  +int PublishedReviewCount
+  +int CompletedSalesCount
+}
+
+class PhotoDto {
+  +int Width
+  +int Height
+  +string Alt
+}
+
+class DomainRuleException {
+  +string Code
+}
+
+class CatalogController {
+  +GetListing(reference: string): Task<ActionResult<ListingDetailDto>>
+}
+
+CatalogController ..> GetListingDetailQuery : sends
+GetListingDetailQueryHandler ..> GetListingDetailQuery : handles
+GetListingDetailQueryHandler --> IListingDetailReadStore
+GetListingDetailQueryHandler --> ListingDetailVisibility
+GetListingDetailQueryHandler --> IPhotoUrlBuilder
+ListingDetailReadStore ..|> IListingDetailReadStore
+GetListingDetailQueryHandler ..> ListingDetailDto : returns
+ListingDetailDto "1" *-- "1..8" PhotoDto
+ListingDetailDto *-- SellerSummaryDto
+ListingDetailDto *-- ViewerDto
+ViewerDto --> ViewerRelation
+ListingDetailVisibility ..> ListingStatus
+Listing --> ListingStatus
+Listing ..> DomainRuleException : throws CANNOT_BUY_OWN_LISTING
+@enduml

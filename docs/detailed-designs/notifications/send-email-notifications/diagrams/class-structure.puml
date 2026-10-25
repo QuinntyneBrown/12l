@@ -1,0 +1,149 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Send email notifications
+
+enum NotificationType {
+  EmailVerification
+  PasswordReset
+  PasswordChanged
+  AccountLocked
+  MemberSuspended
+  ListingRemoved
+  DraftExpiring
+  DataExportReady
+  SaleMade
+  OrderShipped
+  OrderDelivered
+  ShipByReminder
+  OrderCancelled
+  CancellationRequested
+  OrderRefunded
+  ProblemReported
+  ProblemResolved
+  ReviewReceived
+  Marketing
+}
+
+enum NotificationCategory {
+  AccountSecurity
+  Orders
+  Reviews
+  Marketing
+}
+
+enum OutboxMessageStatus {
+  Pending
+  Processing
+  Sent
+  Suppressed
+  Failed
+}
+
+class OutboxMessage {
+  +Guid Id
+  +string Type
+  +string Payload
+  +DateTimeOffset CreatedAt
+  +OutboxMessageStatus Status
+  +int AttemptCount
+  +DateTimeOffset NextAttemptAt
+  +DateTimeOffset? LockedUntil
+  +string? LastError
+  +DateTimeOffset? SentAt
+  +string? SuppressionReason
+  +string CorrelationId
+  +byte[] RowVersion
+  +MarkSent(now): void
+  +Suppress(reason): void
+  +RecordFailure(error, now): void
+  +FailPermanently(error): void
+}
+
+class EmailNotificationRequested {
+  +NotificationType Type
+  +Guid RecipientMemberId
+  +string ModelJson
+  +string CorrelationId
+  +DateTimeOffset OccurredAt
+}
+
+interface INotificationPublisher {
+  +Enqueue<TModel>(type, recipientMemberId, model): void
+}
+class OutboxNotificationPublisher
+
+class SendEmailNotificationHandler {
+  +Handle(message: OutboxMessage): Task
+}
+
+interface IRecipientResolver {
+  +ResolveAsync(memberId): Task<Recipient?>
+}
+interface INotificationPreferenceReader {
+  +IsAllowedAsync(memberId, category): Task<bool>
+}
+interface IEmailTemplateRenderer {
+  +RenderAsync(type, modelJson): Task<RenderedEmail>
+}
+class FluidEmailTemplateRenderer
+class DeepLinkBuilder {
+  +Build(route: string): Uri
+}
+class EmailContentGuard {
+  +Check(email: RenderedEmail): GuardResult
+}
+interface IEmailSender {
+  +SendAsync(email, idempotencyKey): Task<SendResult>
+}
+class ProviderEmailSender
+
+class RenderedEmail {
+  +string To
+  +string Subject
+  +string HtmlBody
+  +string TextBody
+  +IDictionary<string,string> Headers
+}
+
+enum SendResult {
+  Sent
+  Transient
+  Permanent
+}
+
+class SaleMadeEmailModel <<record>> {
+  +string OrderNumber
+  +string ItemTitle
+  +decimal Total
+  +DateOnly ShipBy
+  +Guid OrderId
+}
+
+OutboxMessage --> OutboxMessageStatus : has
+OutboxMessage ..> EmailNotificationRequested : payload
+EmailNotificationRequested --> NotificationType
+NotificationType ..> NotificationCategory : maps to
+OutboxNotificationPublisher ..|> INotificationPublisher
+OutboxNotificationPublisher ..> OutboxMessage : creates
+SendEmailNotificationHandler --> OutboxMessage : updates
+SendEmailNotificationHandler ..> IRecipientResolver
+SendEmailNotificationHandler ..> INotificationPreferenceReader
+SendEmailNotificationHandler ..> IEmailTemplateRenderer
+SendEmailNotificationHandler ..> EmailContentGuard
+SendEmailNotificationHandler ..> IEmailSender
+FluidEmailTemplateRenderer ..|> IEmailTemplateRenderer
+FluidEmailTemplateRenderer ..> DeepLinkBuilder
+FluidEmailTemplateRenderer ..> RenderedEmail : produces
+ProviderEmailSender ..|> IEmailSender
+ProviderEmailSender ..> SendResult : returns
+INotificationPublisher ..> SaleMadeEmailModel : accepts
+@enduml

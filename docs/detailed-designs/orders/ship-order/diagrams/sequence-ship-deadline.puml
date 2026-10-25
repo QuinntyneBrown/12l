@@ -1,0 +1,59 @@
+@startuml
+title UML sequence behaviour — Ship-by reminder and ship deadline
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+box "Backend — 12L Worker application (TwelveL.Worker)" #D1FADF
+  participant "ShipByReminderJob" as rem
+  participant "ShipDeadlineJob" as dl
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "CancelOrderCommandHandler" as h
+  participant "Order" as order
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "OutboxDispatcher" as out
+end box
+participant "Payment provider" as pay
+participant "Email provider" as email
+== Every Orders:DeadlineJobInterval ==
+rem -> db : Select Paid orders where ShipReminderDue <= now and ShipReminderSentAt is null
+db --> rem : Due orders
+loop each due order
+  rem -> db : Set ShipReminderSentAt, enqueue ShipByReminder notification (L2-033)
+end
+dl -> db : Select Paid orders where ShipBy <= now
+db --> dl : Overdue orders
+loop each overdue order
+  dl -> h : Send CancelOrderCommand(Reason ShipDeadlinePassed, actor System)
+  h -> db : Load order
+  h -> order : Cancel(ShipDeadlinePassed, System, now)
+  alt tracking added concurrently (status no longer Paid)
+    order --> h : InvalidOrderTransitionException
+    h --> dl : Skip order
+  else still Paid
+    order -> order : Append Paid to Cancelled, actor System (L2-032)
+    h -> db : Save order, Refund(Total), Payout Cancelled, outbox IssueRefund, OrderCancelled notifications to buyer and seller
+    db --> h : Committed
+  end
+end
+== OutboxDispatcher ==
+out -> pay : Create refund for Total, idempotency key = Refund.Id
+pay --> out : Refund accepted
+out -> email : Send cancellation and refund email to buyer, notice to seller
+email --> out : Accepted
+@enduml

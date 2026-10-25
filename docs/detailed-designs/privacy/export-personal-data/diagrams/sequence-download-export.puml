@@ -1,0 +1,58 @@
+@startuml
+title UML sequence behaviour — Download the export
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "DataExportDownloadPageComponent" as page
+  participant "PrivacyApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "PrivacyExportsController" as controller
+end box
+box "Backend — TwelveL.Application and Domain" #ECFDF3
+  participant "GetDataExportQueryHandler /\nOpenDataExportFileQueryHandler" as handler
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "Exports container" as store
+end box
+actor -> page : Click emailed link /account/data-export/{exportId}
+page -> page : authGuard (sign in and return if needed)
+page -> client : getExport(exportId)
+client -> controller : GET /api/privacy/exports/{id} (same-site, session cookie sent)
+controller -> handler : Send GetDataExportQuery
+handler -> db : Load request
+db --> handler : DataExportRequest
+alt not found or MemberId differs from caller
+  handler --> controller : NotFound
+  controller --> client : 404 (L2-010, L2-055)
+  page --> actor : not-found state
+else now > ExpiresAt
+  handler --> controller : Expired
+  controller --> client : 410 privacy.export_expired (L2-055)
+  page --> actor : expired state
+else Ready and owned
+  handler --> controller : ExportRequestView
+  controller --> client : 200 OK
+  page --> actor : ready state with "Download"
+  actor -> controller : GET /api/privacy/exports/{id}/file
+  controller -> handler : Send OpenDataExportFileQuery (re-checks owner and expiry)
+  handler -> store : OpenReadAsync(storageKey)
+  store --> handler : Stream
+  handler --> controller : ExportFile
+  controller --> actor : 200 application/json attachment, Cache-Control no-store
+end
+@enduml

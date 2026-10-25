@@ -1,0 +1,60 @@
+@startuml
+title UML sequence behaviour — Remove a reported listing
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Administrator" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "ResolveReportDialogComponent" as dialog
+  participant "ModerationApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "AdminReportsController" as controller
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "ResolveReportCommandHandler" as handler
+  participant "IOrderModerationPort" as orders
+  participant "Listing" as listing
+  participant "Report" as report
+  participant "IAuditLog" as audit
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "Outbox" as outbox
+end box
+box "Backend — 12L Worker" #FFF4E5
+  participant "OutboxDispatcher" as worker
+end box
+actor -> dialog : Choose "Remove listing", enter reason, confirm
+dialog -> client : resolve(number, {decision: RemoveListing, reason, confirmOrderCancellation: false})
+client -> controller : POST /api/admin/reports/{number}/resolution
+controller -> handler : Send ResolveReportCommand
+handler -> db : Load Report and Listing
+handler -> orders : GetListingOrderStateAsync(listingId)
+orders --> handler : None, Reserved or PaidOrder
+alt Reserved or PaidOrder and not confirmed (L2-045)
+  handler --> controller : OrderExists
+  controller --> client : 409 moderation.order_exists {orderState}
+  client --> dialog : order-warning state
+  dialog --> actor : "This item is in someone's checkout" / "Remove and refund"
+  actor -> dialog : Choose "Remove and refund"
+  dialog -> client : resolve(number, {..., confirmOrderCancellation: true})
+  client -> controller : POST /api/admin/reports/{number}/resolution
+  controller -> handler : Send ResolveReportCommand
+  handler -> orders : CancelForListingRemovalAsync(listingId, reason, admin)
+  orders -> db : Cancel order or release reservation; queue refund (orders subsystem, L2-035)
+end
+handler -> listing : RemoveByAdministrator(reason) -> Status Removed (L2-045)
+handler -> report : Resolve(RemoveListing, reason, admin, now)
+handler -> audit : Record("Listing removed", L-id, reason) (L2-047)
+handler -> outbox : ListingRemovedEmail to seller with reason (L2-042)
+handler -> db : SaveChanges in one transaction
+db --> handler : Committed
+controller --> client : 200 OK
+client --> dialog : Close
+dialog --> actor : "Listing removed" alert on report detail
+worker -> outbox : Poll pending messages
+worker -> worker : Send email; request refund through orders adapter
+@enduml

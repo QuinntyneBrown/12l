@@ -1,0 +1,54 @@
+@startuml
+title UML sequence behaviour — Open the sell form
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SellPage" as page
+  participant "ListingFormComponent" as form
+  participant "SellingOptionsService" as opts
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "CategoriesController" as ctrl
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "CategoryCatalog" as catalog
+end box
+actor -> page : Open /sell
+page -> page : Read member state from AuthState (verified, suspended)
+alt email not verified
+  page --> actor : "Verify your email to sell" (unverified state)
+else member suspended
+  page --> actor : "Selling is paused on your account" (suspended state)
+else member may sell (L2-003)
+  page -> opts : load()
+  opts -> ctrl : GET /api/categories and GET /api/selling/options
+  ctrl -> catalog : Read accepted categories, subcategories and sizes (L2-011)
+  catalog --> ctrl : 4 categories, 12 subcategories
+  alt API reachable
+    ctrl --> opts : 200 categories; 200 feePercent, conditions, suggestedBrands
+    opts --> page : SellingOptions
+    page -> form : Render blank form with no size input (L2-012)
+    actor -> form : Choose category "Shoes"
+    form --> actor : Show read-only "Size: Men's US 12" and subcategory list
+    actor -> form : Enter price and shipping
+    form --> actor : Show "You earn after the 10% fee" estimate (L2-031)
+  else 5xx or network failure
+    ctrl --> opts : 500 problem details with correlation ID
+    opts --> page : Error
+    page --> actor : "Couldn't open the form" with Ref and "Try again" (L2-068)
+  end
+end
+@enduml

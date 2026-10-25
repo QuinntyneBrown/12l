@@ -1,0 +1,62 @@
+@startuml
+title UML sequence behaviour — One-click unsubscribe
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Email recipient" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "UnsubscribePageComponent" as page
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "UnsubscribeController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "UnsubscribeCommandHandler" as handler
+  participant "NotificationPreferences" as entity
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  participant "HmacUnsubscribeTokenService" as tokens
+  database "12L database" as db
+end box
+actor -> page : Click unsubscribe link in a marketing email (no sign-in)
+page -> controller : POST /api/notifications/unsubscribe {token}
+note right of actor
+  A mail client's RFC 8058 request
+  POSTs to the same endpoint with
+  List-Unsubscribe=One-Click
+end note
+controller -> controller : Anonymous policy, rate limit (L2-051)
+controller -> handler : Send UnsubscribeCommand
+handler -> tokens : TryValidate(token)
+alt signature, key ID or category invalid
+  tokens --> handler : false
+  handler --> controller : Invalid
+  controller --> page : 400 notifications.unsubscribe_invalid
+  page --> actor : Invalid link state (copy TO SUPPLY)
+else valid token
+  tokens --> handler : UnsubscribeClaims(memberId, Marketing)
+  handler -> db : Load NotificationPreferences
+  alt member closed or erased
+    db --> handler : none
+  else row found
+    db --> handler : Row
+    handler -> entity : UnsubscribeMarketing(now) (L2-043)
+    handler -> db : Save
+    db --> handler : Commit result
+  end
+  handler --> controller : Success (idempotent)
+  controller --> page : 200 {category: Marketing, unsubscribed: true}
+  page --> actor : Unsubscribed state with link to /account/emails
+end
+@enduml

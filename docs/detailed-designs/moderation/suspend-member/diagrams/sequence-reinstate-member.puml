@@ -1,0 +1,46 @@
+@startuml
+title UML sequence behaviour — Reinstate a member
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Administrator" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SuspendMemberDialogComponent" as dialog
+  participant "ModerationApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "AdminMembersController" as controller
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "ReinstateMemberCommandHandler" as handler
+  participant "MemberSuspensionService" as svc
+  participant "Member" as member
+  participant "IAuditLog" as audit
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "Distributed cache" as cache
+end box
+actor -> dialog : "Reinstate" on a suspended member
+dialog --> actor : "Reinstate <handle>?" listing count returning
+actor -> dialog : Enter reason, "Reinstate"
+dialog -> client : reinstate(memberId, {reason})
+client -> controller : POST /api/admin/members/{memberId}/reinstatement
+controller -> handler : Send ReinstateMemberCommand
+handler -> db : Load Member
+alt member not suspended
+  controller --> client : 409 member.not_suspended
+end
+handler -> svc : Reinstate(member, reason, admin, now)
+svc -> member : Reinstate() -> Status Active, close MemberSuspension
+svc -> audit : Record("Member reinstated", handle, reason) (L2-047)
+handler -> db : SaveChanges
+db --> handler : Committed
+handler -> cache : Evict member:status:{memberId}
+note right of db : Listings still Active become visible again (L2-046)
+controller --> client : 200 OK
+client --> dialog : Close
+dialog --> actor : Member admin default state
+@enduml

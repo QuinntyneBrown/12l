@@ -1,0 +1,98 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Manage my listings
+
+package "TwelveL.Application" {
+  class GetMyListingsQuery {
+    +ListingStatus? Status
+    +string? Cursor
+    +int PageSize
+  }
+  class GetMyListingsQueryHandler {
+    +Handle(query): Task<MyListingsPage>
+  }
+  class MyListingsPage {
+    +IReadOnlyList<MyListingSummaryDto> Items
+    +MyListingCounts Counts
+    +string? NextCursor
+  }
+  class MyListingSummaryDto {
+    +Guid Id
+    +string Reference
+    +string? Title
+    +string Category
+    +string Status
+    +decimal? Price
+    +string? CoverThumbnailUrl
+    +int? CoverWidth
+    +int? CoverHeight
+    +DateTime CreatedAt
+    +Guid? SaleOrderId
+  }
+  class MyListingCounts {
+    +int All
+    +int Draft
+    +int Active
+    +int Reserved
+    +int Sold
+    +int Removed
+  }
+  class DraftExpiryReminderEmail {
+    +Guid MemberId
+    +string Reference
+    +string? Title
+    +DateOnly DeleteOn
+  }
+}
+
+package "TwelveL.Domain" {
+  class Listing {
+    +Guid Id
+    +string Reference
+    +Guid SellerId
+    +ListingStatus Status
+    +DateTime CreatedAt
+    +DateTime UpdatedAt
+    +DateTime? DraftReminderSentAt
+    +MarkDraftReminderSent(clock): void
+  }
+}
+
+package "TwelveL.Worker" {
+  class DraftCleanupJob {
+    +ExecuteAsync(ct): Task
+  }
+  class DraftCleanupOptions {
+    +int RetentionDays = 90
+    +int ReminderDaysBefore = 7
+    +string Schedule
+    +int BatchSize
+  }
+}
+
+package "TwelveL.Api" {
+  class MyListingsController {
+    +List(status, cursor, pageSize): Task<IActionResult>
+    +Get(id): Task<IActionResult>
+  }
+}
+
+MyListingsController ..> GetMyListingsQuery : sends
+GetMyListingsQueryHandler ..> GetMyListingsQuery : handles
+GetMyListingsQueryHandler ..> MyListingsPage : returns
+MyListingsPage "1" *-- "*" MyListingSummaryDto
+MyListingsPage *-- MyListingCounts
+GetMyListingsQueryHandler ..> Listing : projects
+DraftCleanupJob --> Listing : reminds / deletes
+DraftCleanupJob ..> DraftExpiryReminderEmail : writes to outbox
+DraftCleanupJob --> DraftCleanupOptions
+@enduml

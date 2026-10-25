@@ -1,0 +1,54 @@
+@startuml
+title UML sequence behaviour — Relist after a cancelled sale
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "RelistDialog" as dialog
+  participant "ListingsApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "ListingsController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "RelistListingCommandHandler" as handler
+  participant "Listing" as entity
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> dialog : Choose "Relist item" on a cancelled sale
+dialog --> actor : "Relist this item?" with "Not now", "Edit first", "Relist"
+alt Edit first
+  dialog --> actor : Navigate to /items/{reference}/edit
+else Relist
+  dialog -> dialog : Busy: Relist aria-busy, Not now disabled
+  dialog -> client : relist(id)
+  client -> controller : POST /api/listings/{reference}/relist
+  controller -> handler : Send RelistListingCommand
+  handler -> db : Load caller's listing
+  handler -> entity : Relist()
+  alt not Removed with RemovalReason OrderCancelled
+    entity --> handler : LISTING_NOT_RELISTABLE
+    controller --> client : 409
+    client --> dialog : Error alert, listing unchanged
+  else relistable (L2-035)
+    entity --> handler : Active with original photos, price and description
+    handler -> db : SaveChanges with RowVersion check
+    controller --> client : 200 status Active
+    client --> dialog : Close; toast "Listing published" with "View listing"
+  end
+end
+@enduml

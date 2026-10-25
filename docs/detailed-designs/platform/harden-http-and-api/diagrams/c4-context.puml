@@ -1,0 +1,14 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Harden HTTP and the API
+
+Person(visitor, "Visitor or member", "Browses, buys and sells on a phone or desktop browser")
+Person_Ext(attacker, "Hostile website or script", "Attempts CSRF, injection, mass assignment or request floods")
+System(twelvel, "12L", "Marketplace for men's US 12 shoes and men's L clothing")
+System_Ext(payments, "Payment provider", "Hosted card fields, payments, signed webhooks")
+
+Rel(visitor, twelvel, "Uses", "HTTPS, TLS 1.2+")
+Rel(attacker, twelvel, "Sends forged or excessive requests to", "HTTP/HTTPS")
+Rel(payments, twelvel, "Posts signed webhooks to", "HTTPS")
+@enduml

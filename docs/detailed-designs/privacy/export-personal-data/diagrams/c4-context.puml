@@ -1,0 +1,13 @@
+@startuml
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title System Context — Export personal data
+
+Person(member, "Member", "Signed-in buyer or seller who wants a copy of their data")
+System(twelvel, "12L", "Marketplace for men's size 12 shoes and size L clothing")
+System_Ext(email, "Email provider", "Delivers the download link email")
+
+Rel(member, twelvel, "Requests and downloads the export", "HTTPS")
+Rel(twelvel, email, "Sends the export-ready email via", "HTTPS API")
+Rel(email, member, "Delivers link email to")
+@enduml

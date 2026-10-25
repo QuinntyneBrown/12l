@@ -1,0 +1,20 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Leave a review
+
+Person(member, "Buyer or seller", "Party to a Completed order")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "Order review panel, leave-review and reply dialogs")
+  Container(api, "12L API", "ASP.NET Core", "Review rules, blind-review visibility, replies")
+  Container(worker, "12L Worker", ".NET worker service", "ReviewPublishingJob and outbox email dispatch")
+  ContainerDb(db, "12L database", "SQL Server", "Reviews, Orders, OutboxMessages")
+}
+System_Ext(email, "Email provider", "Transactional email")
+
+Rel(member, web, "Uses", "HTTPS")
+Rel(web, api, "Calls /api/orders/{id}/reviews and /api/reviews/{id}/reply", "JSON/HTTPS")
+Rel(api, db, "Reads orders, writes reviews and outbox", "EF Core")
+Rel(worker, db, "Publishes due reviews, reads outbox", "EF Core")
+Rel(worker, email, "Sends review received email", "HTTPS API")
+@enduml

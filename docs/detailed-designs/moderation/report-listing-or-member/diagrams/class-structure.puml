@@ -1,0 +1,103 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Report a listing or member
+
+enum ReportTargetType {
+  Listing
+  Member
+}
+enum ListingReportReason {
+  WrongSize
+  Counterfeit
+  ProhibitedItem
+  MisleadingDescription
+  OffensiveContent
+  Other
+}
+enum MemberReportReason {
+  NotSizeTwelveOrL
+  CounterfeitItems
+  AbusiveMessagesOrReviews
+  Other
+}
+enum ReportStatus {
+  Open
+  Dismissed
+  ListingRemoved
+  MemberSuspended
+}
+class Report {
+  +Guid Id
+  +int Number
+  +ReportTargetType TargetType
+  +Guid TargetId
+  +ReportStatus Status
+  +DateTime OpenedAt
+  +byte[] RowVersion
+  +int DistinctReporterCount
+  +AddSubmission(reporterId: Guid, reasonCode: string, details: string?, now: DateTime): ReportSubmission
+}
+class ReportSubmission {
+  +Guid Id
+  +Guid ReportId
+  +Guid ReporterMemberId
+  +ReportTargetType TargetType
+  +Guid TargetId
+  +string ReasonCode
+  +string? Details
+  +DateTime SubmittedAt
+}
+class Listing {
+  +Guid Id
+  +ListingStatus Status
+  +bool IsHiddenPendingReview
+  +DateTime? HiddenPendingReviewAt
+  +HidePendingReview(now: DateTime): void
+}
+class SubmitReportCommand {
+  +ReportTargetType TargetType
+  +Guid TargetId
+  +string Reason
+  +string? Details
+}
+class SubmitReportCommandValidator {
+  +SubmitReportCommandValidator()
+}
+class SubmitReportCommandHandler {
+  +Handle(command: SubmitReportCommand, ct: CancellationToken): Task<Result<SubmitReportResponse>>
+}
+interface IReportRepository {
+  +FindOpenAsync(type: ReportTargetType, targetId: Guid): Task<Report?>
+  +HasReportedAsync(reporterId: Guid, type: ReportTargetType, targetId: Guid): Task<bool>
+  +Add(report: Report): void
+}
+class ReportsController {
+  +Submit(request: SubmitReportRequest): Task<IActionResult>
+}
+class ModerationOptions {
+  +int AutoHideReporterThreshold = 3
+  +int DetailsMaxLength
+}
+
+Report "1" *-- "1..*" ReportSubmission : submissions
+Report --> ReportStatus
+Report --> ReportTargetType
+ReportSubmission ..> ListingReportReason : ReasonCode when Listing
+ReportSubmission ..> MemberReportReason : ReasonCode when Member
+ReportsController ..> SubmitReportCommand : sends
+SubmitReportCommandValidator ..> SubmitReportCommand : validates
+SubmitReportCommandHandler ..> SubmitReportCommand : handles
+SubmitReportCommandHandler --> IReportRepository
+SubmitReportCommandHandler --> Report : loads / creates
+SubmitReportCommandHandler --> Listing : hides at threshold
+SubmitReportCommandHandler ..> ModerationOptions : reads threshold
+@enduml

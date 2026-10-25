@@ -1,0 +1,51 @@
+@startuml
+title UML sequence behaviour — Update the rating summary
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "CreateReviewCommandHandler or\nPublishDueReviewsCommandHandler" as publisher
+  participant "Review" as review
+  participant "UpdateReputationOnReviewPublishedHandler" as handler
+  participant "MemberReputation" as rep
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  participant "Output cache" as cache
+  database "12L database" as db
+end box
+publisher -> review : Publish(now)
+review -> handler : ReviewPublished(reviewId, subjectMemberId, stars)
+handler -> db : Load MemberReputation for subject
+alt no row yet
+  db --> handler : none
+  handler -> rep : New MemberReputation(subjectMemberId)
+else row exists
+  db --> handler : MemberReputation
+end
+handler -> rep : ApplyPublishedReview(stars) (L2-040, published reviews only)
+rep --> handler : Count + 1, StarsTotal + stars
+publisher -> db : Save review, reputation and outbox in one transaction
+alt RowVersion conflict on MemberReputations
+  db --> publisher : DbUpdateConcurrencyException
+  publisher -> handler : Reload and reapply, up to 3 attempts
+else committed
+  db --> publisher : Commit result
+  publisher -> cache : Evict tag profile:{normalizedDisplayName}
+end
+note over rep
+  RatingSummary.Average = round(StarsTotal / Count, 1, AwayFromZero)
+  5 + 4 + 4 = 13 over 3 reviews gives 4.3
+  Count 0 gives "No reviews yet"
+end note
+@enduml

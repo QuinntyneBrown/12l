@@ -1,0 +1,46 @@
+@startuml
+title UML sequence behaviour — Report a member
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Verified member" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "ReportMemberDialogComponent" as dialog
+  participant "ReportsApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "ReportsController" as controller
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "SubmitReportCommandHandler" as handler
+  participant "Report" as report
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> dialog : "Report member" on a public profile
+actor -> dialog : Pick reason, details, "Send report"
+dialog -> client : submit({targetType: Member, targetId, reason, details})
+client -> controller : POST /api/reports
+controller -> controller : Authenticate; VerifiedMember and NotSuspended policies; validate
+controller -> handler : Send SubmitReportCommand
+handler -> db : Load member (active, not the caller)
+alt member unavailable (closed or suspended)
+  controller --> client : 404
+end
+handler -> db : Check prior submission by this reporter
+alt already reported
+  controller --> client : 409 report.already_reported (L2-044)
+end
+handler -> db : Load or create open Report for the member
+handler -> report : AddSubmission(reporter, reason, details)
+note right of report : Member reports do not hide anything automatically
+handler -> db : SaveChanges
+db --> handler : Committed
+handler --> controller : SubmitReportResponse
+controller --> client : 201 Created
+client --> dialog : Success
+dialog --> actor : "Thanks, our team will review this"
+@enduml

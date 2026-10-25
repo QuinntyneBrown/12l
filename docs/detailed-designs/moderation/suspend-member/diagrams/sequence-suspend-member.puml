@@ -1,0 +1,55 @@
+@startuml
+title UML sequence behaviour — Suspend a member
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+actor "Administrator" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "MemberAdminPageComponent" as page
+  participant "SuspendMemberDialogComponent" as dialog
+  participant "ModerationApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "AdminMembersController" as controller
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "SuspendMemberCommandHandler" as handler
+  participant "MemberSuspensionService" as svc
+  participant "Member" as member
+  participant "IAuditLog" as audit
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+  participant "Distributed cache" as cache
+end box
+actor -> page : "Suspend member"
+page -> dialog : Open "Suspend <handle>?" (Cancel focused)
+actor -> dialog : Enter reason, "Suspend"
+alt reason empty
+  dialog --> actor : "Add a reason. The member is emailed it."
+end
+dialog -> client : suspend(memberId, {reason})
+client -> controller : POST /api/admin/members/{memberId}/suspension
+controller -> controller : Policy AdministratorWithSecondFactor; validate
+controller -> handler : Send SuspendMemberCommand
+handler -> db : Load Member with RowVersion
+alt member not found or closed
+  controller --> client : 404
+else already suspended
+  controller --> client : 409 member.already_suspended
+end
+handler -> svc : Suspend(member, reason, admin, now)
+svc -> member : Suspend() -> Status Suspended, new MemberSuspension (L2-046)
+svc -> audit : Record("Member suspended", handle, reason) (L2-047)
+svc -> db : Outbox MemberSuspendedEmail with reason (L2-042)
+handler -> db : SaveChanges in one transaction
+db --> handler : Committed
+handler -> cache : Evict member:status:{memberId}
+note right of db : Catalog rule excludes listings of suspended sellers, so Active listings disappear (L2-046)
+controller --> client : 200 OK
+client --> dialog : Close
+dialog --> page : Reload
+page --> actor : "Suspended" alert with time, administrator and reason; "Reinstate"
+@enduml

@@ -1,0 +1,63 @@
+@startuml
+title UML sequence behaviour — Withdraw a listing
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "WithdrawListingDialog" as dialog
+  participant "ListingsApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "ListingsController" as controller
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "WithdrawListingCommandHandler" as handler
+  participant "Listing" as entity
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> dialog : Choose "Withdraw" on own listing detail
+dialog --> actor : "Withdraw “Arizona sandals”?" with focus on "Keep listing"
+actor -> dialog : Confirm "Withdraw"
+dialog -> dialog : Busy: Withdraw aria-busy, Keep listing disabled
+dialog -> client : withdraw(id)
+client -> controller : POST /api/listings/{reference}/withdraw
+controller -> handler : Send WithdrawListingCommand
+handler -> db : Load caller's listing
+alt not found or not owned
+  handler --> controller : NotFound
+  controller --> client : 404
+else
+  handler -> entity : Withdraw()
+  alt status Reserved or Sold (L2-020)
+    entity --> handler : LISTING_RESERVED or LISTING_SOLD
+    controller --> client : 409, listing unchanged
+    client --> dialog : Failed state "Couldn't withdraw" with "Try again"
+  else status Active
+    entity --> handler : Removed, RemovalReason Withdrawn, RemovedAt set
+    handler -> db : SaveChanges with RowVersion check
+    alt concurrency conflict (buyer reserved it first)
+      db --> handler : DbUpdateConcurrencyException
+      controller --> client : 409 LISTING_RESERVED
+      client --> dialog : Failed state, "Your listing is still live."
+    else committed
+      controller --> client : 200 status Removed
+      client --> dialog : Close; listing leaves catalog and search
+      dialog --> actor : Navigate to Your listings
+    end
+  end
+end
+@enduml

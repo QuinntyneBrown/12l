@@ -1,0 +1,65 @@
+@startuml
+title UML sequence behaviour — Seller cancels a Paid order
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SaleDetailPage" as page
+  participant "CancelOrderDialog" as dlg
+  participant "OrdersApiService" as client
+end box
+box "Backend — 12L API application (TwelveL.Api)" #D1FADF
+  participant "OrdersController" as ctrl
+end box
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "CancelOrderCommandHandler" as h
+  participant "Order" as order
+  participant "RefundRequester" as rr
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+actor -> page : Choose "Cancel order"
+page -> dlg : Open "Cancel this sale?" with refund amount
+actor -> dlg : Pick reason, optional note, "Cancel sale"
+alt no reason chosen
+  dlg --> actor : "Choose a reason" (invalid state)
+else reason chosen
+  dlg -> client : cancelOrder(orderId, reason, note) (busy state)
+  client -> ctrl : POST /api/orders/{id}/cancellation
+  ctrl -> h : Send CancelOrderCommand(actor Seller)
+  h -> db : Load order where SellerId = caller
+  alt not the seller
+    h --> ctrl : 404
+  else seller
+    h -> order : Cancel(reason, note, Seller, now)
+    alt Status is not Paid (L2-035 criterion 3)
+      order --> h : InvalidOrderTransitionException
+      h --> ctrl : 409 "order.invalid_transition"
+      ctrl --> dlg : Failed state "That didn't go through"
+    else Paid
+      order -> order : Paid to Cancelled, EndedAt (L2-032)
+      h -> rr : RequestFullRefund(order, OrderCancelled)
+      rr --> h : Refund for Total + outbox IssueRefund
+      h -> db : Save order, refund, payout Cancelled, pending request Accepted, Listing.RemoveAfterCancellation, OrderCancelled email with reason to buyer (L2-035 criterion 1), one transaction
+      h --> ctrl : SaleDetailDto (Cancelled)
+      ctrl --> client : 200
+      page --> actor : "Cancelled · Buyer refunded in full" with "Relist item"
+    end
+  end
+end
+@enduml

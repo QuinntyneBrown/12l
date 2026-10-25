@@ -1,0 +1,69 @@
+@startuml
+title UML sequence behaviour — Publish a listing
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+actor "Seller" as actor
+box "Frontend — 12L Web application" #E0F2FE
+  participant "SellPage" as page
+  participant "ListingsApiService" as client
+end box
+box "Backend — 12L API application" #D1FADF
+  participant "ListingsController" as controller
+  participant "listing-publish limiter" as limiter
+end box
+box "Backend — TwelveL Application and Domain" #ECFDF3
+  participant "PublishListingCommandHandler" as handler
+  participant "Listing" as entity
+  participant "ISellerPayoutAccountReader" as payout
+end box
+box "Backend — TwelveL Infrastructure" #FFF4E5
+  database "12L database" as db
+  database "Distributed cache" as cache
+end box
+actor -> page : Tick size confirmation, choose "Publish"
+page -> page : Client checks; on failure show error summary and focus it
+page -> client : save draft (POST or PUT), then publish(id, sizeConfirmed)
+client -> controller : POST /api/listings/{reference}/publish
+controller -> limiter : Check listing-publish policy (L2-051)
+limiter -> cache : INCR rl:listing-publish:{memberId}:{yyyyMMdd}
+alt more than 20 today
+  limiter --> client : 429 with Retry-After
+  client --> page : Show limited state "That's 20 listings today"
+else within limit
+  controller -> handler : Send PublishListingCommand
+  handler -> db : Load seller's listing with photos
+  alt not found or not owned by caller
+    handler --> controller : NotFound
+    controller --> client : 404 (L2-010)
+  else listing found
+    handler -> entity : Publish(sizeConfirmed) applies L2-014 to L2-018
+    alt any publish rule fails
+      entity --> handler : Errors for every failing field
+      handler --> controller : LISTING_INVALID
+      controller --> client : 422 with errors per field
+      client --> page : Invalid state: summary at top, each error inline
+    else all rules pass
+      entity --> handler : Status Active, SizeConfirmedAt and PublishedAt set
+      handler -> db : Save with RowVersion check
+      db --> handler : Committed
+      handler -> payout : IsOnboardedAsync(sellerId) (L2-031)
+      payout --> handler : false
+      handler --> controller : PublishListingResult(PayoutOnboardingRequired = true)
+      controller --> client : 200
+      client --> page : Success state "It's live" with "Set up payouts" link
+    end
+  end
+end
+@enduml

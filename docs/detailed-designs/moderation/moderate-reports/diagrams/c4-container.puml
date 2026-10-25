@@ -1,0 +1,23 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Moderate reports
+
+Person(admin, "Administrator", "Resolves reports")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "Moderation queue, report detail, resolve report dialog")
+  Container(api, "12L API", "ASP.NET Core Web API", "Queue query, report resolution, order warning, audit entry")
+  Container(worker, "12L Worker", ".NET worker service", "Dispatches outbox email and refund messages")
+  ContainerDb(db, "12L database", "SQL Server", "Reports, listings, members, orders, audit log, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "Member status cache")
+}
+System_Ext(email, "Email provider", "Transactional email")
+System_Ext(pay, "Payment provider", "Refunds")
+Rel(admin, web, "Uses", "HTTPS")
+Rel(web, api, "GET /api/admin/queue, POST /api/admin/reports/{number}/resolution", "JSON/HTTPS")
+Rel(api, db, "Reads and writes in one transaction", "EF Core")
+Rel(api, cache, "Evicts member status on suspension", "RESP")
+Rel(worker, db, "Reads outbox", "EF Core")
+Rel(worker, email, "Sends email", "HTTPS")
+Rel(worker, pay, "Requests refund", "HTTPS")
+@enduml

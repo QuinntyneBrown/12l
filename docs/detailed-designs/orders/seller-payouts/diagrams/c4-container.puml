@@ -1,0 +1,21 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Seller payouts
+
+Person(seller, "Seller", "Member")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "Payouts page, payout banner, sale detail payout panel")
+  Container(api, "12L API", "ASP.NET Core", "Payout queries, onboarding link, webhook")
+  Container(worker, "12L Worker", ".NET worker service", "PayoutReleaseJob")
+  ContainerDb(db, "12L database", "SQL Server", "Payouts, payout accounts, orders")
+}
+System_Ext(pay, "Payment provider", "Payouts")
+Rel(seller, web, "Uses", "HTTPS")
+Rel(web, api, "Calls", "JSON/HTTPS")
+Rel(api, db, "Reads and writes", "EF Core")
+Rel(api, pay, "Creates onboarding links", "HTTPS")
+Rel(pay, api, "Posts account and payout events", "Signed webhook")
+Rel(worker, db, "Selects releasable payouts", "EF Core")
+Rel(worker, pay, "Creates transfers", "HTTPS")
+@enduml

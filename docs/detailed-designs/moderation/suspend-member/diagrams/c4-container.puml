@@ -1,0 +1,23 @@
+@startuml
+!include <C4/C4_Container>
+LAYOUT_WITH_LEGEND()
+title Containers — Suspend and reinstate a member
+
+Person(admin, "Administrator", "Suspends and reinstates")
+Person(member, "Suspended member", "Restricted account")
+System_Boundary(twelvel, "12L") {
+  Container(web, "12L Web", "Angular", "Member admin page, suspend member dialog, account banner")
+  Container(api, "12L API", "ASP.NET Core Web API", "Suspension commands and NotSuspended policy")
+  Container(worker, "12L Worker", ".NET worker service", "Sends suspension email from the outbox")
+  ContainerDb(db, "12L database", "SQL Server", "Members, MemberSuspensions, Listings, AuditEntries, outbox")
+  ContainerDb(cache, "Distributed cache", "Redis", "member:status:{memberId}")
+}
+System_Ext(email, "Email provider", "Transactional email")
+Rel(admin, web, "Uses", "HTTPS")
+Rel(member, web, "Uses", "HTTPS")
+Rel(web, api, "Calls", "JSON/HTTPS")
+Rel(api, db, "Reads and writes", "EF Core")
+Rel(api, cache, "Reads and evicts member status", "RESP")
+Rel(worker, db, "Reads outbox", "EF Core")
+Rel(worker, email, "Sends", "HTTPS")
+@enduml

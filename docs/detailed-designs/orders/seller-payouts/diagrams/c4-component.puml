@@ -1,0 +1,32 @@
+@startuml
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Components — Seller payouts
+
+Container(web, "12L Web", "Angular", "PayoutsPage, PayoutBanner, PayoutsApiService")
+Container_Boundary(api, "12L API") {
+  Component(ctrl, "PayoutsController", "ASP.NET Core controller", "/api/payouts endpoints")
+  Component(wh, "PaymentWebhookController", "ASP.NET Core controller", "account.updated, payout.paid, payout.failed")
+  Component(q, "GetPayoutSummaryQueryHandler", "MediatR handler", "Totals, account, history")
+  Component(ol, "CreateOnboardingLinkCommandHandler", "MediatR handler", "Provider-hosted onboarding URL")
+  Component(evt, "OrderCompletedPayoutHandler", "Domain event handler", "Marks payout Releasable on OrderCompleted")
+  Component(fee, "FeeCalculator", "Domain service", "Fee and net from Payouts:FeePercent")
+  Component(ent, "Payout, SellerPayoutAccount", "Domain", "Payout lifecycle")
+}
+Container_Boundary(worker, "12L Worker") {
+  Component(job, "PayoutReleaseJob", "Hosted service", "Transfers Releasable payouts of Completed orders")
+}
+ContainerDb(db, "12L database", "SQL Server", "Payouts")
+System_Ext(pay, "Payment provider", "Payouts")
+Rel(web, ctrl, "Calls", "JSON/HTTPS")
+Rel(ctrl, q, "Sends GetPayoutSummaryQuery")
+Rel(ctrl, ol, "Sends CreateOnboardingLinkCommand")
+Rel(ol, pay, "Creates account link", "HTTPS")
+Rel(wh, ent, "Updates onboarding and payout status")
+Rel(evt, ent, "Release()")
+Rel(evt, fee, "Uses")
+Rel(job, ent, "MarkSent / MarkFailed")
+Rel(job, pay, "CreatePayoutAsync", "HTTPS")
+Rel(q, db, "Reads", "SQL")
+Rel(job, db, "Reads and writes", "SQL")
+@enduml

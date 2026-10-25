@@ -1,0 +1,119 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Upload listing photos
+
+package "TwelveL.Domain" {
+  enum PhotoStatus {
+    Processing
+    Ready
+    Failed
+  }
+  enum PhotoFormat {
+    WebP
+    Jpeg
+  }
+  class ListingPhoto {
+    +Guid Id
+    +Guid OwnerId
+    +Guid? ListingId
+    +int? Position
+    +PhotoStatus Status
+    +string OriginalKey
+    +string OriginalContentType
+    +long OriginalBytes
+    +string OriginalHash
+    +int Width
+    +int Height
+    +string? FailureCode
+    +DateTime CreatedAt
+    +DateTime? ProcessedAt
+    +MarkReady(versions): void
+    +MarkFailed(code: string): void
+    +AttachTo(listingId: Guid, position: int): void
+    +Detach(): void
+  }
+  class ListingPhotoVersion {
+    +int Width
+    +int Height
+    +PhotoFormat Format
+    +string ContentHash
+    +string Key
+    +long Bytes
+  }
+  class Listing {
+    +Guid Id
+    +SetPhotos(photos: IReadOnlyList<ListingPhoto>): void
+  }
+}
+
+package "TwelveL.Application" {
+  class UploadListingPhotoCommand {
+    +Stream Content
+    +long Length
+    +string FileName
+  }
+  class UploadListingPhotoCommandHandler {
+    +Handle(command): Task<PhotoUploadDto>
+  }
+  class ProcessListingPhotoCommand {
+    +Guid PhotoId
+  }
+  class PhotoUploadDto {
+    +Guid Id
+    +string Status
+    +string? ThumbnailUrl
+    +string? ErrorCode
+  }
+  class ListingPhotoAttacher {
+    +AttachAsync(listing: Listing, photoIds: IReadOnlyList<Guid>, ownerId: Guid): Task
+  }
+  interface IImageInspector {
+    +InspectAsync(stream: Stream): Task<ImageInfo?>
+  }
+  interface IPhotoStorage {
+    +PutOriginalAsync(key, stream): Task
+    +GetOriginalAsync(key): Task<Stream>
+    +PutPublicAsync(key, bytes, contentType): Task
+    +DeleteAsync(key): Task
+  }
+  interface IListingPhotoProcessor {
+    +ProcessAsync(original: Stream): Task<IReadOnlyList<EncodedVersion>>
+  }
+}
+
+package "TwelveL.Infrastructure / Worker" {
+  class ImageSharpInspector
+  class ImageSharpPhotoProcessor
+  class ObjectStoragePhotoStorage
+  class PhotoProcessingJob
+  class PhotoCleanupJob
+}
+
+UploadListingPhotoCommandHandler ..> UploadListingPhotoCommand : handles
+UploadListingPhotoCommandHandler ..> IImageInspector : uses
+UploadListingPhotoCommandHandler ..> IPhotoStorage : uses
+UploadListingPhotoCommandHandler ..> ListingPhoto : creates
+UploadListingPhotoCommandHandler ..> PhotoUploadDto : returns
+PhotoProcessingJob ..> ProcessListingPhotoCommand : dispatches
+PhotoProcessingJob ..> IListingPhotoProcessor : uses
+PhotoProcessingJob --> ListingPhoto : marks Ready / Failed
+ListingPhotoAttacher --> Listing : sets photos
+ListingPhotoAttacher --> ListingPhoto : attaches / detaches
+ListingPhoto "1" *-- "0..6" ListingPhotoVersion : versions
+ListingPhoto --> PhotoStatus
+ListingPhotoVersion --> PhotoFormat
+Listing "1" o-- "0..8" ListingPhoto : ordered photos
+ImageSharpInspector ..|> IImageInspector
+ImageSharpPhotoProcessor ..|> IListingPhotoProcessor
+ObjectStoragePhotoStorage ..|> IPhotoStorage
+PhotoCleanupJob ..> IPhotoStorage : deletes
+@enduml

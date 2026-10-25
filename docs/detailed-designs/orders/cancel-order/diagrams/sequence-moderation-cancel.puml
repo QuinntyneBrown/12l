@@ -1,0 +1,41 @@
+@startuml
+title UML sequence behaviour — Administrator removal cancels a Paid order (IOrderModerationPort)
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 12
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam rectangle {
+  BorderColor #344054
+  FontColor #101828
+}
+skinparam package {
+  BorderColor #667085
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+skinparam sequenceMessageAlign left
+skinparam maxMessageSize 260
+box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
+  participant "ResolveReportCommandHandler\n(moderation)" as mod
+  participant "OrderModerationPort" as port
+  participant "ReleaseCheckoutCommandHandler" as rel
+  participant "CancelOrderCommandHandler" as ch
+end box
+box "Backend — TwelveL.Infrastructure" #FFF4E5
+  database "12L database" as db
+end box
+mod -> port : GetListingOrderStateAsync(listingId)
+port -> db : Read open checkout and order for the listing
+port --> mod : None, Reserved, PaidOrder or OrderPastPaid
+mod -> port : CancelForListingRemovalAsync(listingId, reason, administratorId)
+alt Reserved
+  port -> rel : ReleaseCheckoutCommand(reason ListingRemoved)
+  rel -> db : Checkout Released, listing Active (same unit of work)
+else PaidOrder
+  port -> ch : CancelOrderCommand(ListingRemovedByAdministrator, actor Administrator)
+  ch -> db : Paid to Cancelled, full refund, payout Cancelled, OrderCancelled email (L2-045 criterion 4); listing left Sold for Listing.RemoveByAdministrator
+else None or OrderPastPaid
+  port --> mod : No order change
+end
+@enduml

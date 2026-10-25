@@ -1,0 +1,108 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — Moderate reports
+
+enum ReportStatus {
+  Open
+  Dismissed
+  ListingRemoved
+  MemberSuspended
+}
+enum ReportDecision {
+  Dismiss
+  RemoveListing
+  SuspendMember
+}
+enum QueueItemKind {
+  ListingReport
+  MemberReport
+  OrderProblem
+}
+enum ListingOrderState {
+  None
+  Reserved
+  PaidOrder
+  OrderPastPaid
+}
+class Report {
+  +Guid Id
+  +int Number
+  +ReportStatus Status
+  +DateTime OpenedAt
+  +ReportDecision? Decision
+  +string? ResolutionReason
+  +Guid? ResolvedByAdministratorId
+  +DateTime? ResolvedAt
+  +byte[] RowVersion
+  +Resolve(decision: ReportDecision, reason: string, adminId: Guid, now: DateTime): void
+}
+class Listing {
+  +Guid Id
+  +string DisplayId
+  +ListingStatus Status
+  +bool IsHiddenPendingReview
+  +string? RemovalReason
+  +RemoveByAdministrator(reason: string, now: DateTime): void
+  +ReturnToCatalog(): void
+}
+class ResolveReportCommand {
+  +int ReportNumber
+  +ReportDecision Decision
+  +string Reason
+  +bool ConfirmOrderCancellation
+  +Guid AdministratorId
+}
+class ResolveReportCommandValidator
+class ResolveReportCommandHandler {
+  +Handle(command: ResolveReportCommand, ct: CancellationToken): Task<Result<ReportResolutionDto>>
+}
+class GetModerationQueueQueryHandler {
+  +Handle(query: GetModerationQueueQuery, ct: CancellationToken): Task<ModerationQueuePage>
+}
+class ModerationQueueItemDto {
+  +QueueItemKind Kind
+  +string Id
+  +string Title
+  +string Reason
+  +int ReporterCount
+  +DateTime OpenedAt
+  +bool IsHidden
+  +bool PayoutHeld
+}
+interface IOrderModerationPort {
+  +GetListingOrderStateAsync(listingId: Guid): Task<ListingOrderState>
+  +CancelForListingRemovalAsync(listingId: Guid, reason: string, adminId: Guid): Task
+}
+interface IOrderProblemQueueSource {
+  +GetOpenProblemsAsync(): Task<IReadOnlyList<ModerationQueueItemDto>>
+}
+interface IAuditLog {
+  +Record(action: AuditAction, targetType: string, targetId: string, reason: string): void
+}
+class MemberSuspensionService {
+  +Suspend(member: Member, reason: string, adminId: Guid, now: DateTime): void
+}
+
+Report --> ReportStatus
+Report --> ReportDecision
+ResolveReportCommandValidator ..> ResolveReportCommand : validates
+ResolveReportCommandHandler ..> ResolveReportCommand : handles
+ResolveReportCommandHandler --> Report : resolves
+ResolveReportCommandHandler --> Listing : removes / returns
+ResolveReportCommandHandler --> IOrderModerationPort
+ResolveReportCommandHandler --> MemberSuspensionService
+ResolveReportCommandHandler --> IAuditLog
+IOrderModerationPort ..> ListingOrderState
+GetModerationQueueQueryHandler --> IOrderProblemQueueSource
+GetModerationQueueQueryHandler ..> ModerationQueueItemDto : returns
+ModerationQueueItemDto --> QueueItemKind
+@enduml

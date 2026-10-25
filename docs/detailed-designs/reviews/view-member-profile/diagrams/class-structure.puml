@@ -1,0 +1,105 @@
+@startuml
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundcorner 8
+skinparam defaultFontName Arial
+skinparam ArrowColor #344054
+skinparam class {
+  BorderColor #344054
+  FontColor #101828
+  BackgroundColor #F9FAFB
+}
+title Class structure — View a member profile
+
+class MemberReputation {
+  +Guid MemberId
+  +int PublishedReviewCount
+  +int PublishedStarsTotal
+  +int CompletedSalesCount
+  +byte[] RowVersion
+  +ApplyPublishedReview(stars: int): void
+  +ApplyCompletedSale(): void
+  +RatingSummary: RatingSummary
+}
+
+class RatingSummary <<value object>> {
+  +decimal? Average
+  +int Count
+  +{static} From(total: int, count: int): RatingSummary
+}
+
+class PublicProfileDto {
+  +Guid MemberId
+  +string DisplayName
+  +string? AvatarUrl
+  +string? Bio
+  +string? PublicLocation
+  +DateOnly MemberSince
+  +RatingSummaryDto Rating
+  +int CompletedSales
+  +int ActiveListingCount
+}
+
+class RatingSummaryDto {
+  +decimal? Average
+  +int Count
+}
+
+class PublicReviewDto {
+  +Guid ReviewId
+  +PublicAuthorDto? Author
+  +int Stars
+  +string? Comment
+  +DateTimeOffset PublishedAt
+  +PublicReplyDto? Reply
+}
+
+class PublicAuthorDto {
+  +string DisplayName
+  +string? AvatarUrl
+}
+
+class PublicReplyDto {
+  +string Text
+  +DateTimeOffset PostedAt
+}
+
+class "PagedResult<T>" as PagedResult {
+  +IReadOnlyList<T> Items
+  +int Page
+  +int PageSize
+  +int Total
+}
+
+class GetPublicProfileQueryHandler {
+  +Handle(query: GetPublicProfileQuery): Task<Result<PublicProfileDto>>
+}
+class GetMemberListingsQueryHandler {
+  +Handle(query: GetMemberListingsQuery): Task<Result<PagedResult<ListingCardDto>>>
+}
+class GetMemberReviewsQueryHandler {
+  +Handle(query: GetMemberReviewsQuery): Task<Result<PagedResult<PublicReviewDto>>>
+}
+class UpdateReputationOnReviewPublishedHandler {
+  +Handle(event: ReviewPublished): Task
+}
+class UpdateReputationOnOrderCompletedHandler {
+  +Handle(event: OrderCompleted): Task
+}
+interface IRatingSummaryReader {
+  +GetAsync(memberIds: IReadOnlyCollection<Guid>): Task<IReadOnlyDictionary<Guid, RatingSummary>>
+}
+
+MemberReputation ..> RatingSummary : produces
+PublicProfileDto *-- RatingSummaryDto
+PublicReviewDto *-- "0..1" PublicAuthorDto
+PublicReviewDto *-- "0..1" PublicReplyDto
+GetPublicProfileQueryHandler ..> PublicProfileDto : projects
+GetPublicProfileQueryHandler --> MemberReputation : reads
+GetMemberReviewsQueryHandler ..> PublicReviewDto : projects
+GetMemberReviewsQueryHandler ..> PagedResult : returns
+GetMemberListingsQueryHandler ..> PagedResult : returns
+UpdateReputationOnReviewPublishedHandler --> MemberReputation : mutates
+UpdateReputationOnOrderCompletedHandler --> MemberReputation : mutates
+IRatingSummaryReader ..> RatingSummary : returns
+@enduml
