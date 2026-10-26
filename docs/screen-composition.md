@@ -263,8 +263,20 @@ App shell. The same `OrderHistoryPage` with route data `list: 'sales'`, built by
 
 ### Your listings — `/account/listings` (`pages/my-listings`: default, filtered, loading, empty, error)
 
-- Library: not yet composed
-- Local: not yet composed
+App shell. `@12l/listings` `MyListingsPage` (`src/lib/my-listings/`), built by manage-my-listings.
+The status is kept in the URL query (`?status=sold`). The payout banner stays in the app shell
+(ADR orders/0005, ADR listings/0002). The account sub-navigation of the mocks is composed with
+the account overview journey.
+
+- Library: `tl-button` (primary "Sell an item" with icon `plus`), `tl-filter-chips` ("Filter by
+  status": All, Draft, Active, Reserved, Sold, Removed with counts), `tl-item-row` (title or
+  "Untitled draft · {category}", thumbnail, with `tl-status` projected under the title in the
+  tone of the listing status), `tl-icon` (`image` placeholder for a listing without photo),
+  `tl-empty-state` (icon `tag`, "Nothing listed yet" with primary "Sell an item"; error tone, icon
+  `refresh`, "Couldn’t load your listings" with the reference and primary "Try again")
+- Local: the page header with "{n} listings · {n} active", the `.order-list` rows linking to
+  `/sell/{reference}` (Draft), `/sales/{orderId}` (Sold) or `/items/{reference}` with the price
+  ("$60" or "—") and the date ("Today", "Yesterday", "Sat 24 Oct"), and the four skeleton rows
 
 ### Payouts — `/account/payouts` (`pages/payouts`: default, not-onboarded, loading, empty, error)
 

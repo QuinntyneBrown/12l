@@ -13,32 +13,27 @@ title Class structure — Manage my listings
 
 package "TwelveL.Application" {
   class GetMyListingsQuery {
-    +ListingStatus? Status
-    +string? Cursor
-    +int PageSize
+    +Guid SellerId
+    +string? Status
   }
   class GetMyListingsQueryHandler {
-    +Handle(query): Task<MyListingsPage>
+    +Handle(query): Task<Result<MyListingsDto>>
   }
-  class MyListingsPage {
-    +IReadOnlyList<MyListingSummaryDto> Items
-    +MyListingCounts Counts
-    +string? NextCursor
+  class MyListingsDto {
+    +IReadOnlyList<MyListingRowDto> Items
+    +MyListingCountsDto Counts
   }
-  class MyListingSummaryDto {
-    +Guid Id
+  class MyListingRowDto {
     +string Reference
+    +string Status
     +string? Title
     +string Category
-    +string Status
     +decimal? Price
-    +string? CoverThumbnailUrl
-    +int? CoverWidth
-    +int? CoverHeight
+    +CardPhotoDto? Photo
     +DateTime CreatedAt
     +Guid? SaleOrderId
   }
-  class MyListingCounts {
+  class MyListingCountsDto {
     +int All
     +int Draft
     +int Active
@@ -46,7 +41,7 @@ package "TwelveL.Application" {
     +int Sold
     +int Removed
   }
-  class DraftExpiryReminderEmail {
+  class "DraftExpiryReminderEmail (deferred)" as DraftExpiryReminderEmail {
     +Guid MemberId
     +string Reference
     +string? Title
@@ -68,7 +63,7 @@ package "TwelveL.Domain" {
 }
 
 package "TwelveL.Worker" {
-  class DraftCleanupJob {
+  class "DraftCleanupJob (deferred)" as DraftCleanupJob {
     +ExecuteAsync(ct): Task
   }
   class DraftCleanupOptions {
@@ -80,17 +75,17 @@ package "TwelveL.Worker" {
 }
 
 package "TwelveL.Api" {
-  class MyListingsController {
-    +List(status, cursor, pageSize): Task<IActionResult>
-    +Get(id): Task<IActionResult>
+  class ListingsController {
+    +Mine(status): Task<IActionResult>
+    +GetMine(reference): Task<IActionResult>
   }
 }
 
-MyListingsController ..> GetMyListingsQuery : sends
+ListingsController ..> GetMyListingsQuery : sends
 GetMyListingsQueryHandler ..> GetMyListingsQuery : handles
-GetMyListingsQueryHandler ..> MyListingsPage : returns
-MyListingsPage "1" *-- "*" MyListingSummaryDto
-MyListingsPage *-- MyListingCounts
+GetMyListingsQueryHandler ..> MyListingsDto : returns
+MyListingsDto "1" *-- "*" MyListingRowDto
+MyListingsDto *-- MyListingCountsDto
 GetMyListingsQueryHandler ..> Listing : projects
 DraftCleanupJob --> Listing : reminds / deletes
 DraftCleanupJob ..> DraftExpiryReminderEmail : writes to outbox

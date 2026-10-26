@@ -125,7 +125,7 @@ The slice runs from the sell page in the `@12l/listings` library through `12L AP
 - Size confirmation is stored as `SizeConfirmedAt` on each publish; the earlier draft has none.
 - `Cache-Control: max-age=3600` on categories, the 500-character flaws limit and the `L-10001` start are chosen here; change them in this design if the product owner decides otherwise.
 - Earnings round half up to the cent (`Math.round` on cents).
-- Deferred: photos (upload-listing-photos), editing an active listing and withdrawing (edit-and-withdraw-listing), the seller's list of listings (manage-my-listings), the payout onboarding flow behind "Set up payouts" (seller-payouts), the toast after a failed draft save (responsive-accessible-shell), the anti-forgery header of `L2-050` (harden-http-and-api; `SameSite=Strict` cookies apply meanwhile) and the `RowVersion` concurrency token (checkout-and-pay).
+- Deferred: photos (upload-listing-photos), editing an active listing and withdrawing (edit-and-withdraw-listing), the seller's list of listings (since built by manage-my-listings at `/account/listings`; the library is now mounted at `/`), the payout onboarding flow behind "Set up payouts" (seller-payouts), the toast after a failed draft save (responsive-accessible-shell), the anti-forgery header of `L2-050` (harden-http-and-api; `SameSite=Strict` cookies apply meanwhile) and the `RowVersion` concurrency token (checkout-and-pay).
 
 ## Requirements
 
