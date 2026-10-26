@@ -55,6 +55,8 @@ seller summary, the edit and star icons and the status code of the center state.
 | [Gallery](components/gallery.html) | one photo, several photos | selected thumbnail, swiped | listing-detail/default |
 | [Buy bar](components/buy-bar.html) | Buy now, Edit listing | sticky below 992 px, inline from 992 px | listing-detail/default, listing-detail/guest, listing-detail/own |
 | [Seller summary](components/seller-summary.html) | established, new seller | static | listing-detail/default, listing-detail/new-seller |
+| [Order summary](components/order-summary.html) | priced, not yet priced | static | checkout/default, checkout/new-address |
+| [Reservation timer](components/reservation-timer.html) | info, warning, danger | counting, last minute, ended | checkout/default, reservation-timer/warning, reservation-timer/danger |
 | [Photo uploader](components/photo-uploader.html) | one | empty, uploading, filled, rejected, invalid, full | sell/default, sell/filled, sell/invalid |
 | [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |

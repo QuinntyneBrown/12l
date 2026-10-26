@@ -23,7 +23,6 @@ enum PaymentStatus {
   Pending
   Succeeded
   Failed
-  Refunded
 }
 enum ListingStatus {
   Draft
@@ -37,41 +36,42 @@ class Listing <<listings subsystem>> {
   +Guid SellerId
   +ListingStatus Status
   +Guid? ReservedByCheckoutId
-  +DateTimeOffset? ReservedUntil
-  +Money Price
-  +Money ShippingCost
-  +byte[] RowVersion
-  +Reserve(checkoutId, until): void
-  +ReleaseReservation(checkoutId): void
-  +MarkSold(checkoutId): void
+  +DateTime? ReservedUntil
+  +decimal? Price
+  +decimal? ShippingCost
+  +CanBePurchasedBy(buyerId): bool
+  +ReleaseReservation(checkoutId, now): void
+  +MarkSold(now): void
 }
 class Checkout <<aggregate root>> {
   +Guid Id
   +Guid ListingId
   +Guid BuyerId
   +CheckoutStatus Status
-  +DateTimeOffset StartedAt
-  +DateTimeOffset ExpiresAt
-  +Money ItemPrice
-  +Money ShippingCost
-  +Money? SalesTax
-  +Money? Total
+  +DateTime StartedAt
+  +DateTime ExpiresAt
+  +decimal ItemPrice
+  +decimal ShippingCost
+  +decimal? SalesTax
+  +decimal? Total
   +ShippingAddress? Address
   +string? LastDeclineReason
   +Guid? OrderId
-  +byte[] RowVersion
+  +{static} Start(id, listingId, buyerId, price, shipping, now): Checkout
+  +IsLive(now): bool
   +SetAddress(address, tax): void
-  +BeginPayment(idempotencyKey): void
+  +BeginPayment(): void
   +RecordDecline(reason): void
-  +Release(reason): void
+  +MarkPaid(orderId, now): void
+  +Release(Released or Expired, now): void
 }
 class Payment {
   +Guid Id
   +Guid CheckoutId
-  +string IdempotencyKey
-  +string? ProviderPaymentId
-  +Money Amount
+  +Guid IdempotencyKey
+  +decimal Amount
   +PaymentStatus Status
+  +string? ProviderPaymentId
   +string? CardBrand
   +string? CardLast4
   +string? DeclineReason
@@ -79,14 +79,12 @@ class Payment {
 class PaymentWebhookEvent {
   +string ProviderEventId
   +string Type
-  +DateTimeOffset ReceivedAt
-  +DateTimeOffset? ProcessedAt
+  +DateTime ProcessedAt
 }
 class Refund {
   +Guid Id
   +Guid PaymentId
-  +Guid? OrderId
-  +Money Amount
+  +decimal Amount
   +RefundReason Reason
   +RefundStatus Status
   +string? ProviderRefundId
@@ -94,32 +92,33 @@ class Refund {
 class SavedAddress {
   +Guid MemberId
   +ShippingAddress Address
-  +DateTimeOffset UpdatedAt
+  +DateTime UpdatedAt
 }
 class ShippingAddress <<value object>> {
   +string FullName
-  +string Street
-  +string? Apartment
+  +string Line1
+  +string? Line2
   +string City
-  +UsState State
+  +string State
   +string Zip
   +string Country
+  +{static} Check(...): RuleViolation[]
 }
-class Order <<see ship-order>> {
-  +{static} CreatePaid(checkout, payment, feeRate, at): Order
+class Order <<ship-order extends>> {
+  +string Reference
+  +OrderStatus Status
+  +decimal Total
+  +{static} CreatePaid(number, checkout, sellerId, payment, now): Order
 }
 interface IPaymentProvider {
-  +CreatePaymentAsync(amount, methodToken, idempotencyKey, metadata): Task<ProviderPayment>
-  +QuoteTaxAsync(address, taxableAmount): Task<Money>
-  +RefundAsync(providerPaymentId, amount, idempotencyKey): Task<ProviderRefund>
-  +VerifyWebhookSignature(payload, signatureHeader): bool
+  +QuoteTaxAsync(taxableAmount, address): Task<decimal>
+  +CreatePaymentAsync(PaymentRequest): Task<string>
+  +RefundAsync(providerPaymentId, amount, key): Task<string>
+  +ReadWebhook(body, signature): PaymentEvent?
 }
-class StartCheckoutCommandHandler
-class SetCheckoutAddressCommandHandler
-class SubmitPaymentCommandHandler
-class ConfirmPaymentCommandHandler
-class RecordPaymentFailureCommandHandler
-class ReleaseCheckoutCommandHandler
+class CheckoutCommandHandlers
+class PaymentWebhookHandler
+class ExpireReservationsHandler
 class ReservationExpiryJob
 
 Checkout --> CheckoutStatus
@@ -130,17 +129,15 @@ Payment --> PaymentStatus
 Payment "1" o-- "0..*" Refund
 Listing --> ListingStatus
 SavedAddress --> ShippingAddress
-StartCheckoutCommandHandler --> Listing : Reserve
-StartCheckoutCommandHandler --> Checkout : creates
-StartCheckoutCommandHandler ..> SavedAddress : offers by default
-SetCheckoutAddressCommandHandler ..> IPaymentProvider : QuoteTaxAsync
-SubmitPaymentCommandHandler ..> IPaymentProvider : CreatePaymentAsync
-SubmitPaymentCommandHandler --> Payment : creates
-ConfirmPaymentCommandHandler ..> PaymentWebhookEvent : deduplicates
-ConfirmPaymentCommandHandler ..> Order : CreatePaid
-ConfirmPaymentCommandHandler ..> Refund : duplicate payment
-RecordPaymentFailureCommandHandler --> Checkout : RecordDecline
-ReleaseCheckoutCommandHandler --> Checkout : Release
-ReleaseCheckoutCommandHandler --> Listing : ReleaseReservation
-ReservationExpiryJob ..> ReleaseCheckoutCommandHandler
+CheckoutCommandHandlers --> Listing : conditional update to Reserved
+CheckoutCommandHandlers --> Checkout : starts, prices, pays, releases
+CheckoutCommandHandlers ..> SavedAddress : offers by default
+CheckoutCommandHandlers ..> IPaymentProvider : QuoteTaxAsync, CreatePaymentAsync
+PaymentWebhookHandler ..> IPaymentProvider : ReadWebhook, RefundAsync
+PaymentWebhookHandler ..> PaymentWebhookEvent : deduplicates
+PaymentWebhookHandler ..> Order : CreatePaid
+PaymentWebhookHandler ..> Refund : duplicate payment
+ExpireReservationsHandler --> Checkout : Release(Expired)
+ExpireReservationsHandler --> Listing : ReleaseReservation
+ReservationExpiryJob ..> ExpireReservationsHandler
 @enduml

@@ -145,6 +145,29 @@ test.describe('checkout and pay', () => {
     expect(sent.filter((r) => r.method === 'PUT').at(-1)?.body).toMatchObject({ city: 'Toronto', country: 'CA' });
   });
 
+  test('a new address that changes the tax shows the new total before any payment', async ({ page }) => {
+    const sent = await serveCheckout(page);
+    let puts = 0;
+    await page.route('**/api/checkouts/c-1/address', (route) =>
+      ++puts === 1 ? route.fallback() : route.fulfill({ json: pricedCheckout({ salesTax: '6.81', total: '100.81' }) }),
+    );
+    const checkoutPage = new CheckoutPage(page);
+    await checkoutPage.goto();
+    await expect(checkoutPage.pay).toHaveText('Pay $102.34');
+
+    await checkoutPage.newAddress.check();
+    await checkoutPage.street.fill('500 Congress Ave');
+    await checkoutPage.city.fill('Austin');
+    await checkoutPage.state.selectOption('TX');
+    await checkoutPage.zip.fill('78701');
+    await checkoutPage.pay.click();
+
+    await expect(checkoutPage.formAlert).toContainText('The total changed');
+    await expect(checkoutPage.summary.locator('dl')).toContainText('Total$100.81');
+    await expect(checkoutPage.pay).toHaveText('Pay $100.81');
+    expect(sent.filter((r) => r.url.endsWith('/payments'))).toHaveLength(0);
+  });
+
   test('a declined card shows the reason and the buyer can try again with a new key', async ({ page }) => {
     const sent = await serveCheckout(page, {
       polls: [

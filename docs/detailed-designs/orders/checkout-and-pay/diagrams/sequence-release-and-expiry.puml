@@ -20,7 +20,7 @@ actor "Buyer" as actor
 box "Frontend — 12L Web application" #E0F2FE
   participant "CheckoutPage" as page
   participant "ReservationTimer" as timer
-  participant "CheckoutApiService" as client
+  participant "CheckoutApi (@12l/api)" as client
 end box
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
   participant "CheckoutsController" as ctrl
@@ -29,7 +29,7 @@ box "Backend — 12L Worker application (TwelveL.Worker)" #D1FADF
   participant "ReservationExpiryJob" as job
 end box
 box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
-  participant "ReleaseCheckoutCommandHandler" as h
+  participant "Checkout handlers" as h
   participant "Checkout" as co
 end box
 box "Backend — TwelveL.Infrastructure" #FFF4E5
@@ -39,8 +39,8 @@ alt buyer chooses "Cancel and release item" (L2-028 criterion 4)
   actor -> page : Cancel and release item
   page -> client : releaseCheckout(id)
   client -> ctrl : DELETE /api/checkouts/{id}
-  ctrl -> h : ReleaseCheckoutCommand(reason BuyerCancelled)
-  h -> co : Release(BuyerCancelled)
+  ctrl -> h : ReleaseCheckoutCommand
+  h -> co : Release(Released)
   h -> db : Checkout Released; Listing Active where ReservedByCheckoutId = id
   ctrl --> client : 204
   page --> actor : Back to the listing
@@ -49,10 +49,10 @@ else timer runs out
   timer --> actor : At 0:00 disable Pay, danger banner "Your reservation ended. You weren't charged."
   job -> db : Every Checkout:ExpiryJobInterval select Open or Processing checkouts with ExpiresAt <= now
   loop each expired checkout
-    job -> h : ReleaseCheckoutCommand(reason Expired)
+    job -> h : ExpireReservationsCommand
     h -> co : Release(Expired)
     h -> db : Checkout Expired; Listing Active (L2-028 criterion 3)
   end
-  note over job : A payment that succeeds after expiry is handled by ConfirmPaymentCommandHandler: order if the listing is still Active, refund otherwise
+  note over job : A payment that succeeds after expiry is handled by PaymentWebhookHandler: order if the listing is still Active, refund otherwise
 end
 @enduml
