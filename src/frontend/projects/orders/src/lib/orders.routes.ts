@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-/** Lazy routes of the orders feature area, mounted at /: checkout, the order confirmation, the buyer's order, the seller's sale, payouts and the administrator's problem page (admin shell). */
+/** Lazy routes of the orders feature area, mounted at /: checkout, the order confirmation, purchases and sales, the buyer's order, the seller's sale, payouts and the administrator's problem page (admin shell). */
 export const routes: Routes = [
   {
     path: 'checkout/:reference',
@@ -21,6 +21,18 @@ export const routes: Routes = [
     path: 'sales/:id',
     loadComponent: () => import('./sale-detail/sale-detail-page').then((m) => m.SaleDetailPage),
     title: 'Sale · 12L',
+  },
+  {
+    path: 'account/purchases',
+    loadComponent: () => import('./order-history/order-history-page').then((m) => m.OrderHistoryPage),
+    title: 'Purchases · 12L',
+    data: { list: 'purchases' },
+  },
+  {
+    path: 'account/sales',
+    loadComponent: () => import('./order-history/order-history-page').then((m) => m.OrderHistoryPage),
+    title: 'Sales · 12L',
+    data: { list: 'sales' },
   },
   {
     path: 'account/payouts',

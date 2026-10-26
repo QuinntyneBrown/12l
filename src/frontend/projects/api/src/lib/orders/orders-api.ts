@@ -60,7 +60,8 @@ export interface Sale {
   salesTax: string;
   total: string;
   buyerDisplayName: string;
-  shipTo: ShippingAddress;
+  /** Null 30 days after the order ended: the address is no longer shown (L2-037). */
+  shipTo: ShippingAddress | null;
   timeline: OrderTimelineStep[];
   tracking: Tracking | null;
   payout: SalePayout | null;
@@ -71,17 +72,45 @@ export interface Sale {
   problem: OrderProblem | null;
 }
 
+/** One row of "Purchases" or "Sales" (L2-037); shipBy only on a Paid sale. */
+export interface OrderRow {
+  id: string;
+  reference: string;
+  status: OrderStatus;
+  item: CheckoutItem;
+  total: string;
+  otherParty: string;
+  paidAt: string;
+  shipBy: string | null;
+}
+
+/** The member's purchases or sales newest first, with the counts the page subtitle reads. */
+export interface OrderList {
+  items: OrderRow[];
+  counts: { onTheWay: number; toConfirm: number; toShip: number };
+}
+
 /** The carriers a seller can choose in Add tracking. */
 export const CARRIERS = ['USPS', 'UPS', 'FedEx', 'DHL'] as const;
 
 /**
- * Typed client for order actions: the seller's sale and tracking (ship-order), the buyer's receipt
+ * Typed client for order history (purchases and sales lists) and order actions: the seller's sale and tracking (ship-order), the buyer's receipt
  * (complete-order), cancelling, asking to cancel and answering a request (cancel-order).
  */
 @Injectable({ providedIn: 'root' })
 export class OrdersApi {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = inject(API_BASE_URL);
+
+  /** The signed-in member's purchases, newest first (L2-037). */
+  purchases(): Promise<ApiResult<OrderList>> {
+    return toResult(this.http.get<OrderList>(`${this.baseUrl}/purchases`));
+  }
+
+  /** The signed-in member's sales, newest first (L2-037). */
+  sales(): Promise<ApiResult<OrderList>> {
+    return toResult(this.http.get<OrderList>(`${this.baseUrl}/sales`));
+  }
 
   /** 404 ORDER_NOT_FOUND for anyone but the order's seller. */
   sale(id: string): Promise<ApiResult<Sale>> {

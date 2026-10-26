@@ -35,13 +35,21 @@ test.describe('checkout and pay', () => {
   });
 
   test('a buyer pays with the saved address and sees the confirmation', async ({ page, unfixturedApiCalls }) => {
+    // The installed clock follows real time, so under parallel load whole seconds passed before the
+    // timer was read ("9:35 left"). Pause half a second in, so the countdown reads 9:41 for as long
+    // as the test needs, tick 1 ms at a time to let the page render, then let time run again.
+    await page.clock.pauseAt(new Date(checkoutStart.getTime() + 500));
     const sent = await serveCheckout(page);
     const checkoutPage = new CheckoutPage(page);
     await checkoutPage.goto();
+    await expect(async () => {
+      await page.clock.runFor(1);
+      await expect(checkoutPage.timer).toHaveText('Reserved for you · 9:41 left', { timeout: 200 });
+    }).toPass();
+    await page.clock.resume();
 
     await expect(checkoutPage.heading).toHaveText('Checkout');
     await expect(page).toHaveTitle('Checkout · 12L');
-    await expect(checkoutPage.timer).toHaveText('Reserved for you · 9:41 left');
     await expect(checkoutPage.savedAddress).toBeChecked();
     await expect(checkoutPage.summary).toContainText('Air Max 90, white');
     await expect(checkoutPage.summary).toContainText("Nike · Men's US 12 · Used - Excellent");

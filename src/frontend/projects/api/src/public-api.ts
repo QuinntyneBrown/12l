@@ -30,6 +30,8 @@ export {
   OrdersApi,
   type Cancellation,
   type CancellationRequest,
+  type OrderList,
+  type OrderRow,
   type OrderStatus,
   type OrderTimelineStep,
   type Sale,

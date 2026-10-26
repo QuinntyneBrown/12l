@@ -22,7 +22,9 @@ export type IconName =
   | 'truck'
   | 'external'
   | 'search'
-  | 'flag';
+  | 'flag'
+  | 'eye-off'
+  | 'bag';
 
 /** One decorative inline SVG icon from the 12L set, hidden from assistive technology (design system: Icon). */
 @Component({

@@ -118,13 +118,20 @@
             }
             <div class="stack stack--sm">
               <h2 class="panel__title">Ship to</h2>
-              <address class="address">
-                {{ sale.shipTo.fullName }}<br />{{ sale.shipTo.line1
-                }}{{ sale.shipTo.line2 ? ', ' + sale.shipTo.line2 : '' }}<br />{{ sale.shipTo.city }},
-                {{ sale.shipTo.state }}
-                {{ sale.shipTo.zip }}
-              </address>
-              <p class="text-caption">Visible until 30 days after the order ends.</p>
+              @if (sale.shipTo; as shipTo) {
+                <address class="address">
+                  {{ shipTo.fullName }}<br />{{ shipTo.line1 }}{{ shipTo.line2 ? ', ' + shipTo.line2 : '' }}<br />{{
+                    shipTo.city
+                  }},
+                  {{ shipTo.state }}
+                  {{ shipTo.zip }}
+                </address>
+                <p class="text-caption">Visible until 30 days after the order ends.</p>
+              } @else {
+                <p class="text-muted text-sm">
+                  <tl-icon name="eye-off" size="sm" /> Removed 30 days after the order ended.
+                </p>
+              }
             </div>
             @if (sale.status === 'Paid' && !requested()) {
               <div class="cluster">

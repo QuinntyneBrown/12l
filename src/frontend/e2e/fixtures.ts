@@ -582,3 +582,26 @@ export function payoutSummary(fields: Record<string, unknown> = {}): Record<stri
     ...fields,
   };
 }
+
+/** One row of GET /api/purchases or /api/sales: the hoodie paid on Sat 24 Oct, from or to tall_tom. */
+export function orderRow(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'o-1',
+    reference: '12L-48302',
+    status: 'Paid',
+    item: (sale()['item'] as object) ?? {},
+    total: '48.15',
+    otherParty: 'tall_tom',
+    paidAt: '2026-10-24T15:00:00Z',
+    shipBy: null,
+    ...fields,
+  };
+}
+
+/** GET /api/purchases or /api/sales: the rows newest first and the counts the subtitle reads. */
+export function orderList(
+  items: Record<string, unknown>[],
+  counts: Record<string, number> = {},
+): Record<string, unknown> {
+  return { items, counts: { onTheWay: 0, toConfirm: 0, toShip: 0, ...counts } };
+}
