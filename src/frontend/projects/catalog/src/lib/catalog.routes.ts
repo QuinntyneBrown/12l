@@ -1,4 +1,12 @@
 import { Routes } from '@angular/router';
 
-/** Lazy routes of the catalog feature area. Empty until its first journey is built. */
-export const routes: Routes = [];
+const page = () => import('./catalog/catalog-page').then((m) => m.CatalogPage);
+
+/** Lazy routes of the catalog feature area, mounted at /: the catalog and one page per category. */
+export const routes: Routes = [
+  { path: '', pathMatch: 'full', loadComponent: page, title: '12L' },
+  { path: 'shoes', loadComponent: page, data: { category: 'Shoes' }, title: 'Shoes · 12L' },
+  { path: 'tops', loadComponent: page, data: { category: 'Tops' }, title: 'Tops · 12L' },
+  { path: 'outerwear', loadComponent: page, data: { category: 'Outerwear' }, title: 'Outerwear · 12L' },
+  { path: 'bottoms', loadComponent: page, data: { category: 'Bottoms' }, title: 'Bottoms · 12L' },
+];

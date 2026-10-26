@@ -96,7 +96,7 @@ Per `AGENTS.md`, the application project holds `AppComponent`, the four shell co
 - **Layout rules** — `.container` gutters per breakpoint from tokens;
   `min-width: 0` on grid children; long words wrap (`overflow-wrap: anywhere`)
   so no page scrolls horizontally at 320 px. Catalog grid: 2 columns XS/SM,
-  3 MD, 4 LG/XL (`L2-061` AC2). The mock `ui.css` shows 3 columns at LG when the
+  3 MD, 4 LG/XL (`L2-061` AC2), implemented by `tl-listing-grid` in `@12l/components`. The mock `ui.css` shows 3 columns at LG when the
   filter sidebar is present; the implementation follows `L2-061` with 4.
 - **`SheetComponent` and `SheetService`** — CDK `Overlay`-based sheet with
   variants `full` (below 768 px) and `side` (768–991 px). The catalog filter

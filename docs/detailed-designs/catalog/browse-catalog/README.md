@@ -12,70 +12,74 @@ A *listing* is one item a seller offers for sale. A listing has a status, and on
 
 Draft, Sold and Removed listings never appear in the catalog. A *listing card* is the compact summary of one listing in the grid: cover photo, size tag, brand, title, condition and price. A Reserved card carries a "Reserved" stamp so a visitor knows the item is in someone's checkout.
 
-Anonymous visitors browse the same catalog as members; no account is needed. The catalog is paged 24 cards at a time, newest first, and a "Load more" control appends the next page. Photos are delivered from the CDN at the size each card needs, so a phone fetches a 400 px thumbnail rather than the 1600 px original (`L2-059`). The grid shows 2 columns on extra-small and small viewports, 3 on medium and 4 on large and extra-large (`L2-061`).
+Anonymous visitors browse the same catalog as members; no account is needed. The catalog is paged 24 cards at a time, newest first, and a "Load more" control appends the next page. Photos are delivered from the photo origin at the size each card needs, so a phone fetches a 400 px thumbnail rather than the 1600 px original (`L2-059`). The grid shows 2 columns on extra-small and small viewports, 3 on medium and 4 on large and extra-large (`L2-061`).
 
 Keyword search, filters and sort run through the same endpoint and page component; they are described in [search-and-filter-catalog](../search-and-filter-catalog/README.md). Opening a card leads to [view-listing-detail](../view-listing-detail/README.md). The `Listing` entity itself, its photos and its status transitions belong to the [listings](../../listings/) subsystem; this feature only reads them.
 
 ## Description
 
-The slice runs from the catalog page in `12L Web` through `12L API` to the `12L database`, with photos fetched from `Photo storage` through the CDN. The screens and copy come from `docs/mocks/pages/catalog/` (states `default`, `guest`, `loading`, `empty`, `error`, `offline`).
+The slice runs from the catalog page in `12L Web` through `12L API` to the `12L database`; photos come from the public photo origin (`/photos`, the CDN origin once one exists). The screens and copy come from `docs/mocks/pages/catalog/` (states `default`, `guest`, `category`, `loading`, `empty`, `error`, `offline`). The screen is composed as listed in `docs/screen-composition.md`.
 
-### Frontend — `12L Web`, feature area `src/frontend/src/app/catalog/`
+### Frontend — `12L Web`
 
-- **`CATALOG_ROUTES`** — lazy-loaded route set. The empty path `''` maps to `CatalogPageComponent`; the route has no guard, so anonymous visitors reach it. Selling, checkout and administration code is not imported by this route (lazy routes are a workspace convention, see `AGENTS.md`).
-- **`CatalogPageComponent`** — route component for `/`. It renders the hero ("Size 12. Size L. *Nothing else.*" with the lead "Every listing fits. Men’s US 12 shoes and men’s L clothing, new and used."), the filter sidebar slot, the toolbar and the grid. It reads all state from `CatalogStore` and renders exactly one of these view states:
-  - `loading` — 8 skeleton cards in the final grid shape (`aria-busy="true"`, label "Loading listings"); the toolbar count shows a text skeleton.
-  - `loaded` — the listing grid, the count "1,284 items" (formatted with thousands separators) and the load-more bar.
-  - `empty` — the catalog has no Active or Reserved listing at all: title "Nothing listed yet", text "Be the first to list a pair of 12s or something in L.", primary action "Sell an item" linking to `/sell`; the count reads "0 items".
-  - `error` — the request failed with a server error: title "Couldn’t load items", text "Something went wrong on our side." followed by "Ref {correlationId}", primary action "Try again" that repeats the last request. The sidebar and toolbar stay rendered.
-  - `offline` — the browser reports no connection: a warning banner "You’re offline. Showing items from your last visit." without a dismiss control, the grid built from the saved snapshot, and the count "{n} saved items".
-- **`CatalogStore`** — signal-based store provided at the route level. It holds `items: Signal<ListingCardDto[]>`, `totalCount`, `page`, `viewState` and `correlationId`. `load(query)` fetches page 1 and replaces the items; `loadMore()` fetches page `page + 1` and appends items, dropping any card whose `id` is already present (offset paging can repeat a card when newer listings are published between requests). It writes the last successful first page to `CatalogSnapshotStore`.
-- **`CatalogSnapshotStore`** — wraps `localStorage` key `12l.catalog.snapshot.v1` holding the last successful first page (public listing data only, no personal data). Read and write failures are ignored, so a private window or blocked storage only disables the offline view.
-- **`CatalogApiService`** — typed HTTP client for `CatalogController`. `getListings(query: CatalogQuery, page: number, pageSize = 24): Observable<CatalogPageDto>` calls `GET /api/catalog/listings`. Problem details responses are mapped by the `core` error interceptor into `ApiError { status, code, correlationId }`; a `status 0` failure while `navigator.onLine` is `false` is mapped to `OfflineError`.
-- **`ListingGridComponent`** — renders `<ul class="listing-grid" role="list">` of `ListingCardComponent`. The grid uses CSS grid with `grid-template-columns: repeat(2, 1fr)` below 768 px, `repeat(3, 1fr)` from 768 px and `repeat(4, 1fr)` from 992 px (`L2-061`). Input `eagerCount` (default 4) sets the number of leading cards treated as above the first screen.
-- **`ListingCardComponent`** — one `<li>` containing a link to `/items/{reference}`. It shows the cover photo through `ResponsivePhotoComponent`, the size tag ("US **12**" or "**L**", `aria-label="Size US 12"`), brand, title, condition and price (`$85`, whole dollars without cents, cents shown when non-zero). When `status` is `Reserved` it overlays the "Reserved" stamp. All text is bound as text, never as HTML (`L2-015`).
-- **`ResponsivePhotoComponent`** (in `shared`, used by every listing photo) — renders a `<picture>` with a `type="image/webp"` `<source>` and a JPEG `<img>` fallback. Each `srcset` lists the 400 w, 800 w and 1600 w versions; the card uses `sizes="(min-width: 1200px) 270px, (min-width: 992px) 23vw, (min-width: 768px) 31vw, 50vw"`, so a 375 px viewport selects the 400 w version (`L2-059`). The `<img>` always carries `width` and `height` from the photo's stored dimensions. Input `priority: boolean` sets `loading="eager"` and `fetchpriority="high"`; otherwise `loading="lazy"` and `decoding="async"`.
-- **`LoadMoreComponent`** — shows "Showing {shown} of {total}" and a "Load more" button described by the hidden note "Loads the next 24 items". The button shows a busy state during `loadMore()` and is hidden when `shown >= total`. After loading, focus stays on the button and the new count is announced through the toolbar's `aria-live="polite"` region. When a next-page request fails, the loaded cards stay in place and a danger toast from `docs/mocks/notifications/toast/` shows the correlation ID with a "Try again" action.
-- **`OfflineBannerComponent`** (from `shared`) — the warning banner; `CatalogPageComponent` shows it when `viewState` is `offline`.
+Feature library `@12l/catalog` (`src/frontend/projects/catalog/src/lib/`), API client in `@12l/api`, shared UI in `@12l/components`.
+
+- **`routes`** (`catalog.routes.ts`) — mounted by the application at `''`. `''` (full match) and the category paths `shoes`, `tops`, `outerwear` and `bottoms` lazy-load `CatalogPage`; each category route carries `data.category` (`Shoes`, `Tops`, `Outerwear`, `Bottoms`), bound to the page's `category` input. No guard, so anonymous visitors reach every route. These are the links of the top bar.
+- **`CatalogPage`** (`catalog/catalog-page`) — renders the hero ("Size 12. Size L. *Nothing else.*" and the lead "Every listing fits. Men’s US 12 shoes and men’s L clothing, new and used.") at `/`, or a page header with the category name and a large `tl-size-tag` on a category page; then the toolbar with the polite item count and the grid. It reads all state from `CatalogStore` and renders exactly one view:
+  - `loading` — `tl-listing-grid` with 8 skeleton cards (`aria-busy="true"`, label "Loading listings"); the count shows a text skeleton.
+  - `loaded` — the grid, the count "1,284 items" and `tl-load-more`.
+  - `empty` — `tl-empty-state` "Nothing listed yet", "Be the first to list a pair of 12s or something in L.", primary link "Sell an item" to `/sell`; the count reads "0 items".
+  - `error` — `tl-empty-state` in the error tone: "Couldn’t load items", "Something went wrong on our side. Ref {ref}", "Try again" repeats the request.
+  - `offline` — warning `tl-alert` banner "You’re offline. Showing items from your last visit." at the top of `main`, the saved cards and the count "{n} saved items"; no Load more.
+- **`CatalogStore`** — signal store provided by the page. `load(category)` fetches page 1 and replaces the cards; `retry()` repeats it; `loadMore()` fetches the next page and appends cards whose `id` is not shown yet (offset paging can repeat a card when newer listings are published between requests). When a next page fails, the cards stay and a danger `tl-alert` "Couldn’t load more items" with the reference and a Try again link is shown. After a successful first page of `/` it writes the cards to `localStorage` key `12l.catalog.snapshot.v1` (public listing data only); when page 1 fails with status 0 while `navigator.onLine` is false, that snapshot is shown. Storage failures are ignored and only disable the offline view.
+- **`formatPrice`** — "$85" for whole dollars, "$18.50" when cents are non-zero, thousands separators ("$1,200").
+- **`CatalogApi`** (`@12l/api`, `catalog/catalog-api.ts`) — `listings(page, category)` calls `GET /api/catalog/listings`, leaving out `page` when it is 1, and resolves to `ApiResult<CatalogPage>` through the shared `toResult` (problem details with correlation ID, status 0 for network failures).
+- **`tl-listing-grid`** and **`tl-listing-card`** (`@12l/components`) — the grid is a `ul role="list"` with 2 columns below 768 px, 3 from 768 px and 4 from 992 px (`L2-061`, the `.listing-grid` styles). Each card is one link to `/items/{reference}` with a `<picture>`: a `type="image/webp"` source and a JPEG `<img>`, both with `srcset` of the 400, 800 and 1600 px versions and `sizes="(min-width: 1200px) 270px, (min-width: 992px) 23vw, (min-width: 768px) 31vw, 50vw"`, so a 375 px viewport selects the 400 w version (`L2-059`). The `<img>` carries the photo's `width` and `height`. The first 4 cards are eager with `fetchpriority="high"`; the rest are `loading="lazy"` and `decoding="async"`. A Reserved card shows the "Reserved" stamp. All text is bound as text (`L2-015`).
+- **`tl-load-more`**, **`tl-empty-state`** (`@12l/components`) — see the design system pages of the same names. `tl-alert` gained a title-less banner form for the offline banner.
 
 ### API — `TwelveL.Api`
 
-- **`CatalogController`** — `[AllowAnonymous]` controller under `/api/catalog`, policy `PublicRead` (anonymous rate limit of 120 requests per minute per IP from `L2-060`).
-  - `GET /api/catalog/listings?page={n}&pageSize={n}` plus the search, filter and sort parameters defined in search-and-filter-catalog.
-    - `200 OK` with `CatalogPageDto`.
-    - `400 Bad Request` problem details, code `VALIDATION_FAILED`, when `page < 1` or `pageSize < 1`.
-    - `429 Too Many Requests`, code `RATE_LIMITED`, from the rate-limit middleware.
+- **`CatalogController`** — `[AllowAnonymous]`.
+  - `GET /api/catalog/listings?page={n}&pageSize={n}&category={name}`; `page` defaults to 1, `pageSize` to 24, `category` is optional.
+    - `200 OK` with `CatalogPageDto` and `Cache-Control: no-store`.
+    - `400 Bad Request` problem details, code `VALIDATION_FAILED`, when `page < 1`, `pageSize < 1` or the category is not one of the 4.
     - `500` problem details with correlation ID and no stack trace (`L2-068`).
-  - The response carries `Cache-Control: no-store` for now; HTTP caching of anonymous catalog pages is `<TO SUPPLY>`.
-- A `pageSize` above 48 is not an error: the binder passes it through and the handler caps it at 48 (`L2-022` acceptance criterion 5). A missing `pageSize` defaults to 24.
+  - A `pageSize` above 48 is not an error: the handler caps it at 48 (`L2-022` criterion 5).
+- Keyword search, the other filters and sort are added to the same endpoint by search-and-filter-catalog.
 
 ### Application and domain — `TwelveL.Application`, `TwelveL.Domain`
 
-- **`SearchCatalogQuery`** — record `(int Page, int PageSize, CatalogCriteria Criteria)`. For browsing, `Criteria` is `CatalogCriteria.Empty` (no keyword, no filters, sort `Newest`).
-- **`SearchCatalogQueryValidator`** — FluentValidation rules: `Page >= 1`, `PageSize >= 1`. Criteria rules are listed in search-and-filter-catalog.
-- **`SearchCatalogQueryHandler`** — caps `PageSize` with `Math.Min(PageSize, CatalogOptions.MaxPageSize)`, calls `ICatalogReadStore.SearchAsync`, maps each row to `ListingCardDto` through `IPhotoUrlBuilder`, and returns `CatalogPageDto`.
-- **`ICatalogReadStore`** — read port: `Task<CatalogSearchResult> SearchAsync(CatalogCriteria criteria, int skip, int take, DateTimeOffset now, CancellationToken ct)`.
-- **`CatalogPageDto`** — `{ items: ListingCardDto[], page: int, pageSize: int, totalCount: int }`.
-- **`ListingCardDto`** — `{ id: Guid, reference: string, title: string, brand: string, category: string, subcategory: string, size: string, condition: string, price: string, status: "Active" | "Reserved", publishedAt: DateTimeOffset, coverPhoto: PhotoDto }`. `price` is a decimal string with two places (`"85.00"`) so no floating-point value crosses the wire (`L2-018`).
-- **`PhotoDto`** — `{ width: int, height: int, alt: string, webp: PhotoSourceSet, jpeg: PhotoSourceSet }`, where `PhotoSourceSet` is `{ w400: string, w800: string, w1600: string }`. `alt` is "Photo 1 of {brand} {title}".
-- **`IPhotoUrlBuilder`** / **`CdnPhotoUrlBuilder`** — builds content-addressed CDN URLs of the form `{Photos:CdnBaseUrl}/{contentHash}/{width}.{webp|jpg}` from the hash stored with each photo version. The photo versions, their hashes and the one-year `Cache-Control: public, max-age=31536000, immutable` header are produced by `listings/upload-listing-photos`; this feature only builds URLs to them (`L2-059`).
-- **`CatalogVisibility`** (domain specification in `TwelveL.Domain.Catalog`) — the single definition of what the catalog shows: `Status == Active`, or `Status == Reserved`. A Reserved listing whose `ReservedUntil` is in the past is reported as `Active` in the DTO, so a card does not stay stamped "Reserved" while `12L Worker` has yet to run the reservation-expiry job (`L2-028`).
-- **`ListingStatus`** (domain enumeration owned by listings) — `Draft`, `Active`, `Reserved`, `Sold`, `Removed` (`L2-019`).
-- **`CatalogOptions`** — bound from configuration section `Catalog`: `DefaultPageSize = 24`, `MaxPageSize = 48`.
+- **`BrowseCatalogQuery`** (`Catalog/BrowseCatalog.cs`) — record `(int Page, int? PageSize, string? Category)`.
+- **`BrowseCatalogQueryHandler`** — validates the page, page size and category, caps the page size with `CatalogOptions.MaxPageSize`, counts and reads one page through `ITwelveLDbContext` with `AsNoTracking()`, ordered by `PublishedAt DESC, Id DESC`, then reads the cover photos (`ListingPhotos` at `Position = 0` with their versions) in one query and maps each listing to `ListingCardDto`. It reads through the existing unit-of-work port rather than a separate read-store port ([ADR catalog/0001](../../../adr/catalog/0001-catalog-reads-through-the-db-context-port.md)).
+- **`CatalogVisibility`** (`TwelveL.Domain.Listings`) — the single rule for what the catalog shows: `Status` is `Active` or `Reserved`, as a LINQ expression the query uses.
+- **`CatalogPageDto`** — `{ items, page, pageSize, totalCount }`.
+- **`ListingCardDto`** — `{ id, reference, title, brand, category, subcategory, sizeLabel ("US 12" or "L"), condition, price, status ("Active" | "Reserved"), publishedAt, coverPhoto }`. `price` is a decimal string with two places (`"85.00"`) so no floating-point value crosses the wire (`L2-018`).
+- **`CardPhotoDto`** — `{ width, height, alt, src, webp, jpeg }`: the original dimensions, "Photo 1 of {brand} {title}", the 400 px JPEG, and the WebP and JPEG `srcset` strings (`{base}/{hash}/{size}.{ext} {width}w`). URLs are built from `Photos:PublicBaseUrl` and the content-addressed keys produced by `listings/upload-listing-photos`, which also serves them with `Cache-Control: public, max-age=31536000, immutable` (`L2-059`).
+- **`CatalogOptions`** — configuration section `Catalog`: `DefaultPageSize = 24`, `MaxPageSize = 48`.
 
 ### Infrastructure and data — `TwelveL.Infrastructure`, `12L database`
 
-- **`CatalogReadStore`** — EF Core implementation of `ICatalogReadStore` over `TwelveLDbContext`. It uses `AsNoTracking()` projections and two round trips: a `COUNT` over the filtered set and a page query ordered by `PublishedAt DESC, Id DESC` with `Skip`/`Take`. The cover photo is the `ListingPhotos` row with `Position = 0`, joined to its `ListingPhotoVersions`.
-- **Tables read** (owned by listings): `Listings` (`Id`, `Reference`, `SellerId`, `Title`, `Brand`, `Category`, `Subcategory`, `Size`, `Condition`, `Price decimal(9,2)`, `Status`, `PublishedAt`, `ReservedUntil`, `RowVersion`), `ListingPhotos` (`ListingId`, `Position`, `Width`, `Height`), `ListingPhotoVersions` (`PhotoId`, `Width`, `Format`, `ContentHash`).
-- **Index introduced by this feature** — `IX_Listings_Catalog_Newest` on `Listings (PublishedAt DESC, Id DESC)` with `INCLUDE (Reference, Title, Brand, Category, Subcategory, Size, Condition, Price, Status, ReservedUntil)` and a filter that keeps only the Active and Reserved status values. It serves the default first page and the count as index-only reads, which keeps catalog reads index-only as the catalog grows.
-- **Configuration** — `Catalog:DefaultPageSize` (24), `Catalog:MaxPageSize` (48), `Photos:CdnBaseUrl` (`<TO SUPPLY>`, depends on the hosting platform).
+- **Tables read** (owned by listings): `Listings`, `ListingPhotos`, `ListingPhotoVersions`.
+- **Index** — the existing `IX_Listings_Status_PublishedAt` on `Listings (Status, PublishedAt)` serves the filter and the order; no new index or migration is introduced. A covering filtered index is left until measurements show a need.
+- **Configuration** — `Catalog:DefaultPageSize` (24), `Catalog:MaxPageSize` (48), `Photos:PublicBaseUrl` (`/photos` until a CDN exists).
+
+### Testing
+
+- xUnit acceptance tests `tests/TwelveL.Api.Tests/BrowseCatalogTests.cs` host the API in memory with SQLite in-memory: visibility and order, card fields and photo `srcset`, paging, the page-size cap, validation and the category filter.
+- Playwright `src/frontend/e2e/tests/browse-catalog.spec.ts` with page object `e2e/pages/catalog.page.ts` serves `12L API` through `page.route` fixtures (`serveCatalog`, `catalogCard`, `catalogPage` in `e2e/fixtures.ts`): cards and Load more, Reserved and price formatting, `picture` markup, 2, 3 and 4 columns at 375, 800 and 1280 px, no horizontal scroll at 320 px, category routes, loading, empty, error, next-page failure and offline.
+
+### Deferred
+
+- Search, filters, sort, the filter sidebar and the subcategory chips: search-and-filter-catalog.
+- A Reserved listing whose reservation has expired shows as Reserved until `12L Worker` returns it to Active; reservations and their expiry arrive with checkout (`L2-028`).
+- The anonymous rate limit of `L2-060` on this endpoint, and HTTP caching of anonymous catalog pages.
+- The next-page failure uses an inline alert, and the offline banner sits at the top of `main`, until `ToastService` and `tl-system-banner` exist (responsive-accessible-shell).
 
 ### Error codes
 
 | Code | HTTP | Raised when |
 |------|------|-------------|
-| `VALIDATION_FAILED` | 400 | `page` or `pageSize` is below 1 |
-| `RATE_LIMITED` | 429 | the anonymous rate limit is exceeded |
+| `VALIDATION_FAILED` | 400 | `page` or `pageSize` is below 1, or the category is unknown |
 | `INTERNAL_ERROR` | 500 | an unhandled exception; body holds the correlation ID only |
 
 ## Requirements
@@ -104,13 +108,13 @@ The Angular application calls `12L API` for listing data and loads photos direct
 
 ### Components
 
-Inside `12L Web`, `CatalogPageComponent` reads `CatalogStore`, which calls `CatalogApiService`. Inside `12L API`, `CatalogController` sends `SearchCatalogQuery` to its handler, which reads through `ICatalogReadStore` and builds photo URLs with `IPhotoUrlBuilder`.
+Inside `12L Web`, `CatalogPage` reads `CatalogStore`, which calls `CatalogApi`, and renders the `@12l/components` grid and states. Inside `12L API`, `CatalogController` sends `BrowseCatalogQuery` to its handler, which reads the database and builds photo URLs from `PhotoOptions`.
 
 ![C4 component view for browsing the catalog](diagrams/c4-component.png)
 
 ### Class structure
 
-`SearchCatalogQueryHandler` handles `SearchCatalogQuery`, depends on `ICatalogReadStore` and `IPhotoUrlBuilder`, and returns a `CatalogPageDto` of `ListingCardDto` items. `CatalogVisibility` is the one rule for which `ListingStatus` values are shown.
+`BrowseCatalogQueryHandler` handles `BrowseCatalogQuery`, uses `CatalogOptions` and `PhotoOptions`, and returns a `CatalogPageDto` of `ListingCardDto` items. `CatalogVisibility` is the one rule for which `ListingStatus` values are shown.
 
 ![Class diagram for browsing the catalog](diagrams/class-structure.png)
 

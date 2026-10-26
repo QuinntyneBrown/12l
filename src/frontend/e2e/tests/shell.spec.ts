@@ -1,13 +1,16 @@
 // Acceptance Test
 // Traces to: L2-071, L2-065
 // Description: The built app serves the empty guest shell at / with a skip link, main#main,
-// guest top bar and footer, without horizontal scroll at 320px and without calling 12L API.
+// guest top bar and footer, without horizontal scroll at 320px and calling 12L API only for the catalog.
 
-import { expect, test } from '../fixtures';
+import { expect, serveCatalog, test } from '../fixtures';
 import { ShellPage } from '../pages/shell.page';
 
 test.describe('empty guest shell', () => {
   test.use({ viewport: { width: 320, height: 640 } });
+  test.beforeEach(async ({ page }) => {
+    await serveCatalog(page, 0);
+  });
 
   test('skip link is the first focusable element and targets main', async ({ page, unfixturedApiCalls }) => {
     const shell = new ShellPage(page);
@@ -35,10 +38,10 @@ test.describe('empty guest shell', () => {
     expect(unfixturedApiCalls).toEqual([]);
   });
 
-  test('home placeholder renders inside main', async ({ page }) => {
+  test('the catalog renders inside main', async ({ page }) => {
     const shell = new ShellPage(page);
     await shell.goto();
 
-    await expect(shell.main.getByRole('heading', { level: 1 })).toHaveText('Everything in your size.');
+    await expect(shell.main.getByRole('heading', { level: 1 })).toHaveText('Size 12. Size L. Nothing else.');
   });
 });

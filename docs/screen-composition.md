@@ -13,7 +13,8 @@ it up. Mock-only chrome (`mock-bar`, `mock-note`, the theme toggle) is excluded.
 The catalogue holds the shell components (skip link, top bar, footer, toast, sheet, button,
 link, form field) and the components create-listing added (alert, center state, choice,
 dialog with `DialogService`, earnings, error summary, fixed size, icon, input group, item row,
-segmented control, size tag, spinner). Feature screens not built yet are inventoried below
+segmented control, size tag, spinner) and the components browse-catalog added (empty
+state, listing card with listing grid, load more). Feature screens not built yet are inventoried below
 with their states and marked **not yet composed**; each is composed when its journey is
 implemented, and the catalogue grows in the same change.
 
@@ -28,7 +29,6 @@ implemented, and the catalogue grows in the same change.
 | Nav-menu sheet (`dialogs/nav-menu`: default, guest) | `tl-sheet`, `tl-button`, `tl-link` | Not yet composed |
 | Toast region (`notifications/toast`: info, success, warning, danger, with-action, stacked) | `tl-toast-region`, `tl-toast`, `ToastService` | None |
 | System banner (`notifications/system-banner`: info, success, warning, danger) | `tl-system-banner` (not in the catalogue yet) | Not yet composed |
-| Home placeholder (`/`) | `tl-top-bar`, `tl-footer` | Heading and one paragraph inside `main`, in `projects/twelvel`; replaced by the catalog page when browse-catalog is built |
 
 ## Shared local components
 
@@ -102,8 +102,21 @@ Auth shell. `@12l/accounts` `VerifyEmailPage` reads `token` from the query strin
 
 ### Catalog — `/` (`pages/catalog`: default, guest, category, search, filtered, loading, empty, no-results, error, offline)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by browse-catalog in `@12l/catalog` (`src/lib/catalog/`) for the states default, guest,
+category (`/shoes`, `/tops`, `/outerwear`, `/bottoms`), loading, empty, error and offline. The
+states search, filtered and no-results, the filter sidebar, the filters toggle, the sort select
+and the subcategory chips belong to search-and-filter-catalog and are not yet composed.
+
+- Library: `tl-listing-grid` (cards and the 8-card loading skeleton) with `tl-listing-card`,
+  `tl-size-tag` (lg, category header), `tl-load-more`, `tl-empty-state` (empty: icon `tag`,
+  "Sell an item" as `tlButton="primary"`; error: tone error, icon `refresh`, "Try again"),
+  `tl-alert` (warning banner with icon `wifi-off` for offline; danger "Couldn’t load more items"
+  with a `tlButton="link"` Try again when a next page fails), `tlButton`, `tl-icon`
+- Local: the hero (`.hero`, h1 "Size 12. Size L. *Nothing else.*" and lead), the category
+  `.page-header`, the `.toolbar` with the polite item count and its text skeleton. The offline
+  banner renders at the top of `main`, not above the top bar as in the mock, until
+  `tl-system-banner` exists. A failed next page shows an inline danger alert instead of the
+  toast in the design, until `ToastService` exists (responsive-accessible-shell).
 
 ### Listing detail — `/items/{id}` (`pages/listing-detail`: default, guest, new-seller, reserved, sold, own, loading, error, unavailable)
 

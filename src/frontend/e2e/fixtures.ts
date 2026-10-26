@@ -162,3 +162,54 @@ export const test = base.extend<{ unfixturedApiCalls: string[] }>({
 });
 
 export { expect };
+
+/** One catalog card as GET /api/catalog/listings returns it; n picks the reference and title. */
+export function catalogCard(n: number, fields: Record<string, unknown> = {}): Record<string, unknown> {
+  const hash = String(n).padStart(64, 'c');
+  const srcset = (ext: string) =>
+    `/photos/${hash}/400.${ext} 400w, /photos/${hash}/800.${ext} 800w, /photos/${hash}/1600.${ext} 1200w`;
+  return {
+    id: `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`,
+    reference: `L-${10000 + n}`,
+    title: `Air Max 90 no. ${n}`,
+    brand: 'Nike',
+    category: 'Shoes',
+    subcategory: 'Sneakers',
+    sizeLabel: 'US 12',
+    condition: 'Used - Excellent',
+    price: '85.00',
+    status: 'Active',
+    publishedAt: '2026-10-25T12:00:00Z',
+    coverPhoto: {
+      width: 1200,
+      height: 1600,
+      alt: `Photo 1 of Nike Air Max 90 no. ${n}`,
+      src: `/photos/${hash}/400.jpg`,
+      webp: srcset('webp'),
+      jpeg: srcset('jpg'),
+    },
+    ...fields,
+  };
+}
+
+/** A catalog page of cards numbered from (page - 1) * 24 + 1, out of total. */
+export function catalogPage(total: number, page = 1, pageSize = 24): Record<string, unknown> {
+  const first = (page - 1) * pageSize + 1;
+  const count = Math.max(0, Math.min(pageSize, total - first + 1));
+  return { items: Array.from({ length: count }, (_, i) => catalogCard(first + i)), page, pageSize, totalCount: total };
+}
+
+/**
+ * Answers GET /api/catalog/listings with pages of `total` cards and serves the photos. Returns
+ * the query strings of the requests, in order.
+ */
+export async function serveCatalog(page: Page, total: number): Promise<URLSearchParams[]> {
+  const requests: URLSearchParams[] = [];
+  await page.route('**/api/catalog/listings**', (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    requests.push(query);
+    return route.fulfill({ json: catalogPage(total, Number(query.get('page') ?? 1)) });
+  });
+  await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
+  return requests;
+}

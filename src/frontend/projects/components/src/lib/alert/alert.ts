@@ -24,7 +24,9 @@ const ICONS: Record<AlertTone, IconName> = {
 })
 export class AlertComponent {
   readonly tone = input<AlertTone>('info');
-  readonly heading = input.required<string>();
+  readonly heading = input<string>();
+  /** Full-width page banner above the top bar, without a title. */
+  readonly banner = input(false);
   readonly icon = input<IconName>();
   readonly live = input<'assertive' | 'polite' | 'off'>();
 

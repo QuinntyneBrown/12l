@@ -37,16 +37,19 @@ upload-listing-photos added the photo uploader and the camera icon.
 | [Button](components/button.html) | primary, secondary, ghost, link, danger | default, hover, focus, active, disabled, loading | catalog/guest, nav-menu, toast |
 | [Link](components/link.html) | inline, nav, footer | default, hover, focus, current | catalog, rules |
 | [Form field](components/form-field.html) | input, textarea, select | default, hover, focus, invalid, disabled, read only | sign-in, sell |
-| [Alert](components/alert.html) | info, success, warning, danger | static, polite, assertive | sign-in/invalid, sell/draft-saved, verify-email-prompt |
+| [Alert](components/alert.html) | info, success, warning, danger; banner without title | static, polite, assertive | sign-in/invalid, sell/draft-saved, verify-email-prompt |
 | [Center state](components/center-state.html) | blocked, limited, error, success | static | sell/unverified, sell/limited, sell/error, sell/success |
 | [Choice](components/choice.html) | plain, with links | unticked, ticked, invalid | register, sell |
 | [Dialog](components/dialog.html) | default, with top alert | default, busy, sent, limited | dialogs/verify-email-prompt |
 | [Earnings](components/earnings.html) | one | unknown, known | sell/filled |
 | [Error summary](components/error-summary.html) | one | shown and focused | sell/invalid, register/invalid |
 | [Fixed size](components/fixed-size.html) | men's US 12, men's L | absent, shown | sell/filled |
-| [Icon](components/icon.html) | 13 glyphs | static | every page |
+| [Icon](components/icon.html) | 15 glyphs | static | every page |
 | [Input group](components/input-group.html) | leading addon | default, invalid | sell price and shipping |
 | [Item row](components/item-row.html) | with or without thumbnail | default, truncated | sell/success |
+| [Empty state](components/empty-state.html) | default, error (compact) | static | catalog/empty, catalog/error |
+| [Listing card](components/listing-card.html) | active, reserved; grid of 2, 3 or 4 columns | default, hover, focus, loading skeleton | catalog/default, catalog/loading, catalog/category |
+| [Load more](components/load-more.html) | one | default, busy, hidden when all shown | catalog/default |
 | [Photo uploader](components/photo-uploader.html) | one | empty, uploading, filled, rejected, invalid, full | sell/default, sell/filled, sell/invalid |
 | [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |
