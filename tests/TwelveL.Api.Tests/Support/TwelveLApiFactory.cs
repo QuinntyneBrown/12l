@@ -14,14 +14,22 @@ namespace TwelveL.Api.Tests.Support;
 
 /// <summary>
 /// Hosts TwelveL.Api in memory with SQLite in-memory in place of SQL Server, a captured email
-/// sender, in-memory photo storage and a controllable clock. No real database or external system is touched (AGENTS.md).
+/// sender, in-memory photo storage, a fake payment provider and a controllable clock. No real database or external system is touched (AGENTS.md).
 /// </summary>
 public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
 {
-    private readonly SqliteConnection _connection = new("DataSource=:memory:");
+    private readonly SqliteConnection _connection;
+    private readonly string? _sharedDatabase;
 
-    public TwelveLApiFactory()
+    /// <summary>
+    /// One in-memory database on one connection. With <paramref name="concurrent"/>, every
+    /// DbContext opens its own connection to a shared-cache in-memory database instead, so
+    /// parallel requests run in parallel as they would against SQL Server.
+    /// </summary>
+    public TwelveLApiFactory(bool concurrent = false)
     {
+        _sharedDatabase = concurrent ? $"Data Source=file:twelvel-{Guid.NewGuid():N}?mode=memory&cache=shared" : null;
+        _connection = new SqliteConnection(_sharedDatabase ?? "DataSource=:memory:");
         _connection.Open();
     }
 
@@ -32,6 +40,8 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
 
     public FakePhotoStorage Photos { get; } = new();
 
+    public FakePaymentProvider Payments { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -41,13 +51,25 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
         {
             services.RemoveAll<DbContextOptions<TwelveLDbContext>>();
             services.RemoveAll<IDbContextOptionsConfiguration<TwelveLDbContext>>();
-            services.AddDbContext<TwelveLDbContext>(options => options.UseSqlite(_connection));
+            services.AddDbContext<TwelveLDbContext>(options =>
+            {
+                if (_sharedDatabase is null)
+                {
+                    options.UseSqlite(_connection);
+                }
+                else
+                {
+                    options.UseSqlite(_sharedDatabase);
+                }
+            });
             services.RemoveAll<TimeProvider>();
             services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Email);
             services.RemoveAll<IPhotoStorage>();
             services.AddSingleton<IPhotoStorage>(Photos);
+            services.RemoveAll<IPaymentProvider>();
+            services.AddSingleton<IPaymentProvider>(Payments);
         });
     }
 

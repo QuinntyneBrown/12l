@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TwelveL.Application.Abstractions;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
+using TwelveL.Domain.Orders;
 
 namespace TwelveL.Infrastructure.Persistence;
 
@@ -17,6 +18,18 @@ public sealed class TwelveLDbContext(DbContextOptions<TwelveLDbContext> options)
     public DbSet<Listing> Listings => Set<Listing>();
 
     public DbSet<ListingPhoto> ListingPhotos => Set<ListingPhoto>();
+
+    public DbSet<Checkout> Checkouts => Set<Checkout>();
+
+    public DbSet<Payment> Payments => Set<Payment>();
+
+    public DbSet<Refund> Refunds => Set<Refund>();
+
+    public DbSet<Order> Orders => Set<Order>();
+
+    public DbSet<SavedAddress> SavedAddresses => Set<SavedAddress>();
+
+    public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TwelveLDbContext).Assembly);

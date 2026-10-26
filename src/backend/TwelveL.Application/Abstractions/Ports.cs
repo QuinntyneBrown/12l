@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
+using TwelveL.Domain.Orders;
 
 namespace TwelveL.Application.Abstractions;
 
@@ -16,6 +18,21 @@ public interface ITwelveLDbContext
     DbSet<Listing> Listings { get; }
 
     DbSet<ListingPhoto> ListingPhotos { get; }
+
+    DbSet<Checkout> Checkouts { get; }
+
+    DbSet<Payment> Payments { get; }
+
+    DbSet<Refund> Refunds { get; }
+
+    DbSet<Order> Orders { get; }
+
+    DbSet<SavedAddress> SavedAddresses { get; }
+
+    DbSet<PaymentWebhookEvent> PaymentWebhookEvents { get; }
+
+    /// <summary>Transactions, for the steps of checkout that must commit together.</summary>
+    DatabaseFacade Database { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
@@ -84,6 +101,48 @@ public interface IPhotoStorage
     Task SavePublicAsync(string key, byte[] content, string contentType, CancellationToken cancellationToken);
 
     Task<StoredObject?> ReadPublicAsync(string key, CancellationToken cancellationToken);
+}
+
+/// <summary>A payment to create at the provider. The key makes a repeated request charge once (L2-030 AC6).</summary>
+public sealed record PaymentRequest(Guid PaymentId, Guid CheckoutId, Guid ListingId, decimal Amount, string PaymentMethodToken, Guid IdempotencyKey);
+
+/// <summary>Kinds of provider webhook events 12L acts on.</summary>
+public enum PaymentEventType
+{
+    Succeeded,
+    Failed,
+}
+
+/// <summary>
+/// One verified provider webhook event. PaymentId is the 12L payment ID sent as metadata with the
+/// payment; the card brand and last four digits are the only card details it carries (L2-030).
+/// </summary>
+public sealed record PaymentEvent(
+    string EventId,
+    PaymentEventType Type,
+    Guid PaymentId,
+    string ProviderPaymentId,
+    string? CardBrand,
+    string? CardLast4,
+    string? DeclineReason);
+
+/// <summary>
+/// The PCI DSS compliant payment provider (L2-030). Card details go from the provider's hosted
+/// fields to the provider; 12L only ever holds the payment method token. Tests use a fake.
+/// </summary>
+public interface IPaymentProvider
+{
+    /// <summary>Sales tax on item plus shipping for this US address, as the provider computes it.</summary>
+    Task<decimal> QuoteTaxAsync(decimal taxableAmount, ShippingAddress address, CancellationToken cancellationToken);
+
+    /// <summary>Asks the provider to charge the token; the result arrives later by webhook. Returns the provider's payment ID.</summary>
+    Task<string> CreatePaymentAsync(PaymentRequest request, CancellationToken cancellationToken);
+
+    /// <summary>Refunds a payment in full; the key makes a repeated call refund once. Returns the provider's refund ID.</summary>
+    Task<string> RefundAsync(string providerPaymentId, decimal amount, Guid idempotencyKey, CancellationToken cancellationToken);
+
+    /// <summary>The event when the signature over the raw body is valid, otherwise null (L2-030 AC4).</summary>
+    PaymentEvent? ReadWebhook(string body, string? signature);
 }
 
 /// <summary>Public settings of the application.</summary>
