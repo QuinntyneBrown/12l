@@ -15,7 +15,8 @@
     "backend:test": "dotnet test ../backend/TwelveL.sln --no-build",
     "backend:verify": "npm run backend:restore && npm run backend:format && npm run backend:build && npm run backend:test",
     "test:e2e": "playwright test",
-    "verify": "npm run backend:verify && npm run lint && npm run build:all && npm run test:e2e"
+    "verify": "npm run backend:verify && npm run lint && npm run build:all && npm run test:e2e",
+    "build:marketing": "npm run build:libs && ng build twelvel --configuration marketing"
   },
   "private": true,
   "packageManager": "npm@11.19.1",

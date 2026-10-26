@@ -82,6 +82,27 @@
                   "with": "projects/twelvel/src/environments/environment.development.ts"
                 }
               ]
+            },
+            "marketing": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "500kB",
+                  "maximumError": "1MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "projects/twelvel/src/app/app.routes.ts",
+                  "with": "projects/twelvel/src/app/app.routes.marketing.ts"
+                }
+              ]
             }
           },
           "defaultConfiguration": "production"
