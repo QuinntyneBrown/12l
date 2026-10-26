@@ -57,6 +57,8 @@ seller summary, the edit and star icons and the status code of the center state.
 | [Seller summary](components/seller-summary.html) | established, new seller | static | listing-detail/default, listing-detail/new-seller |
 | [Order summary](components/order-summary.html) | priced, not yet priced | static | checkout/default, checkout/new-address |
 | [Reservation timer](components/reservation-timer.html) | info, warning, danger | counting, last minute, ended | checkout/default, reservation-timer/warning, reservation-timer/danger |
+| [Order timeline](components/order-timeline.html) | paid, shipped, delivered | done, current, to come | sale-detail/shipped, order-detail/default, order-detail/paid |
+| [Tracking link](components/tracking-link.html) | USPS, UPS, FedEx, DHL | link states | sale-detail/shipped, order-detail/default |
 | [Photo uploader](components/photo-uploader.html) | one | empty, uploading, filled, rejected, invalid, full | sell/default, sell/filled, sell/invalid |
 | [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |

@@ -13,6 +13,6 @@ System_Ext(pay, "Payment provider", "Issues the full refund when the ship deadli
 Rel(seller, twelvel, "Adds carrier and tracking number using")
 Rel(buyer, twelvel, "Follows shipping progress using")
 Rel(twelvel, email, "Sends tracking, reminder, delivery and cancellation emails via", "HTTPS API")
-Rel(carrier, twelvel, "Reports delivery events to", "Signed webhook or polling")
+Rel(carrier, twelvel, "Reports delivery events to", "Signed webhook")
 Rel(twelvel, pay, "Refunds the buyer in full via", "HTTPS API")
 @enduml

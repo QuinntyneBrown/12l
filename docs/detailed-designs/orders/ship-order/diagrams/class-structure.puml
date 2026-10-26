@@ -20,7 +20,7 @@ enum OrderStatus {
   Cancelled
   Refunded
 }
-enum OrderActorType {
+enum OrderActor {
   Buyer
   Seller
   Administrator
@@ -28,105 +28,96 @@ enum OrderActorType {
   Carrier
 }
 enum Carrier {
-  USPS
-  UPS
+  Usps
+  Ups
   FedEx
-  DHL
+  Dhl
 }
 class Order <<aggregate root>> {
   +Guid Id
-  +string Number
+  +string Reference
   +Guid ListingId
   +Guid BuyerId
   +Guid SellerId
-  +Money ItemPrice
-  +Money ShippingCost
-  +Money SalesTax
-  +Money Total
-  +OrderStatus Status
-  +DateTimeOffset PaidAt
-  +DateTimeOffset ShipBy
-  +DateTimeOffset ShipReminderDue
-  +DateTimeOffset? ShipReminderSentAt
-  +DateTimeOffset? ShippedAt
-  +DateTimeOffset? DeliveredAt
-  +DateTimeOffset? CompletedAt
-  +DateTimeOffset? EndedAt
+  +Guid PaymentId
+  +decimal Total
+  +OrderStatus Status <<concurrency token>>
+  +DateTime PaidAt
+  +DateTime ShipBy
+  +DateTime? ShippedAt
+  +DateTime? DeliveredAt
+  +DateTime? EndedAt
   +Carrier? Carrier
   +string? TrackingNumber
   +ShippingAddress ShippingAddress
-  +byte[] RowVersion
-  +MarkShipped(carrier, tracking, actor, at): void
-  +MarkDelivered(actor, at): void
-  +Complete(actor, at): void
-  +Cancel(reason, actor, at): void
-  +Refund(actor, at): void
-  -TransitionTo(to, actor, at, note): void
+  +IReadOnlyList<OrderStatusChange> StatusChanges
+  +{static} CreatePaid(number, checkout, sellerId, payment, now): Order
+  +MarkShipped(carrier, number, now): void
+  +MarkDelivered(actor, now): void
+  +Cancel(actor, now): void
+  +TransitionTo(to, actor, now): void
 }
 class OrderStatusChange {
-  +long Id
+  +Guid Id
   +Guid OrderId
   +OrderStatus? From
   +OrderStatus To
-  +DateTimeOffset OccurredAt
-  +OrderActorType ActorType
-  +Guid? ActorId
-  +string? Note
+  +DateTime OccurredAt
+  +OrderActor Actor
 }
 class OrderStateMachine <<static>> {
-  +{static} Allowed: IReadOnlySet<(OrderStatus, OrderStatus, OrderActorType)>
+  +{static} IsAllowed(from, to, actor): bool
+  +{static} IsTerminal(status): bool
   +{static} EnsureAllowed(from, to, actor): void
 }
 class InvalidOrderTransitionException {
   +OrderStatus From
   +OrderStatus To
-  +string ErrorCode = "order.invalid_transition"
 }
-class AddTrackingCommand {
-  +Guid OrderId
-  +Carrier Carrier
-  +string TrackingNumber
+class BusinessDays <<static>> {
+  +{static} Add(start, days): DateTime
 }
-class AddTrackingCommandValidator
+class TrackingNumbers <<static>> {
+  +{static} Parse(name): Carrier?
+  +{static} Normalise(carrier, entered): string?
+  +{static} Url(carrier, number): string
+  +{static} InvalidMessage(carrier): string
+}
+class Refund {
+  +{static} ForMissedShipDeadline(payment, now): Refund
+}
 class AddTrackingCommandHandler {
-  +Handle(cmd): Task<SaleDetailDto>
+  +Handle(AddTrackingCommand): Task<Result<SaleDto>>
 }
-class MarkDeliveredCommand {
-  +Guid OrderId
-  +OrderActorType Source
-  +DateTimeOffset DeliveredAt
+class GetSaleQueryHandler
+class CarrierWebhookHandler {
+  +Handle(HandleCarrierWebhookCommand): Task<Result<CarrierWebhookOutcome>>
 }
-class MarkDeliveredCommandHandler
-interface IBusinessCalendar {
-  +AddBusinessDays(start, days): DateTimeOffset
+class CancelUnshippedOrdersHandler {
+  +Handle(CancelUnshippedOrdersCommand): Task<int>
 }
-interface ICarrierTrackingService {
-  +GetStatusAsync(carrier, tracking): Task<TrackingStatus>
-  +BuildTrackingUrl(carrier, tracking): Uri
+interface ICarrierTracking {
+  +ReadWebhook(body, signature): CarrierEvent?
 }
-class ShipByReminderJob
-class ShipDeadlineJob
-class DeliveryPollingJob
-class OrderShipped <<domain event>>
-class OrderDelivered <<domain event>>
+interface IPaymentProvider {
+  +RefundAsync(providerPaymentId, amount, key): Task<string>
+}
+class ShipDeadlineJob <<hosted service>>
 
 Order "1" *-- "1..*" OrderStatusChange : history
 Order --> OrderStatus
 Order ..> OrderStateMachine : validates with
+Order ..> BusinessDays : ShipBy
 OrderStateMachine ..> InvalidOrderTransitionException : throws
-OrderStatusChange --> OrderActorType
+OrderStatusChange --> OrderActor
 Order --> Carrier
-AddTrackingCommandHandler ..> AddTrackingCommand : handles
-AddTrackingCommandValidator ..> AddTrackingCommand : validates
-AddTrackingCommandHandler --> Order : loads / mutates
-AddTrackingCommandHandler ..> ICarrierTrackingService : builds tracking link
-MarkDeliveredCommandHandler ..> MarkDeliveredCommand : handles
-MarkDeliveredCommandHandler --> Order : loads / mutates
-DeliveryPollingJob ..> ICarrierTrackingService : polls
-DeliveryPollingJob ..> MarkDeliveredCommand : sends
-ShipByReminderJob --> Order : reads ShipReminderDue
-ShipDeadlineJob --> Order : Cancel(ShipDeadlinePassed)
-ShipDeadlineJob ..> IBusinessCalendar
-Order ..> OrderShipped : raises
-Order ..> OrderDelivered : raises
+AddTrackingCommandHandler ..> TrackingNumbers : checks format
+AddTrackingCommandHandler --> Order : MarkShipped
+GetSaleQueryHandler --> Order : reads
+CarrierWebhookHandler ..> ICarrierTracking : reads event
+CarrierWebhookHandler --> Order : MarkDelivered(Carrier)
+CancelUnshippedOrdersHandler --> Order : Cancel(System)
+CancelUnshippedOrdersHandler ..> Refund : creates
+CancelUnshippedOrdersHandler ..> IPaymentProvider : refunds
+ShipDeadlineJob ..> CancelUnshippedOrdersHandler : sends command
 @enduml

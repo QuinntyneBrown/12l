@@ -171,8 +171,18 @@ confirmed" toast of `notifications/reservation-timer` success waits for `ToastSe
 
 ### Order (buyer) — `/orders/{id}` (`pages/order-detail`: default, paid, delivered, completed, cancelled, refunded, problem, loading, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by ship-order in `@12l/orders` (`src/lib/order-detail/`) for paid ("Waiting to ship"),
+default ("On its way"), delivered, cancelled, loading and error. "Ask to cancel", "Report a
+problem", "I received it", the expected delivery date, the seller's cancellation reason and the
+completed, refunded and problem states are composed by cancel-order, complete-order and
+resolve-order-problems.
+
+- Library: `tl-order-timeline`, `tl-tracking-link` (once shipped), `tl-alert` (info "Refunded in
+  full" with the amount and card when cancelled), `tl-order-summary` (no visible heading; labelled
+  "Order summary"), `tl-center-state` (error, with `tl-button` "Try again" and "Back to purchases")
+- Local: the breadcrumb, eyebrow and heading block, the ship-by note ("{seller} ships by {date}.
+  If not, you’re refunded automatically."), `OrderPartyComponent` (avatar, "Seller", profile link)
+  projected into the summary, and the two-column loading skeleton
 
 ### Purchases — `/account/purchases` (`pages/purchases`: default, loading, empty, error)
 
@@ -181,8 +191,18 @@ confirmed" toast of `notifications/reservation-timer` success waits for `ToastSe
 
 ### Sale (seller) — `/sales/{id}` (`pages/sale-detail`: default, shipped, cancel-requested, problem, completed, address-hidden, cancelled, loading, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by ship-order in `@12l/orders` (`src/lib/sale-detail/`) for default (Paid), shipped,
+cancelled, loading and error. "Cancel order", "Relist item", cancel-requested, problem, completed
+and address-hidden are composed by cancel-order, complete-order, resolve-order-problems and
+protect-personal-data.
+
+- Library: `tl-button` (primary "Add tracking" with icon `truck`, opening the Add tracking
+  dialog through `DialogService`), `tl-order-timeline` and `tl-tracking-link` (once shipped),
+  `tl-alert` (info "Cancelled · Buyer refunded in full"), `tl-order-summary` (no visible
+  heading), `tl-center-state` (error, with "Try again" and "Back to sales")
+- Local: the breadcrumb, eyebrow and heading block, "Ship by {date}." lead, the "Ship to"
+  address block with its caption, `OrderPartyComponent` ("Buyer") projected into the summary, and
+  the loading skeleton
 
 ### Sales — `/account/sales` (`pages/sales`: default, loading, empty, error)
 
@@ -269,7 +289,7 @@ uploads at once and a save sends the photo IDs in order. The footer stays visibl
 | Verify email prompt (`dialogs/verify-email-prompt`: default, busy, sent, limited) | `DialogService` | `tl-dialog` (mail icon, description with the email), `tl-alert` (sent success, limited warning) in the top slot, `tl-button` (Not now, Resend link with busy, Done) | `VerifyEmailPromptComponent` in `@12l/listings`; it moves to a shared place when checkout also opens it |
 | Filters (`dialogs/filters`: default, invalid, busy) | `tl-sheet` | not yet composed | not yet composed |
 | Menu (`dialogs/nav-menu`: default, guest) | `tl-sheet` | `tl-sheet`, `tl-button`, `tl-link` | not yet composed |
-| Add tracking (`dialogs/add-tracking`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Add tracking (`dialogs/add-tracking`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (description "We’ll email {buyer} the tracking link."), `tl-form-field` (Carrier select, focused on open; Tracking number with the inline error), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` (Cancel, disabled while busy; primary "Mark as shipped" with busy, "Try again" after a failure) | `AddTrackingDialog` in `@12l/orders` |
 | Cancel order (`dialogs/cancel-order`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
 | Confirm receipt (`dialogs/confirm-receipt`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
 | Relist item (`dialogs/relist`: default, busy) | `DialogService` | not yet composed | not yet composed |
