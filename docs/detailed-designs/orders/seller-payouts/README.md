@@ -63,7 +63,7 @@ or `Refunded` order cancels its payout. An open problem holds it
 - **`SellerPayoutAccount`** — `MemberId` (PK), `ProviderAccountId`, `Status` (`NotStarted`, `Pending`, `Complete`, `Restricted`), `BankName`, `BankLast4`, `UpdatedAt`. 12L stores no full bank account number.
 - **`GetPayoutSummaryQuery`** / handler — sums `NetAmount` of `Paid` payouts as "Paid out", and of `Held`, `Releasable` and `Sent` payouts as "Pending". It lists history newest first and derives `Banner`.
 - **`CreateOnboardingLinkCommand`** / handler — creates the connected account on first use, then requests an onboarding link with return URL `/account/payouts?onboarding=return` and a refresh URL.
-- **`OrderCompletedPayoutHandler`** — domain event handler for `OrderCompleted`; calls `MarkReleasable`.
+- **`OrderCompletedPayoutHandler`** — MediatR `INotificationHandler<OrderCompleted>`; complete-order publishes the event once after saving the completion ([ADR orders/0004](../../../adr/orders/0004-complete-order-in-process-event-and-fixed-3-day-window.md)). It calls `MarkReleasable`.
 - **`OrderEndedWithoutSalePayoutHandler`** — handles `OrderCancelled` and `OrderRefunded`; calls `Cancel`.
 - **`IPaymentProvider`** (payout part) — `CreateConnectedAccountAsync`, `CreateOnboardingLinkAsync`, `CreatePayoutAsync(accountId, amount, idempotencyKey)`.
 

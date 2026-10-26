@@ -17,10 +17,10 @@ skinparam package {
 skinparam sequenceMessageAlign left
 skinparam maxMessageSize 260
 actor "Buyer" as actor
-box "Frontend — 12L Web application" #E0F2FE
+box "Frontend — @12l/orders and @12l/api" #E0F2FE
   participant "OrderDetailPage" as page
   participant "ConfirmReceiptDialog" as dlg
-  participant "OrdersApiService" as client
+  participant "OrdersApi" as client
 end box
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
   participant "OrdersController" as ctrl
@@ -32,7 +32,7 @@ end box
 box "Backend — TwelveL.Infrastructure" #FFF4E5
   database "12L database" as db
 end box
-actor -> page : Choose "I received it"
+actor -> page : Choose "I received it" (Shipped or Delivered)
 page -> dlg : Open "Got it and all good?"
 actor -> dlg : "Yes, complete order"
 dlg -> client : confirmReceipt(orderId) (busy state)
@@ -40,20 +40,20 @@ client -> ctrl : POST /api/orders/{id}/receipt
 ctrl -> h : Send ConfirmReceiptCommand
 h -> db : Load order where BuyerId = caller
 alt not the buyer
-  h --> ctrl : 404
+  h --> ctrl : 404 ORDER_NOT_FOUND
 else buyer
+  h -> order : ConfirmReceipt(now)
   alt Status is Shipped
-    h -> order : MarkDelivered(Buyer, now) (L2-032 Shipped to Delivered)
+    order -> order : MarkDelivered(Buyer, now)
   end
-  h -> order : Complete(Buyer, now) (L2-034)
-  alt Status not Delivered after the step above, or an open problem exists
-    order --> h : InvalidOrderTransitionException or OpenProblemException
-    h --> ctrl : 409 "order.invalid_transition" or "order.problem_open"
+  order -> order : Complete(Buyer, now)
+  alt not Shipped or Delivered, or the status changed before the save
+    h --> ctrl : 409 ORDER_INVALID_TRANSITION
     ctrl --> dlg : Failed state "That didn't go through"
-  else Delivered
-    order -> order : Append status changes, raise OrderCompleted
-    h -> db : Save order, status changes and payout Releasable in one transaction
-    h --> ctrl : OrderDetailDto (Completed, canReview = true)
+  else saved
+    h -> db : Save order and status changes in one transaction
+    h -> h : Publish OrderCompleted
+    h --> ctrl : PurchaseDto (Completed)
     ctrl --> client : 200
     client --> page : Updated order
     page --> actor : "Completed" with the full timeline

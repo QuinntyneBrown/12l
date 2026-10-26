@@ -14,44 +14,41 @@ title Class structure — Complete an order
 
 class Order <<see ship-order>> {
   +OrderStatus Status
-  +DateTimeOffset? DeliveredAt
-  +DateTimeOffset? CompletedAt
-  +DateTimeOffset AutoCompleteAt
-  +bool HasOpenProblem
-  +MarkDelivered(actor, at): void
-  +Complete(actor, at): void
+  +DateTime? DeliveredAt
+  +DateTime? CompletedAt
+  +DateTime? AutoCompletesAt
+  +{static} TimeSpan AutoCompleteAfter = 3 days
+  +ConfirmReceipt(now): void
+  +Complete(actor, now): void
+  +IsDueForAutoCompletion(now): bool
 }
 class ConfirmReceiptCommand {
+  +Guid BuyerId
   +Guid OrderId
 }
 class ConfirmReceiptCommandHandler {
-  +Handle(cmd): Task<OrderDetailDto>
+  +Handle(cmd): Task<Result<PurchaseDto>>
 }
-class AutoCompleteOrderCommand {
-  +Guid OrderId
+class CompleteDeliveredOrdersCommand
+class CompleteDeliveredOrdersHandler {
+  +Handle(cmd): Task<int>
 }
-class AutoCompleteOrderCommandHandler
-class OrderAutoCompletionJob {
-  +ExecuteAsync(ct): Task
+class OrderCompletionJob {
+  +RunOnceAsync(ct): Task<int>
 }
-class OrderCompleted <<domain event>> {
+class OrderCompleted <<MediatR notification>> {
   +Guid OrderId
   +Guid BuyerId
   +Guid SellerId
-  +DateTimeOffset CompletedAt
+  +DateTime CompletedAt
 }
-class OrderCompletedPayoutHandler <<see seller-payouts>>
-class UpdateReputationOnOrderCompletedHandler <<reviews subsystem>>
-class OrderProblem <<see resolve-order-problems>> {
-  +ProblemStatus Status
-}
+class "Payout handler" as PayoutHandler <<seller-payouts>>
 ConfirmReceiptCommandHandler ..> ConfirmReceiptCommand : handles
 ConfirmReceiptCommandHandler --> Order : loads / mutates
-AutoCompleteOrderCommandHandler ..> AutoCompleteOrderCommand : handles
-AutoCompleteOrderCommandHandler --> Order : loads / mutates
-OrderAutoCompletionJob ..> AutoCompleteOrderCommand : sends
-Order "1" o-- "0..1" OrderProblem : open problem blocks completion
-Order ..> OrderCompleted : raises
-OrderCompletedPayoutHandler ..> OrderCompleted : handles
-UpdateReputationOnOrderCompletedHandler ..> OrderCompleted : handles
+CompleteDeliveredOrdersHandler ..> CompleteDeliveredOrdersCommand : handles
+CompleteDeliveredOrdersHandler --> Order : loads / mutates
+OrderCompletionJob ..> CompleteDeliveredOrdersCommand : sends
+ConfirmReceiptCommandHandler ..> OrderCompleted : publishes
+CompleteDeliveredOrdersHandler ..> OrderCompleted : publishes
+PayoutHandler ..> OrderCompleted : handles
 @enduml

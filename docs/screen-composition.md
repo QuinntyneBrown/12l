@@ -172,16 +172,19 @@ confirmed" toast of `notifications/reservation-timer` success waits for `ToastSe
 ### Order (buyer) — `/orders/{id}` (`pages/order-detail`: default, paid, delivered, completed, cancelled, refunded, problem, loading, error)
 
 Built by ship-order in `@12l/orders` (`src/lib/order-detail/`) for paid ("Waiting to ship"),
-default ("On its way"), delivered, cancelled, loading and error. "Ask to cancel", "Report a
-problem", "I received it", the expected delivery date, the seller's cancellation reason and the
-completed, refunded and problem states are composed by cancel-order, complete-order and
-resolve-order-problems.
+default ("On its way"), delivered, cancelled, loading and error. complete-order adds "I received
+it" (default and delivered), the automatic completion note (delivered) and the completed state.
+"Ask to cancel", "Report a problem", the expected delivery date, the seller's cancellation reason
+and the refunded and problem states are composed by cancel-order and resolve-order-problems.
 
 - Library: `tl-order-timeline`, `tl-tracking-link` (once shipped), `tl-alert` (info "Refunded in
   full" with the amount and card when cancelled), `tl-order-summary` (no visible heading; labelled
-  "Order summary"), `tl-center-state` (error, with `tl-button` "Try again" and "Back to purchases")
+  "Order summary"), `tl-center-state` (error, with `tl-button` "Try again" and "Back to purchases"),
+  `tl-button` (primary "I received it" when Shipped or Delivered, opening Confirm receipt through
+  `DialogService`)
 - Local: the breadcrumb, eyebrow and heading block, the ship-by note ("{seller} ships by {date}.
-  If not, you’re refunded automatically."), `OrderPartyComponent` (avatar, "Seller", profile link)
+  If not, you’re refunded automatically."), the completion note ("Completes automatically on
+  {date} unless you report a problem."), `OrderPartyComponent` (avatar, "Seller", profile link)
   projected into the summary, and the two-column loading skeleton
 
 ### Purchases — `/account/purchases` (`pages/purchases`: default, loading, empty, error)
@@ -291,7 +294,7 @@ uploads at once and a save sends the photo IDs in order. The footer stays visibl
 | Menu (`dialogs/nav-menu`: default, guest) | `tl-sheet` | `tl-sheet`, `tl-button`, `tl-link` | not yet composed |
 | Add tracking (`dialogs/add-tracking`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (description "We’ll email {buyer} the tracking link."), `tl-form-field` (Carrier select, focused on open; Tracking number with the inline error), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` (Cancel, disabled while busy; primary "Mark as shipped" with busy, "Try again" after a failure) | `AddTrackingDialog` in `@12l/orders` |
 | Cancel order (`dialogs/cancel-order`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
-| Confirm receipt (`dialogs/confirm-receipt`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Confirm receipt (`dialogs/confirm-receipt`: default, busy, failed) | `DialogService` | `tl-dialog` (`size="sm"`, description "This completes the order and pays {seller}. You can’t report a problem afterwards."), `tl-item-row` (item thumbnail, title, brand and size), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Not yet", disabled while busy; primary "Yes, complete order" with busy, "Try again" after a failure) | `ConfirmReceiptDialog` in `@12l/orders` |
 | Relist item (`dialogs/relist`: default, busy) | `DialogService` | not yet composed | not yet composed |
 | Report a problem (`dialogs/report-problem`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
 | Ask to cancel (`dialogs/request-cancellation`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |

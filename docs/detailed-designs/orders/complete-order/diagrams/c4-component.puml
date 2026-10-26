@@ -3,24 +3,25 @@
 LAYOUT_WITH_LEGEND()
 title Components — Complete an order
 
-Container(web, "12L Web", "Angular", "OrderDetailPage, ConfirmReceiptDialog, OrdersApiService")
+Container(web, "12L Web", "Angular", "@12l/orders: OrderDetailPage, ConfirmReceiptDialog; @12l/api: OrdersApi")
 Container_Boundary(api, "12L API") {
   Component(ctrl, "OrdersController", "ASP.NET Core controller", "POST /api/orders/{id}/receipt")
   Component(h, "ConfirmReceiptCommandHandler", "MediatR handler", "Buyer completes the order")
-  Component(ch, "AutoCompleteOrderCommandHandler", "MediatR handler", "System completes the order")
+  Component(ch, "CompleteDeliveredOrdersHandler", "MediatR handler", "System completes due orders")
   Component(order, "Order", "Domain aggregate", "State machine from ship-order")
-  Component(evt, "OrderCompleted handlers", "Domain event handlers", "OrderCompletedPayoutHandler, UpdateReputationOnOrderCompletedHandler (reviews)")
+  Component(evt, "OrderCompleted", "MediatR notification", "Handled by seller-payouts")
 }
 Container_Boundary(worker, "12L Worker") {
-  Component(job, "OrderAutoCompletionJob", "Hosted service", "Delivered + 3 days, no open problem")
+  Component(job, "OrderCompletionJob", "Hosted service", "Delivered + 3 days")
 }
-ContainerDb(db, "12L database", "SQL Server", "Orders")
+ContainerDb(db, "12L database", "SQL Server", "Orders, OrderStatusChanges")
 Rel(web, ctrl, "Calls", "JSON/HTTPS")
 Rel(ctrl, h, "Sends ConfirmReceiptCommand")
-Rel(job, ch, "Sends AutoCompleteOrderCommand")
-Rel(h, order, "MarkDelivered (if Shipped), Complete")
-Rel(ch, order, "Complete")
-Rel(order, evt, "Raises OrderCompleted")
+Rel(job, ch, "Sends CompleteDeliveredOrdersCommand")
+Rel(h, order, "ConfirmReceipt")
+Rel(ch, order, "Complete(System)")
+Rel(h, evt, "Publishes after save")
+Rel(ch, evt, "Publishes after save")
 Rel(h, db, "Saves", "EF Core")
-Rel(job, db, "Selects due orders", "SQL")
+Rel(ch, db, "Selects due orders and saves", "EF Core")
 @enduml

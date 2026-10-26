@@ -17,32 +17,29 @@ skinparam package {
 skinparam sequenceMessageAlign left
 skinparam maxMessageSize 260
 box "Backend — 12L Worker application (TwelveL.Worker)" #D1FADF
-  participant "OrderAutoCompletionJob" as job
+  participant "OrderCompletionJob" as job
 end box
 box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
-  participant "AutoCompleteOrderCommandHandler" as h
+  participant "CompleteDeliveredOrdersHandler" as h
   participant "Order" as order
 end box
 box "Backend — TwelveL.Infrastructure" #FFF4E5
   database "12L database" as db
 end box
-job -> db : Every Orders:CompletionJobInterval select Delivered orders with DeliveredAt + 3 days <= now
-db --> job : Candidate orders
-loop each candidate
-  job -> h : AutoCompleteOrderCommand(orderId)
-  h -> db : Load order and open problem
-  alt open problem exists (L2-034 criterion 3)
-    h --> job : Skip; order stays Delivered
-  else no open problem
-    h -> order : Complete(System, now)
-    order --> h : OrderCompleted
-    h -> db : Save order and payout Releasable (L2-034 criterion 2)
-    alt RowVersion changed (buyer reported a problem meanwhile)
-      db --> h : Concurrency conflict
-      h --> job : Skip; retried next run
-    else committed
-      db --> h : Committed
-    end
+job -> h : Every Orders:CompletionJobInterval send CompleteDeliveredOrdersCommand
+h -> db : Select Delivered orders with DeliveredAt <= now - 3 days (IX_Orders_Status_DeliveredAt)
+db --> h : Due order IDs
+loop each due order
+  h -> db : Load order with its status history
+  h -> order : Complete(System, now) (L2-034 criterion 2)
+  h -> db : Save where Status = 'Delivered'
+  alt status changed meanwhile (buyer confirmed)
+    db --> h : Concurrency conflict
+    h -> h : Skip the order
+  else committed
+    db --> h : Committed
+    h -> h : Publish OrderCompleted
   end
 end
+h --> job : Number completed
 @enduml
