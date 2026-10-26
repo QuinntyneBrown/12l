@@ -78,7 +78,7 @@ class Listing <<listings subsystem>> {
   +RemoveAfterCancellation(clock): void
   +Relist(clock): void
 }
-interface INotificationPublisher <<notifications subsystem>> {
+interface IEmailOutbox <<notifications subsystem>> {
   +Enqueue(type, recipientMemberId, model): void
 }
 Order "1" *-- "0..1" CancellationRequest
@@ -89,7 +89,7 @@ CancelOrderCommandValidator ..> CancelOrderCommand : validates
 CancelOrderCommandHandler --> Order : Cancel
 CancelOrderCommandHandler --> Listing : RemoveAfterCancellation
 CancelOrderCommandHandler ..> RefundRequester
-CancelOrderCommandHandler ..> INotificationPublisher
+CancelOrderCommandHandler ..> IEmailOutbox
 RefundRequester ..> Refund : creates
 RequestCancellationCommandHandler ..> RequestCancellationCommand : handles
 RequestCancellationCommandHandler --> CancellationRequest : creates

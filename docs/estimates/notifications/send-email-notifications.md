@@ -9,7 +9,7 @@ The hours assume an intermediate ASP.NET Core/C# developer, familiar with EF Cor
 | Work item | Hours |
 |-----------|------:|
 | `NotificationType` and `NotificationCategory` with the type-to-category map | 2 |
-| `INotificationPublisher`, `OutboxNotificationPublisher` and `EmailNotificationRequested` payload | 3 |
+| `IEmailOutbox`, `EmailOutbox` and `EmailNotificationRequested` payload | 3 |
 | `OutboxMessage` state machine, back-off with jitter, 24-hour window, unit tests | 5 |
 | `OutboxMessages` columns, `IX_OutboxMessages_Due` index, migration | 2 |
 | `OutboxEmailDispatcher`: `READPAST`/`UPDLOCK` claim, lease recovery, parallelism | 6 |

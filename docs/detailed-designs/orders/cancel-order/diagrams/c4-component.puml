@@ -12,7 +12,7 @@ Container_Boundary(api, "12L API") {
   Component(order, "Order, CancellationRequest", "Domain", "State machine from ship-order")
   Component(listing, "Listing", "Domain (listings subsystem)", "RemoveAfterCancellation")
   Component(refund, "RefundRequester", "Application service", "Refund row and IssueRefund outbox message")
-  Component(notify, "INotificationPublisher", "Application port (notifications)", "Enqueues email")
+  Component(notify, "IEmailOutbox", "Application port (notifications)", "Enqueues email")
 }
 Container_Boundary(worker, "12L Worker") {
   Component(dl, "ShipDeadlineJob", "Hosted service", "See ship-order")

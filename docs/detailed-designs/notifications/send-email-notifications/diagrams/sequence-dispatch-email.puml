@@ -15,64 +15,61 @@ skinparam package {
   BackgroundColor #F9FAFB
 }
 box "Backend — 12L Worker application" #D1FADF
-  participant "OutboxEmailDispatcher" as dispatcher
+  participant "EmailDispatchJob" as dispatcher
 end box
 box "Backend — TwelveL Application and Domain" #ECFDF3
-  participant "SendEmailNotificationHandler" as handler
+  participant "DispatchEmailsHandler" as handler
   participant "OutboxMessage" as msg
+  participant "EmailTemplates" as renderer
+  participant "EmailContentGuard" as guard
 end box
 box "Backend — TwelveL Infrastructure" #FFF4E5
-  participant "INotificationPreferenceReader" as prefs
-  participant "FluidEmailTemplateRenderer" as renderer
-  participant "EmailContentGuard" as guard
-  participant "ProviderEmailSender" as sender
+  participant "IEmailSender" as sender
   database "12L database" as db
 end box
 participant "Email provider" as provider
 loop every 10 seconds
-  dispatcher -> db : Claim up to 50 due messages (READPAST, UPDLOCK), Status Processing, LockedUntil now + 2 min
-  db --> dispatcher : Claimed messages
-  loop each message, parallelism 8
-    dispatcher -> handler : Handle(message)
-    handler -> db : Resolve recipient address and status
-    db --> handler : Recipient
-    handler -> prefs : IsAllowedAsync(memberId, category) (L2-043)
-    prefs --> handler : allowed or not
-    alt recipient closed or category turned off
-      handler -> msg : Suppress(reason)
-    else allowed
-      handler -> renderer : RenderAsync(type, model) with deep link (L2-042)
-      renderer --> handler : RenderedEmail
-      handler -> guard : Check(rendered)
-      alt card number, security code or password found (L2-042)
-        guard --> handler : Blocked
-        handler -> msg : FailPermanently("content_guard")
-        handler -> handler : Log error without content (L2-069)
-      else clean
-        handler -> sender : SendAsync(email, idempotencyKey = message.Id)
-        sender -> provider : HTTPS send
-        alt accepted
-          provider --> sender : 2xx
-          sender --> handler : Sent
-          handler -> msg : MarkSent(now)
-        else provider unavailable, 429 or 5xx
-          provider --> sender : Error or timeout
-          sender --> handler : Transient
-          handler -> msg : RecordFailure(error, now)
-          handler -> handler : Log warning with attempt and correlation ID (L2-042)
-          alt now < CreatedAt + 24 hours
-            msg --> handler : Pending, NextAttemptAt = now + min(2^(n-1) min, 60 min) + jitter
-          else retry window exhausted
-            msg --> handler : Failed, job-failure metric (L2-069)
+  dispatcher -> handler : DispatchEmailsCommand
+  handler -> db : Select up to 50 due IDs (Pending and due, or Processing with a lapsed claim)
+  loop each message
+    handler -> msg : Claim(now): Processing, LockedUntil now + 2 min, new ClaimToken
+    handler -> db : Save with ClaimToken check
+    alt another worker claimed it first
+      db --> handler : Concurrency conflict, skip
+    else claimed
+      handler -> db : Read recipient email and display name
+      alt member not found
+        handler -> msg : Suppress("recipient_unavailable")
+      else found
+        handler -> renderer : Render(type, payload, displayName, baseUrl) with deep link (L2-042)
+        renderer --> handler : RenderedEmail
+        handler -> guard : Check(subject and body)
+        alt card number, security code or password found (L2-042)
+          handler -> msg : Fail("content_guard:reason")
+          handler -> handler : Log error without content
+        else clean
+          handler -> sender : SendAsync(email with IdempotencyKey = message.Id)
+          sender -> provider : HTTPS send
+          alt accepted
+            handler -> msg : RecordSent(now)
+          else timeout, 429 or 5xx
+            sender --> handler : HttpRequestException or TimeoutException
+            handler -> msg : RecordFailure(error, now, jitter)
+            alt next attempt within CreatedAt + 24 hours
+              msg --> handler : Pending, NextAttemptAt = now + min(2^(n-1) min, 60 min) + up to 20%
+              handler -> handler : Log warning with ID, type and attempt
+            else retry window exhausted
+              msg --> handler : Failed
+              handler -> handler : Log error
+            end
+          else other 4xx
+            sender --> handler : EmailRejectedException
+            handler -> msg : Fail("rejected:code")
           end
-        else other 4xx
-          provider --> sender : Rejected
-          sender --> handler : Permanent
-          handler -> msg : FailPermanently(provider code)
         end
       end
+      handler -> db : Save outcome
     end
-    handler -> db : Save message with RowVersion check
   end
 end
 @enduml
