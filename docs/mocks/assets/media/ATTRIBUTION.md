@@ -1,0 +1,13 @@
+# 12L pitch video: media and attribution
+
+| File | What | Source | Licence |
+| --- | --- | --- | --- |
+| `12l-pitch.mp4`, `12l-pitch.webm` | The 30-second pitch video (H.264/AAC and VP9/Opus) | Built by `docs/mocks/_build/video/build_video.py` | © 12L |
+| `12l-pitch.vtt`, `12l-pitch.txt` | English captions and the plain-text transcript | Same script | © 12L |
+| `12l-pitch-poster.png` | Poster frame (the last slide) | Same script | © 12L |
+| Music | _Energetic Hip-Hop_ by SoundSurfer (1:58), 0:08 to 0:42, ducked under the voice | [pixabay.com/music/beats-energetic-hip-hop-612652](https://pixabay.com/music/beats-energetic-hip-hop-612652/) | [Pixabay Content Licence](https://pixabay.com/service/license-summary/): free for commercial use, no attribution required |
+| Narration | Kokoro-82M text-to-speech, voice `af_bella`, speed 1.12 | [huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX) (weights from [hexgrad/Kokoro-82M](https://huggingface.co/hexgrad/Kokoro-82M)) | Apache-2.0 |
+
+Visuals use only the 12L logo and design tokens (ink, paper, signal red, Archivo and Inter).
+
+Rebuild: `python -I docs/mocks/_build/video/build_video.py` (see `docs/mocks/_build/video/README.md`).
