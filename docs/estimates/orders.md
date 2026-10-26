@@ -5,7 +5,7 @@
 | cancel-order | 3 days | 95% |
 | checkout-and-pay | 7 days | 90% |
 | complete-order | 3 days | 100% |
-| order-history | 3 days | 0% |
+| order-history | 3 days | 90% |
 | resolve-order-problems | 5 days | 90% |
 | seller-payouts | 5 days | 95% |
 | ship-order | 4 days | 95% |
@@ -33,3 +33,6 @@ provider; "Edit first" in the relist dialog waits for edit-and-withdraw-listing
 resolve-order-problems is at 90%: a partial refund is deferred until it has a requirement, a status
 rule and a mock, and refunds go through the payment provider port, whose adapter waits for a
 provider ([ADR orders/0007](../adr/orders/0007-order-problems-administrator-flag-private-photos-and-two-outcomes.md)).
+
+order-history is at 90%: paging and "Show more" wait for a supplied page size and copy
+([ADR orders/0008](../adr/orders/0008-order-history-unpaged-lists-and-address-window-on-read.md)).

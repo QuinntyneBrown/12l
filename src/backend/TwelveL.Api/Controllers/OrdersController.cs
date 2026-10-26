@@ -8,7 +8,8 @@ using TwelveL.Application.Orders;
 namespace TwelveL.Api.Controllers;
 
 /// <summary>
-/// Order actions (L2-032 to L2-035): the seller reads the sale, adds tracking, cancels and answers
+/// Order history and actions (L2-032 to L2-035, L2-037): the member lists their purchases and
+/// sales, newest first; the seller reads the sale, adds tracking, cancels and answers
 /// a request to cancel; the buyer confirms receipt and asks to cancel. 401 for visitors, 404 for
 /// anyone but the order's seller or buyer, 409 ORDER_INVALID_TRANSITION when the order's status
 /// does not allow the action.
@@ -17,6 +18,14 @@ namespace TwelveL.Api.Controllers;
 [Authorize(Policy = Policies.VerifiedMember)]
 public sealed class OrdersController(ISender sender) : ControllerBase
 {
+    [HttpGet("api/purchases")]
+    public async Task<IActionResult> Purchases(CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new ListOrdersQuery(User.MemberId(), OrderRole.Buyer), cancellationToken));
+
+    [HttpGet("api/sales")]
+    public async Task<IActionResult> Sales(CancellationToken cancellationToken) =>
+        Ok(await sender.Send(new ListOrdersQuery(User.MemberId(), OrderRole.Seller), cancellationToken));
+
     [HttpGet("api/sales/{id:guid}")]
     public async Task<IActionResult> Sale(Guid id, CancellationToken cancellationToken)
     {

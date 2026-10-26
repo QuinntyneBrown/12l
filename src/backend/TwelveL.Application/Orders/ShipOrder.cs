@@ -21,14 +21,20 @@ public static class OrderErrors
 /// <summary>The seller's view of one of their orders; 404 for anyone else (L2-010).</summary>
 public sealed record GetSaleQuery(Guid SellerId, Guid OrderId) : IRequest<Result<SaleDto>>;
 
-public sealed class GetSaleQueryHandler(ITwelveLDbContext db, IOptions<PhotoOptions> photoOptions) :
+public sealed class GetSaleQueryHandler(ITwelveLDbContext db, IOptions<PhotoOptions> photoOptions, TimeProvider clock) :
     IRequestHandler<GetSaleQuery, Result<SaleDto>>
 {
     public async Task<Result<SaleDto>> Handle(GetSaleQuery query, CancellationToken cancellationToken)
     {
         var order = await db.Orders.AsNoTracking().Include(o => o.StatusChanges)
             .SingleOrDefaultAsync(o => o.Id == query.OrderId && o.SellerId == query.SellerId, cancellationToken);
-        return order is null ? OrderErrors.NotFound : await OrderViews.SaleAsync(db, order, photoOptions.Value, cancellationToken);
+        if (order is null)
+        {
+            return OrderErrors.NotFound;
+        }
+
+        var sale = await OrderViews.SaleAsync(db, order, photoOptions.Value, cancellationToken);
+        return ShippingAddressVisibility.IsVisibleToSeller(order, clock.GetUtcNow().UtcDateTime) ? sale : sale with { ShipTo = null };
     }
 }
 
