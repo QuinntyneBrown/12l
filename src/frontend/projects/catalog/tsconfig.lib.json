@@ -6,7 +6,11 @@
     "outDir": "../../out-tsc/lib",
     "declaration": true,
     "declarationMap": true,
-    "types": []
+    "types": [],
+    "paths": {
+      "@12l/api": ["../../dist/api"],
+      "@12l/components": ["../../dist/components"]
+    }
   },
   "include": ["src/**/*.ts"],
   "exclude": ["**/*.spec.ts"]

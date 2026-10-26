@@ -1,0 +1,36 @@
+import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
+
+import { IconComponent, IconName } from '../icon/icon';
+
+export type AlertTone = 'info' | 'success' | 'warning' | 'danger';
+
+const ICONS: Record<AlertTone, IconName> = {
+  info: 'info',
+  success: 'check-circle',
+  warning: 'alert',
+  danger: 'x-circle',
+};
+
+/**
+ * Inline message with an icon, a title and projected text (design system: Alert). Danger alerts
+ * are announced at once (role="alert"); pass live="polite" for a status message such as success.
+ */
+@Component({
+  selector: 'tl-alert',
+  imports: [IconComponent],
+  templateUrl: './alert.html',
+  styleUrl: './alert.css',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+export class AlertComponent {
+  readonly tone = input<AlertTone>('info');
+  readonly heading = input.required<string>();
+  readonly icon = input<IconName>();
+  readonly live = input<'assertive' | 'polite' | 'off'>();
+
+  readonly iconName = computed(() => this.icon() ?? ICONS[this.tone()]);
+  readonly ariaRole = computed(() => {
+    const live = this.live() ?? (this.tone() === 'danger' ? 'assertive' : 'off');
+    return live === 'assertive' ? 'alert' : live === 'polite' ? 'status' : null;
+  });
+}

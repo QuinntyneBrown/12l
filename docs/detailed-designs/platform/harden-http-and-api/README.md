@@ -149,10 +149,15 @@ Middleware order in `Program.cs`: `UseForwardedHeaders` →
   | `anonymous` (default, no member) | 120 | client IP | 1 minute | `12l:rl:anon:{ip}:{yyyyMMddHHmm}` |
   | `member` (default, signed in) | 300 | member ID | 1 minute | `12l:rl:member:{memberId}:{yyyyMMddHHmm}` |
   | `register` | 5 | client IP | 1 hour | `12l:rl:register:{ip}:{yyyyMMddHH}` |
-  | `create-listing` | 20 | member ID | UTC day | `12l:rl:listing-create:{memberId}:{yyyyMMdd}` |
   | `sign-in` | per `L2-007` | owned by accounts | per `L2-007` | `12l:rl:sign-in:…` |
 
-  `register` and `create-listing` apply in addition to the default policy.
+  `register` applies in addition to the default policy. The listing creation limit of
+  `L2-051` (20 published listings per member per UTC day; drafts are not limited) is not a
+  policy here: create-listing enforces it in `PublishListingCommandHandler` by counting the
+  member's listings with `PublishedAt` since 00:00 UTC in `12L database`, and answers 429
+  `RATE_LIMITED` with `Retry-After` set to the seconds until midnight UTC
+  ([ADR platform-0006](../../../adr/platform/0006-daily-publish-limit-counted-in-database.md)).
+  The default policies still apply to the publish endpoint.
 
 ### Infrastructure (`TwelveL.Infrastructure`)
 
@@ -180,7 +185,8 @@ Middleware order in `Program.cs`: `UseForwardedHeaders` →
   `openssl s_client -tls1_1` and expects failure.
 - `MassAssignmentTests`, `RequestSizeTests`, `MalformedJsonTests`,
   `AntiforgeryTests`, `CorsTests` and `RateLimitTests` cover each acceptance
-  criterion; rate-limit tests run against a Redis Testcontainer.
+  criterion. Rate-limit tests replace `IRateLimitStore` with an in-memory fake; no test
+  starts Redis or any other external system (`AGENTS.md` testing rules).
 
 ### Error codes introduced
 
@@ -194,7 +200,7 @@ Middleware order in `Program.cs`: `UseForwardedHeaders` →
 | `L2-048` | `L1-013` | All traffic shall use HTTPS with TLS 1.2 or later. HTTP requests shall redirect to HTTPS. Responses shall include `Strict-Transport-Security` (max-age of at least one year), a `Content-Security-Policy` that disallows inline scripts, `X-Content-Type-Options: nosniff`, `Referrer-Policy: strict-origin-when-cross-origin` and `frame-ancestors 'none'`. |
 | `L2-049` | `L1-013` | The API shall validate every input on the server for type, length, range and format, whatever the client checks. Database access shall use parameterised queries only. User content shall be encoded on output. Unknown fields in a request body shall be ignored and shall never change protected fields such as owner, status or price paid (mass assignment). |
 | `L2-050` | `L1-013` | All state-changing requests shall be protected against cross-site request forgery with an anti-forgery token in addition to `SameSite` cookies. The API shall allow cross-origin requests only from the 12L frontend origins listed in configuration. |
-| `L2-051` | `L1-013` | The API shall limit requests to 120 per minute per IP address for anonymous callers and 300 per minute per member, with stricter limits for sign-in (L2-007), registration (5 per hour per IP) and listing creation (20 per day per member). Callers over a limit shall receive HTTP 429 with a `Retry-After` header. |
+| `L2-051` | `L1-013` | The API shall limit requests to 120 per minute per IP address for anonymous callers and 300 per minute per member, with stricter limits for sign-in (L2-007), registration (5 per hour per IP) and listing creation (20 published listings per member per UTC day; saving drafts is not limited). Callers over a limit shall receive HTTP 429 with a `Retry-After` header. |
 
 ## Diagrams
 

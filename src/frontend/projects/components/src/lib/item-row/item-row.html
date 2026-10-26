@@ -1,0 +1,9 @@
+<div class="item-row">
+  <ng-content select="[thumb]" />
+  <div class="item-row__body">
+    <span class="item-row__title">{{ title() }}</span>
+    @if (meta()) {
+      <span class="item-row__meta">{{ meta() }}</span>
+    }
+  </div>
+</div>

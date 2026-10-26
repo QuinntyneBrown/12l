@@ -5,13 +5,11 @@ title Containers — Create a listing
 
 Person(seller, "Seller", "Lists an item for sale")
 System_Boundary(twelvel, "12L") {
-  Container(web, "12L Web", "Angular", "Sell page, listing form, fixed size, earnings estimate")
+  Container(web, "12L Web", "Angular", "SellPage in @12l/listings; SellingApi, ListingsApi and AuthState in @12l/api")
   Container(api, "12L API", "ASP.NET Core", "Categories, selling options, listing create, update and publish")
-  ContainerDb(db, "12L database", "SQL Server", "Listings, listing photos, members")
-  ContainerDb(cache, "Distributed cache", "Redis", "Listing publish rate-limit counters")
+  ContainerDb(db, "12L database", "SQL Server", "Members, sessions, listings; the day's publishes are counted here")
 }
 Rel(seller, web, "Uses", "HTTPS")
-Rel(web, api, "Calls", "JSON/HTTPS")
+Rel(web, api, "Calls with session cookies", "JSON/HTTPS")
 Rel(api, db, "Reads and writes", "EF Core")
-Rel(api, cache, "Counts publishes per member per day", "RESP")
 @enduml

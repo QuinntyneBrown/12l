@@ -4,6 +4,11 @@
     <ProjectReference Include="..\TwelveL.Domain\TwelveL.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MediatR" Version="12.5.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.13" />
+  </ItemGroup>
+
   <PropertyGroup>
   </PropertyGroup>
 

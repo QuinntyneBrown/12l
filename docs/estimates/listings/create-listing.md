@@ -39,3 +39,7 @@ The minimal version keeps the size rule and the publish path intact. It includes
 | Dedicated unverified, suspended and limited page states; show a generic error instead | Members see a generic message instead of a tailored one | 3 |
 | `GET /api/selling/options`; hard-code conditions and brands in the client | Fee and brand list change only with a frontend release | 1 |
 | Playwright tests; rely on API acceptance tests | UI regressions surface later | 6 |
+
+## Status
+
+Complete: 90%. Everything in the design is built and tested except the photo rules and Photos section, which arrive with upload-listing-photos ([ADR general-0004](../../adr/general/0004-publish-without-photos-until-upload-listing-photos.md)), and the toast after a failed draft save.

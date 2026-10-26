@@ -96,7 +96,10 @@
               "buildTarget": "twelvel:build:development"
             }
           },
-          "defaultConfiguration": "development"
+          "defaultConfiguration": "development",
+          "options": {
+            "proxyConfig": "projects/twelvel/proxy.conf.json"
+          }
         }
       }
     },

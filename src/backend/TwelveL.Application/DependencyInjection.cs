@@ -1,0 +1,15 @@
+using Microsoft.Extensions.DependencyInjection;
+using TwelveL.Application.Accounts;
+
+namespace TwelveL.Application;
+
+public static class DependencyInjection
+{
+    /// <summary>Registers the MediatR handlers and application services.</summary>
+    public static IServiceCollection AddApplication(this IServiceCollection services)
+    {
+        services.AddMediatR(config => config.RegisterServicesFromAssemblyContaining(typeof(DependencyInjection)));
+        services.AddScoped<VerificationEmails>();
+        return services;
+    }
+}

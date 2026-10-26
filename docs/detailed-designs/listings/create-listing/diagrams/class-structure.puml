@@ -28,16 +28,36 @@ package "TwelveL.Domain" {
   }
   class CategoryCatalog {
     +IReadOnlyList<CategoryDefinition> All
-    +bool IsValid(category: string, subcategory: string?)
-    +string AcceptedSizeFor(category: string)
+    +CategoryDefinition? Find(category)
+    +bool Accepts(category, subcategory?)
+    +string AcceptedSizeFor(category)
   }
   class CategoryDefinition {
     +string Name
     +IReadOnlyList<string> Subcategories
     +string AcceptedSize
+    +string SizeLabel
+  }
+  class ListingDetails <<record>> {
+    +string? Category
+    +string? Subcategory
+    +string? Size
+    +string? Title
+    +string? Description
+    +string? Brand
+    +string? Condition
+    +string? Flaws
+    +decimal? Price
+    +decimal? ShippingCost
+  }
+  class RuleViolation <<record>> {
+    +string Field
+    +string Code
+    +string Message
   }
   class Listing {
     +Guid Id
+    +long Number
     +string Reference
     +Guid SellerId
     +ListingStatus Status
@@ -55,37 +75,25 @@ package "TwelveL.Domain" {
     +DateTime CreatedAt
     +DateTime UpdatedAt
     +DateTime? PublishedAt
-    +byte[] RowVersion
-    +static CreateDraft(sellerId, details, catalog, clock): Listing
-    +UpdateDetails(details, catalog, clock): void
-    +Publish(sizeConfirmed: bool, clock): void
-  }
-  class ListingPhoto {
-    +Guid Id
-    +Guid? ListingId
-    +int? Position
-    +PhotoStatus Status
+    +static CreateDraft(sellerId, number, details, now): Listing
+    +static CheckDraft(details): IReadOnlyList<RuleViolation>
+    +UpdateDetails(details, now): void
+    +Publish(sizeConfirmed, now): IReadOnlyList<RuleViolation>
   }
 }
 
 package "TwelveL.Application" {
-  class ListingDetailsDto {
-    +string Category
-    +string? Subcategory
-    +string? Size
-    +string? Title
-    +string? Description
-    +string? Brand
-    +string? Condition
-    +string? Flaws
-    +decimal? Price
-    +decimal? ShippingCost
-    +IReadOnlyList<Guid> PhotoIds
-  }
   class CreateListingDraftCommand {
-    +ListingDetailsDto Details
+    +Guid SellerId
+    +ListingDetails Details
+  }
+  class UpdateListingDraftCommand {
+    +Guid SellerId
+    +string Reference
+    +ListingDetails Details
   }
   class PublishListingCommand {
+    +Guid SellerId
     +string Reference
     +bool SizeConfirmed
   }
@@ -94,51 +102,52 @@ package "TwelveL.Application" {
     +string Status
     +bool PayoutOnboardingRequired
   }
-  class CreateListingDraftCommandHandler {
-    +Handle(command): Task<string>
+  class MyListingDto
+  class ListingCommandHandlers {
+    +Handle(CreateListingDraftCommand): Result<MyListingDto>
+    +Handle(UpdateListingDraftCommand): Result<MyListingDto>
+    +Handle(PublishListingCommand): Result<PublishListingResult>
+    +Handle(GetMyListingQuery): Result<MyListingDto>
   }
-  class PublishListingCommandHandler {
-    +Handle(command): Task<PublishListingResult>
+  class "Result<T>" as Result {
+    +T? Value
+    +Error? Error
   }
-  class SaveListingDraftValidator
-  class PublishListingValidator
+  interface ITwelveLDbContext {
+    +DbSet<Listing> Listings
+  }
   interface ISellerPayoutAccountReader {
-    +IsOnboardedAsync(memberId: Guid): Task<bool>
-  }
-  interface ICurrentMember {
-    +Guid MemberId
-    +bool CanSell
+    +IsOnboardedAsync(sellerId): Task<bool>
   }
 }
 
 package "TwelveL.Api" {
   class ListingsController {
-    +Create(body: ListingDetailsDto): Task<IActionResult>
-    +Update(id: Guid, body: ListingDetailsDto): Task<IActionResult>
-    +Publish(id: Guid, body: PublishListingRequest): Task<IActionResult>
+    +Create(body: ListingDetailsRequest)
+    +Update(reference, body: ListingDetailsRequest)
+    +Publish(reference, body: PublishRequest)
+    +GetMine(reference)
   }
   class CategoriesController {
-    +GetCategories(): IActionResult
-    +GetSellingOptions(): IActionResult
+    +Categories()
+    +SellingOptions()
   }
 }
 
 ListingsController ..> CreateListingDraftCommand : sends
+ListingsController ..> UpdateListingDraftCommand : sends
 ListingsController ..> PublishListingCommand : sends
 CategoriesController ..> CategoryCatalog : reads
-CreateListingDraftCommand *-- ListingDetailsDto
-CreateListingDraftCommandHandler ..> CreateListingDraftCommand : handles
-CreateListingDraftCommandHandler ..> Listing : creates
-CreateListingDraftCommandHandler ..> ICurrentMember : uses
-PublishListingCommandHandler ..> PublishListingCommand : handles
-PublishListingCommandHandler ..> PublishListingResult : returns
-PublishListingCommandHandler --> Listing : loads / mutates
-PublishListingCommandHandler ..> ISellerPayoutAccountReader : uses
-SaveListingDraftValidator ..> ListingDetailsDto : validates
-PublishListingValidator ..> Listing : validates publish rules
+ListingCommandHandlers ..> Result : returns
+ListingCommandHandlers ..> PublishListingResult : returns
+ListingCommandHandlers ..> MyListingDto : returns
+ListingCommandHandlers --> Listing : creates / mutates
+ListingCommandHandlers ..> ITwelveLDbContext : uses
+ListingCommandHandlers ..> ISellerPayoutAccountReader : uses
+Listing ..> ListingDetails : takes
+Listing ..> RuleViolation : reports
 Listing ..> CategoryCatalog : resolves size
 Listing --> ListingStatus : has
 Listing --> ItemCondition : has
-Listing "1" o-- "0..8" ListingPhoto : photos
 CategoryCatalog "1" *-- "4" CategoryDefinition
 @enduml

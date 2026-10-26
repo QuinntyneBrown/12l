@@ -1,1 +1,3 @@
-return TwelveL.Migrator.MigratorApp.Run(Console.Out);
+using TwelveL.Migrator;
+
+return MigratorApp.Run(Console.Out, Environment.GetEnvironmentVariable(MigratorApp.ConnectionStringVariable));

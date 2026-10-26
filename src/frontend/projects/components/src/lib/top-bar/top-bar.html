@@ -38,7 +38,24 @@
         <circle cx="11" cy="11" r="7" />
         <path d="m20 20-3.5-3.5" /></svg
     ></a>
-    <a class="btn btn--ghost topbar__sell" routerLink="/sell">Sell</a>
-    <a class="btn" routerLink="/sign-in">Sign in</a>
+    @if (member(); as member) {
+      <a
+        class="nav-link topbar__sell"
+        routerLink="/sell"
+        routerLinkActive
+        #sell="routerLinkActive"
+        [attr.aria-current]="sell.isActive ? 'page' : null"
+        ><tl-icon name="plus" />Sell</a
+      >
+      <a
+        class="avatar avatar--sm topbar__avatar"
+        routerLink="/account"
+        [attr.aria-label]="'Your account, ' + member.displayName"
+        >{{ initials() }}</a
+      >
+    } @else {
+      <a class="btn btn--ghost topbar__sell" routerLink="/sell">Sell</a>
+      <a class="btn" routerLink="/sign-in">Sign in</a>
+    }
   </div>
 </header>
