@@ -40,7 +40,7 @@ public sealed record SaleDto(
     string SalesTax,
     string Total,
     string BuyerDisplayName,
-    AddressDto ShipTo,
+    AddressDto? ShipTo,
     IReadOnlyList<TimelineStepDto> Timeline,
     TrackingDto? Tracking,
     SalePayoutDto? Payout,
