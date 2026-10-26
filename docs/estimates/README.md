@@ -1,7 +1,7 @@
 # Estimates
 
 - Overall effort: 109 days
-- Complete: 59%
+- Complete: 62%
 
 | Subsystem | Effort | Complete |
 |---|---|---|
@@ -11,7 +11,7 @@
 | [listings](listings.md) | 17 days | 85% |
 | [catalog](catalog.md) | 12 days | 98% |
 | [orders](orders.md) | 30 days | 93% |
-| [reviews](reviews.md) | 3 days | 0% |
+| [reviews](reviews.md) | 3 days | 95% |
 | [notifications](notifications.md) | 7 days | 49% |
 
 ## Roadmap

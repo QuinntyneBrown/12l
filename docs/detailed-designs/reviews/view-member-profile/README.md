@@ -20,11 +20,9 @@ Terms used throughout:
 - **completed sale** — order in which the member was the seller and that reached the Completed status (`L2-032`)
 - **Active listing** — listing that is live in the catalog (`L2-019`)
 - **unavailable member** — member whose account is closed (`L2-005`)
-- **member reputation** — stored projection of each member's published-review count, star total and completed-sale count, kept current by domain events
 
-The rating summary also appears beside the seller on listing cards and the listing detail
-page (`catalog` subsystem). This feature owns its calculation and exposes it through a
-read port so every screen shows the same figure.
+The listing detail page (`catalog` subsystem) shows the same completed-sale count in its
+seller summary.
 
 The feature sits in the `reviews` subsystem. It reads member data owned by `accounts`,
 listings owned by `listings`, and published reviews. Review authoring, review replies
@@ -33,144 +31,107 @@ so until they return every profile shows "No reviews yet".
 
 ## Description
 
-The slice runs from the profile route of `12L Web` through anonymous read endpoints of
+The slice runs from the profile route of `12L Web` through two anonymous read endpoints of
 `12L API` to `12L database`. Screens, states and copy come from `docs/mocks/pages/profile/`
-(states *default*, *own*, *empty*, *loading*, *error*, *unavailable* and *long*).
+(states *default*, *own*, *empty*, *loading*, *error*, *unavailable* and *long*). What is
+built now, and what waits for review authoring and edit-profile, is recorded in
+[ADR reviews/0001](../../../adr/reviews/0001-public-profile-without-a-reputation-projection.md).
 
-### Frontend (`src/frontend/src/app/reviews/`)
+### Frontend (`src/frontend/projects/reviews/src/lib/member-profile/`)
 
-- **Route** `members/:displayName` → **`MemberProfilePageComponent`**, lazy-loaded,
-  reachable without sign-in. A route resolver is not used; the page loads its data with
-  signals so the skeleton shows at once.
-- **`MemberProfilePageComponent`** — composes the sections below and holds the page
-  states:
-  - *loading* — skeleton header with an `avatar--xl` placeholder and a 4-card skeleton
-    grid, `aria-busy="true"` and the hidden heading "Loading profile".
-  - *default* — header, stats, "For sale" section and "Reviews" section.
-  - *own* — when the signed-in member's ID equals the profile's member ID, the header
-    action is "Edit profile" (link to `/account/profile`).
-  - *empty* — "For sale" shows the compact empty state "No items for sale" with
-    "{displayName} hasn’t listed anything yet."; "Reviews" shows "No reviews yet" when
-    there are none.
-  - *long* — listings arrive 24 per page (`L2-041`); a "Load more" button appends the
-    next page and the caption reads "Showing {loaded} of {total}".
-  - *unavailable* — HTTP 404 with code `member.unavailable` renders the large "404",
-    the heading "This member isn’t available", the text "The account may have been
-    closed." and the primary action "Back to shop" (to `/`).
-  - *error* — any other failure renders "Couldn’t load this profile", "It’s us, not
-    you." with the correlation ID as "Ref {id}", and the actions "Try again" and "Back to
-    shop" (`L2-068`).
-- **`ProfileHeaderComponent`** — `avatar--xl`, display name as the `h1`, map-pin icon
-  with the public location, `RatingSummaryComponent`, and the bio.
-- **`ProfileStatsComponent`** — two stats: completed sales with the label "Sales", and
-  the member-since month and year with the label "Member since" (for example "Jan 2025").
-- **`ProfileListingsComponent`** — section "For sale" with the Active listing total
-  beside the heading, a grid of the shared `ListingCardComponent` from `catalog`, and
-  "Load more".
-- **`ProfileReviewsComponent`** — section "Reviews" with the published review count beside
-  the heading. Each review shows the author's avatar and linked display name, the stars,
-  the date, the comment, and "Reply: {text}" when the subject has replied. An author whose
-  account was erased shows as "Former member" (`L2-005`) with no link. Reviews page with
-  "Load more" at `<TO SUPPLY>` per page.
-- **`RatingSummaryComponent`** — shared component exported from the `reviews` area. It
-  renders `role="img"` with the label "Rated {average} out of 5 from {count} reviews",
-  the stars, the average to one decimal place and "({count} reviews)", using "review" for
-  a count of 1. With a count of 0 it renders the muted text "No reviews yet" (`L2-040`).
-  A `short` input renders "({count})" for listing cards.
-- **`MembersApiService`** — typed `HttpClient` wrapper: `getProfile(displayName)`,
-  `getListings(displayName, page)`, `getReviews(displayName, page)`.
+- **Route** `members/:displayName` in `@12l/reviews` (`reviews.routes.ts`), lazy-loaded under
+  `/members` by the application and reachable without sign-in. The route parameter binds to
+  the page's `displayName` input; the page title becomes "{displayName} · 12L".
+- **`MemberProfileStore`**: signal state. It requests the profile and the first page of
+  listings in parallel. A 404 gives the *unavailable* view, any other failure the *error* view
+  with the short correlation reference. `loadMore()` appends the next page and drops any card
+  already shown.
+- **`MemberProfilePage`**: composes the page from `@12l/components` as listed in
+  `docs/screen-composition.md`:
+  - *loading*: skeleton `.profile-head` with an `avatar--xl` placeholder, the hidden heading
+    "Loading profile" and the `tl-listing-grid` skeleton.
+  - *default*: `.profile-head` with the initials avatar (or the photo when `avatarUrl` is
+    set), the display name as the `h1`, the `map-pin` location and the bio when present, and
+    `tl-rating-summary`; a `.stats` row of two `tl-stat` ("Sales", and "Member since" as
+    "Jan 2025"); the "For sale" section with the Active listing total and `tl-listing-grid`;
+    the "Reviews" section with the count and "No reviews yet".
+  - *empty*: "For sale" shows the compact `tl-empty-state` "No items for sale" with
+    "{displayName} hasn’t listed anything yet."
+  - *long*: 24 cards per page (`L2-041`); `tl-load-more` reads "Showing {loaded} of {total}".
+    A failed next page shows the danger `tl-alert` "Couldn’t load more items" with "Try again".
+  - *unavailable*: `tl-center-state` with code "404", "This member isn’t available", "The
+    account may have been closed." and "Back to shop" (to `/`).
+  - *error*: `tl-center-state` "Couldn’t load this profile", "It’s us, not you." with the
+    reference, "Try again" and "Back to shop" (`L2-068`).
+  - *own*: the same as *default*; "Edit profile" waits for edit-profile.
+- **`tl-rating-summary`** (`@12l/components`): `role="img"` named "Rated {average} out of 5
+  from {count} reviews" with the stars, the average to one decimal place and "({count}
+  reviews)" ("review" for 1). With a count of 0 it renders the muted "No reviews yet"
+  (`L2-040`).
+- **`MembersApi`** (`@12l/api`, `src/lib/reviews/members-api.ts`): `profile(displayName)`
+  and `listings(displayName, page)`, returning `ApiResult`.
+- The seller link of `tl-seller-summary` on the listing detail page opens this profile.
 
 ### API (`TwelveL.Api`)
 
-`MembersController` exposes three anonymous endpoints under the `PublicReadPolicy`
-endpoint policy. They are rate limited at 120 requests per minute per IP for anonymous
-callers and 300 per minute per member (`L2-051`). `displayName` matches ignoring case.
+`MembersController` exposes two anonymous endpoints. `displayName` matches ignoring case.
 
 | Verb and path | Purpose | Responses |
 |---------------|---------|-----------|
-| `GET /api/members/{displayName}` | Profile header, stats and rating summary | 200 `PublicProfileDto`; 404 `member.unavailable` for an unknown or closed member |
-| `GET /api/members/{displayName}/listings?page={n}` | Active listings, newest first, 24 per page | 200 `PagedResult<ListingCardDto>`; 400 `paging.invalid`; 404 `member.unavailable` |
-| `GET /api/members/{displayName}/reviews?page={n}` | Published reviews about the member, newest first, with replies | 200 `PagedResult<PublicReviewDto>`; 400 `paging.invalid`; 404 `member.unavailable` |
+| `GET /api/members/{displayName}` | Profile header, stats and rating summary | 200 `PublicProfileDto`; 404 `MEMBER_UNAVAILABLE` for an unknown or closed member |
+| `GET /api/members/{displayName}/listings?page={n}` | Active listings, newest first, 24 per page | 200 `CatalogPageDto`; 400 `VALIDATION_FAILED` for a page below 1; 404 `MEMBER_UNAVAILABLE` |
 
-The two cases of the 404 share one response body, so the API does not reveal whether
-a display name exists or is closed. Every error is an RFC 9457 problem
-details response with a correlation ID (`L2-068`).
+The two cases of the 404 share one response body, so the API does not reveal whether a
+display name exists or is closed. 200 responses carry `Cache-Control: public, max-age=60`;
+the 404 carries `no-store`. Every error is an RFC 9457 problem details response with a
+correlation ID (`L2-068`).
 
-**Response contracts.** These DTOs are dedicated public types. No handler serializes the
-`Member` entity or any type that holds private fields.
+**Response contracts.** Dedicated public types; no handler serializes the `Member` entity.
 
-- `PublicProfileDto`: `memberId` (opaque `Guid`), `displayName`, `avatarUrl` (CDN URL of
-  the processed avatar, or `null`), `bio`, `publicLocation`, `memberSince` (ISO date of
-  the first day of the joining month), `rating` (`RatingSummaryDto`: `average` as a
-  decimal with one place or `null`, `count`), `completedSales`, `activeListingCount`.
-- `PublicReviewDto`: `reviewId`, `author` (`displayName` and `avatarUrl`, or `null` for a
-  former member), `stars`, `comment`, `publishedAt`, `reply` (`text`, `postedAt`, or
-  `null`).
-- `ListingCardDto` comes from `catalog` and is reused as is.
+- `PublicProfileDto`: `memberId`, `displayName`, `avatarUrl`, `bio`, `publicLocation` (the
+  three are `null` until edit-profile stores them), `memberSince` (ISO date of the first day
+  of the joining month), `rating` (`RatingSummaryDto`: `average` or `null`, `count`; always
+  `null` and 0 while review authoring is deferred), `completedSales`, `activeListingCount`.
+- `CatalogPageDto` of `ListingCardDto` comes from `catalog` and is reused as is.
 
-**No-PII guard (`L2-054`).** `PublicResponsePiiTests` serializes each public DTO with
-populated sample data and fails when the JSON contains an `@`-address, a phone-number
-pattern, the sample full name or a street line. A second test lists each DTO property name
-against an allow-list, so adding a field such as `email` fails the build.
+**No-PII guard (`L2-054`).** `MemberProfileTests` reads the profile JSON of a member whose
+email is set, fails when it contains an `@` or the password hash, and checks every property
+name against the allow-list above, so adding a field such as `email` fails the build.
 
-### Application and domain (`TwelveL.Application`, `TwelveL.Domain`)
+### Application and domain (`TwelveL.Application/Profiles/`, `TwelveL.Domain`)
 
-- **`GetPublicProfileQuery`** (`DisplayName`) and **`GetPublicProfileQueryHandler`** —
-  loads the member by `NormalizedDisplayName`. It returns `MemberUnavailable` when the
-  member is missing or `Closed`. Otherwise it projects straight into
-  `PublicProfileDto`, joining `MemberReputations` and counting Active listings. The
-  projection selects only the public columns, so private columns are never read into
-  memory.
-- **`GetMemberListingsQuery`** (`DisplayName`, `Page`) and its handler — Active listings
-  of the member, `PageSize` fixed at 24 (`L2-041`), newest first.
-- **`GetMemberReviewsQuery`** (`DisplayName`, `Page`) and its handler — reviews with
-  `SubjectMemberId` equal to the member and `Status = Published` only (`L2-040`), newest
-  `PublishedAt` first.
-- **`MemberReputation`** (entity, one row per member): `Guid MemberId`,
-  `int PublishedReviewCount`, `int PublishedStarsTotal`, `int CompletedSalesCount`,
-  `byte[] RowVersion`. Its methods are:
-  - `ApplyPublishedReview(int stars)` adds 1 to the count and the stars to the total.
-  - `ApplyCompletedSale()` adds 1 to the completed-sale count.
-  - `RatingSummary` returns a `RatingSummary` value object.
-- **`RatingSummary`** (value object): `decimal? Average`, `int Count`. `Average` is
-  `null` when `Count` is 0. Otherwise it is `Math.Round(total / count, 1,
-  MidpointRounding.AwayFromZero)`, so reviews of 5, 4 and 4 stars give 4.3 with a count
-  of 3 (`L2-040`). Hidden reviews never reach the projection, because only
-  `ReviewPublished` updates it.
-- **`UpdateReputationOnReviewPublishedHandler`** — handles `ReviewPublished` from
-  the deferred review-authoring feature inside the publishing transaction. It
-  upserts the `MemberReputation` row and calls `ApplyPublishedReview`.
-- **`UpdateReputationOnOrderCompletedHandler`** — handles `OrderCompleted` from `orders`
-  and calls `ApplyCompletedSale` for the seller.
-- **`IRatingSummaryReader`** — read port used by `catalog` queries to show the same
-  rating beside sellers.
-- **`RebuildMemberReputationCommand`** — administrative recovery command that recalculates
-  one member's row from `Reviews` and `Orders`. It is run from the Worker on demand.
+- **`PublicMembers.FindAsync`**: the member by `NormalizedDisplayName` with `ClosedAt`
+  null; otherwise `PublicMembers.Unavailable` (404 `MEMBER_UNAVAILABLE`).
+- **`GetPublicProfileQuery`** (`DisplayName`) and its handler: counts `Orders` in status
+  `Completed` with the member as seller, and the member's `Active` listings.
+- **`GetMemberListingsQuery`** (`DisplayName`, `Page`) and its handler: the member's
+  `Active` listings, newest `PublishedAt` first, page size fixed at 24, mapped by
+  `CatalogCards.ToCardsAsync`, which the catalog also uses.
+- **`Member.ClosedAt`** and **`Member.Close(now)`**: the closed state of `L2-005`. Closing an
+  account from a screen belongs to the privacy work.
+- **`GetListingDetailQueryHandler`** fills `SellerSummaryDto.CompletedSalesCount` with the same
+  count, so the listing page and the profile agree.
 
 ### Infrastructure and data (`TwelveL.Infrastructure`)
 
-- Table **`MemberReputations`**: primary key `MemberId` (foreign key to `Members`), the
-  three counters as `int NOT NULL DEFAULT 0`, and `RowVersion` as a `rowversion`
-  concurrency token. The handlers retry a concurrency conflict up to 3 times by reloading
-  the row.
-- Index **`UX_Members_NormalizedDisplayName`** (owned by `accounts`) serves the profile
-  lookup.
-- Index **`IX_Listings_SellerId_Status_PublishedAt`** (owned by `listings`) serves the
-  listings page.
-- Index **`IX_Reviews_SubjectMemberId_Status_PublishedAt`** (owned by the deferred
-  review-authoring feature) serves the reviews page.
-- **Caching.** The API sets `Cache-Control: public, max-age={Profiles:CacheSeconds}` on
-  the three 200 responses and `Cache-Control: no-store` on the 404. It also applies
-  ASP.NET Core output caching under the tag `profile:{normalizedDisplayName}`.
-  `ReviewPublished`, `OrderCompleted`, profile edits (`L2-004`), listing status changes
-  and suspension evict the tag. `Profiles:CacheSeconds` is `<TO SUPPLY>`.
+- Migration **`MemberClosedAt`** adds the nullable `Members.ClosedAt`.
+- Index **`UX_Members_NormalizedDisplayName`** (owned by `accounts`) serves the profile lookup.
+- The listing and order counts use the existing seller indexes of `listings` and `orders`.
 
-### Frontend–backend contract notes
+### Tests
 
-- A display-name change (`L2-004`) makes the old URL return 404. Whether old names
-  redirect is `<TO SUPPLY>`.
-- Avatar URLs point to content-addressed, processed versions on the CDN (`L2-017`); the
-  original upload is never public.
+- xUnit `tests/TwelveL.Api.Tests/MemberProfileTests.cs` against the in-memory test host:
+  public profile, completed sales, the allow-list, the uniform 404 for unknown and closed
+  members, paging 24 at a time and a refused page 0.
+- Playwright `src/frontend/e2e/tests/view-member-profile.spec.ts` with the
+  `MemberProfilePage` page object and the `memberProfile` and `serveProfile` fixtures; every
+  API call is served by `page.route`.
+
+### Open questions
+
+- Whether a renamed member's old URL redirects waits for edit-profile.
+- The profile reviews list, rating projection and their cache eviction return with review
+  authoring.
 
 ## Requirements
 
@@ -195,39 +156,29 @@ through the CDN. No external system takes part in building a profile.
 
 ### Containers
 
-`12L Web` calls three anonymous endpoints on `12L API`. The API reads `12L database` and
-caches responses by profile tag. The browser loads the avatar and listing photos from
-`Photo storage`.
+`12L Web` calls two anonymous endpoints on `12L API`, which reads `12L database`. The
+browser loads the listing photos from `Photo storage`.
 
 ![C4 container view for viewing a member profile](diagrams/c4-container.png)
 
 ### Components
 
-`MembersController` sends three queries. The profile query joins the `MemberReputation`
-projection, which two event handlers keep current from published reviews and completed
-orders.
+`MembersController` sends two queries. Both find an open member first; the listings query
+maps cards with the catalog's `CatalogCards`.
 
 ![C4 component view for viewing a member profile](diagrams/c4-component.png)
 
 ### Class structure
 
-`MemberReputation` produces a `RatingSummary`. The query handlers project into dedicated
-public DTOs that hold no private fields.
+The query handlers return dedicated public DTOs that hold no private fields. `Member`
+carries the closed state that makes a profile unavailable.
 
 ![Class diagram for viewing a member profile](diagrams/class-structure.png)
 
-### Behaviour — open a public profile
+### Behaviour: open a public profile
 
-The page requests the profile, listings and reviews in parallel. An unknown or
+The page requests the profile and the first listings page in parallel. An unknown or
 closed member returns one uniform HTTP 404 and the "This member isn’t available" page
 (`L2-041`).
 
 ![Sequence diagram for opening a public profile](diagrams/sequence-view-profile.png)
-
-### Behaviour — update the rating summary
-
-When a review is published, the reputation handler adds it to the member's totals in the
-same transaction and evicts the cached profile. The summary therefore counts published
-reviews only (`L2-040`).
-
-![Sequence diagram for updating the rating summary](diagrams/sequence-update-rating-summary.png)

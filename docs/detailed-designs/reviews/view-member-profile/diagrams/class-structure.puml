@@ -9,23 +9,16 @@ skinparam class {
   FontColor #101828
   BackgroundColor #F9FAFB
 }
-title Class structure â€” View a member profile
+title Class structure — View a member profile
 
-class MemberReputation {
-  +Guid MemberId
-  +int PublishedReviewCount
-  +int PublishedStarsTotal
-  +int CompletedSalesCount
-  +byte[] RowVersion
-  +ApplyPublishedReview(stars: int): void
-  +ApplyCompletedSale(): void
-  +RatingSummary: RatingSummary
-}
-
-class RatingSummary <<value object>> {
-  +decimal? Average
-  +int Count
-  +{static} From(total: int, count: int): RatingSummary
+class Member {
+  +Guid Id
+  +string DisplayName
+  +string NormalizedDisplayName
+  +DateTime CreatedAt
+  +DateTime? ClosedAt
+  +bool IsClosed
+  +Close(now: DateTime): void
 }
 
 class PublicProfileDto {
@@ -45,61 +38,34 @@ class RatingSummaryDto {
   +int Count
 }
 
-class PublicReviewDto {
-  +Guid ReviewId
-  +PublicAuthorDto? Author
-  +int Stars
-  +string? Comment
-  +DateTimeOffset PublishedAt
-  +PublicReplyDto? Reply
-}
-
-class PublicAuthorDto {
-  +string DisplayName
-  +string? AvatarUrl
-}
-
-class PublicReplyDto {
-  +string Text
-  +DateTimeOffset PostedAt
-}
-
-class "PagedResult<T>" as PagedResult {
-  +IReadOnlyList<T> Items
+class CatalogPageDto {
+  +IReadOnlyList<ListingCardDto> Items
   +int Page
   +int PageSize
-  +int Total
+  +int TotalCount
+}
+
+class PublicMembers <<static>> {
+  +{static} ListingsPageSize = 24
+  +{static} Unavailable: Error
+  +{static} FindAsync(db, displayName): Task<Member?>
 }
 
 class GetPublicProfileQueryHandler {
   +Handle(query: GetPublicProfileQuery): Task<Result<PublicProfileDto>>
 }
 class GetMemberListingsQueryHandler {
-  +Handle(query: GetMemberListingsQuery): Task<Result<PagedResult<ListingCardDto>>>
+  +Handle(query: GetMemberListingsQuery): Task<Result<CatalogPageDto>>
 }
-class GetMemberReviewsQueryHandler {
-  +Handle(query: GetMemberReviewsQuery): Task<Result<PagedResult<PublicReviewDto>>>
-}
-class UpdateReputationOnReviewPublishedHandler {
-  +Handle(event: ReviewPublished): Task
-}
-class UpdateReputationOnOrderCompletedHandler {
-  +Handle(event: OrderCompleted): Task
-}
-interface IRatingSummaryReader {
-  +GetAsync(memberIds: IReadOnlyCollection<Guid>): Task<IReadOnlyDictionary<Guid, RatingSummary>>
+class CatalogCards <<static>> {
+  +{static} ToCardsAsync(db, listings, photoOptions): Task<List<ListingCardDto>>
 }
 
-MemberReputation ..> RatingSummary : produces
 PublicProfileDto *-- RatingSummaryDto
-PublicReviewDto *-- "0..1" PublicAuthorDto
-PublicReviewDto *-- "0..1" PublicReplyDto
-GetPublicProfileQueryHandler ..> PublicProfileDto : projects
-GetPublicProfileQueryHandler --> MemberReputation : reads
-GetMemberReviewsQueryHandler ..> PublicReviewDto : projects
-GetMemberReviewsQueryHandler ..> PagedResult : returns
-GetMemberListingsQueryHandler ..> PagedResult : returns
-UpdateReputationOnReviewPublishedHandler --> MemberReputation : mutates
-UpdateReputationOnOrderCompletedHandler --> MemberReputation : mutates
-IRatingSummaryReader ..> RatingSummary : returns
+GetPublicProfileQueryHandler ..> PublicMembers : finds open member
+GetMemberListingsQueryHandler ..> PublicMembers : finds open member
+PublicMembers ..> Member : skips closed
+GetPublicProfileQueryHandler ..> PublicProfileDto : returns
+GetMemberListingsQueryHandler ..> CatalogPageDto : returns
+GetMemberListingsQueryHandler ..> CatalogCards : maps
 @enduml

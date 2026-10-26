@@ -1,33 +1,24 @@
 @startuml
 !include <C4/C4_Component>
 LAYOUT_WITH_LEGEND()
-title Components â€” View a member profile
+title Components — View a member profile
 
-Container(web, "12L Web", "Angular", "MemberProfilePageComponent, ProfileHeaderComponent, RatingSummaryComponent, MembersApiService")
+Container(web, "12L Web", "Angular", "@12l/reviews MemberProfilePage and MemberProfileStore; @12l/api MembersApi; @12l/components tl-rating-summary")
 
 Container_Boundary(api, "12L API") {
-  Component(ctrl, "MembersController", "ASP.NET Core controller", "Anonymous endpoints under PublicReadPolicy, rate limited, output cached")
-  Component(qprofile, "GetPublicProfileQueryHandler", "MediatR handler", "Returns PublicProfileDto or member.unavailable")
-  Component(qlist, "GetMemberListingsQueryHandler", "MediatR handler", "Active listings, 24 per page")
-  Component(qrev, "GetMemberReviewsQueryHandler", "MediatR handler", "Published reviews with replies")
-  Component(rep, "MemberReputation", "Domain entity", "Published review count, stars total, completed sales")
-  Component(onrev, "UpdateReputationOnReviewPublishedHandler", "MediatR notification handler", "Adds a published review to the totals")
-  Component(onord, "UpdateReputationOnOrderCompletedHandler", "MediatR notification handler", "Adds a completed sale")
-  Component(reader, "IRatingSummaryReader", "Read port", "Shares the rating summary with catalog")
+  Component(ctrl, "MembersController", "ASP.NET Core controller", "Anonymous; Cache-Control public 60 s, no-store on 404")
+  Component(qprofile, "GetPublicProfileQueryHandler", "MediatR handler", "PublicProfileDto or MEMBER_UNAVAILABLE")
+  Component(qlist, "GetMemberListingsQueryHandler", "MediatR handler", "Active listings, 24 per page, newest first")
+  Component(cards, "CatalogCards", "Mapper", "ListingCardDto with the cover photo, shared with the catalog")
+  Component(port, "ITwelveLDbContext", "Persistence port", "Members, Orders, Listings, ListingPhotos")
 }
-ContainerDb(db, "12L database", "SQL Server", "Members, MemberReputations, Listings, Reviews")
+ContainerDb(db, "12L database", "SQL Server", "Members (ClosedAt), Orders, Listings, ListingPhotos")
 
 Rel(web, ctrl, "Calls", "JSON/HTTPS")
 Rel(ctrl, qprofile, "Sends GetPublicProfileQuery")
 Rel(ctrl, qlist, "Sends GetMemberListingsQuery")
-Rel(ctrl, qrev, "Sends GetMemberReviewsQuery")
-Rel(qprofile, rep, "Reads RatingSummary")
-Rel(onrev, rep, "ApplyPublishedReview")
-Rel(onord, rep, "ApplyCompletedSale")
-Rel(reader, rep, "Reads")
-Rel(qprofile, db, "Projects public columns", "EF Core")
-Rel(qlist, db, "Reads Listings", "EF Core")
-Rel(qrev, db, "Reads Reviews", "EF Core")
-Rel(onrev, db, "Upserts MemberReputations", "EF Core")
-Rel(onord, db, "Upserts MemberReputations", "EF Core")
+Rel(qlist, cards, "Maps listings")
+Rel(qprofile, port, "Member by NormalizedDisplayName; counts Completed sales and Active listings")
+Rel(qlist, port, "Pages Active listings")
+Rel(port, db, "Reads", "EF Core")
 @enduml

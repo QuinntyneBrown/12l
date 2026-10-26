@@ -1,4 +1,10 @@
 import { Routes } from '@angular/router';
 
-/** Lazy routes of the reviews feature area. Empty until its first journey is built. */
-export const routes: Routes = [];
+/** Lazy routes of the reviews feature area, mounted at /members: the public member profile. */
+export const routes: Routes = [
+  {
+    path: ':displayName',
+    loadComponent: () => import('./member-profile/member-profile-page').then((m) => m.MemberProfilePage),
+    title: 'Member · 12L',
+  },
+];

@@ -26,7 +26,8 @@ export type IconName =
   | 'eye-off'
   | 'bag'
   | 'image'
-  | 'trash';
+  | 'trash'
+  | 'map-pin';
 
 /** One decorative inline SVG icon from the 12L set, hidden from assistive technology (design system: Icon). */
 @Component({

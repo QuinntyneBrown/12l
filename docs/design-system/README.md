@@ -60,6 +60,7 @@ the top bar and the no-cover mode of the photo uploader.
 | [Gallery](components/gallery.html) | one photo, several photos | selected thumbnail, swiped | listing-detail/default |
 | [Buy bar](components/buy-bar.html) | Buy now, Edit listing | sticky below 992 px, inline from 992 px | listing-detail/default, listing-detail/guest, listing-detail/own |
 | [Seller summary](components/seller-summary.html) | established, new seller | static | listing-detail/default, listing-detail/new-seller |
+| [Rating summary](components/rating-summary.html) | rated; "No reviews yet" | static | profile/default, profile/own, profile/empty |
 | [Order summary](components/order-summary.html) | priced, not yet priced | static | checkout/default, checkout/new-address |
 | [Reservation timer](components/reservation-timer.html) | info, warning, danger | counting, last minute, ended | checkout/default, reservation-timer/warning, reservation-timer/danger |
 | [Order timeline](components/order-timeline.html) | paid, shipped, delivered | done, current, to come | sale-detail/shipped, order-detail/default, order-detail/paid |

@@ -74,3 +74,4 @@ export {
   type ProblemReason,
 } from './lib/orders/problems-api';
 export { provideApi } from './lib/provide-api';
+export { MembersApi, type PublicProfile } from './lib/reviews/members-api';

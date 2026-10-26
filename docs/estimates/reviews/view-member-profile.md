@@ -43,3 +43,7 @@ The minimal scope calculates the rating summary and completed sales with live ag
 | Reviews paging; show the newest reviews only, count `<TO SUPPLY>` | Older reviews are not reachable from the profile | 2 |
 | Playwright suite reduced to one happy path | UI regressions in profile states are caught later | 3 |
 | **Total if all cut** | | **12** |
+
+## As built
+
+Built to the scope of [ADR reviews/0001](../../adr/reviews/0001-public-profile-without-a-reputation-projection.md): live counts over `Orders` and `Listings`, no `MemberReputation` projection, no reviews endpoint, "No reviews yet" everywhere, and `Member.ClosedAt` for the unavailable page. The own-profile "Edit profile" action waits for edit-profile, which leaves the feature at 95%.
