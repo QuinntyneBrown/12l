@@ -26,10 +26,11 @@ Terms used in this design:
 
 ## Description
 
-### Frontend (`src/frontend/src/app/orders/`)
+### Frontend (`@12l/orders`, `src/frontend/projects/orders/src/lib/`)
 
-- **`PurchasesPage`** (route `/account/purchases`, account area, mock `docs/mocks/pages/purchases/`) — heading "Purchases" with a subtitle from counts, for example "1 on the way · 1 to confirm" (Shipped and Delivered counts). Each `OrderListItemComponent` row links to `/orders/:id`. A row shows thumbnail, title, "from {seller} · {date}", total and `OrderStatusBadgeComponent`. States: `loading` (3 skeleton rows); `empty` ("Nothing bought yet", "Everything in the catalog already fits.", "Browse the catalog"); `error` ("Couldn't load purchases", reference code, "Try again", account navigation kept).
-- **`SalesPage`** (route `/account/sales`, mock `docs/mocks/pages/sales/`) — heading "Sales", subtitle "{n} to ship" (Paid count). Rows read "to {buyer} · ship by {date}" for Paid orders and link to `/sales/:id`. States: `loading`; `empty` ("No sales yet", "Sold items show up here with what to do next.", "Sell an item"); `error` ("Couldn't load sales").
+- **`OrderHistoryPage`** (`order-history/`) serves both lists below, chosen by route data `list`.
+- **Purchases** (route `/account/purchases`, account area, mock `docs/mocks/pages/purchases/`) — heading "Purchases" with a subtitle from counts, for example "1 on the way · 1 to confirm" (Shipped and Delivered counts). Each `tl-item-row` row links to `/orders/:id`. A row shows thumbnail, title, "from {seller} · {date}", total and `tl-status`. States: `loading` (3 skeleton rows); `empty` ("Nothing bought yet", "Everything in the catalog already fits.", "Browse the catalog"); `error` ("Couldn't load purchases", reference code, "Try again", account navigation kept).
+- **Sales** (route `/account/sales`, mock `docs/mocks/pages/sales/`) — heading "Sales", subtitle "{n} to ship" (Paid count). Rows read "to {buyer} · ship by {date}" for Paid orders and link to `/sales/:id`. States: `loading`; `empty` ("No sales yet", "Sold items show up here with what to do next.", "Sell an item"); `error` ("Couldn't load sales").
 - **`OrderDetailPage`** (route `/orders/:id`, mock `docs/mocks/pages/order-detail/`) — breadcrumb "Purchases › {number}", eyebrow "Order {number} · {date}", `OrderTimelineComponent`, and a side `OrderSummaryPanelComponent` with the seller. One state per status, each reading the `actions` flags:
   - `paid` — "Waiting to ship", "{seller} ships by {date}. If not, you're refunded automatically.", "Ask to cancel" (cancel-order);
   - `default` (Shipped) — "On its way", tracking link, "Report a problem" (resolve-order-problems);
@@ -38,28 +39,26 @@ Terms used in this design:
   - `cancelled`, `refunded`, `problem` — described in cancel-order and resolve-order-problems;
   - `loading` and `error` ("Couldn't load this order", "Back to purchases").
 - **`SaleDetailPage`** (route `/sales/:id`, mock `docs/mocks/pages/sale-detail/`) — same layout with the buyer in the side panel, breadcrumb "Sales". It shows the "Ship to" block while the address is visible. The `address-hidden` state shows "Removed 30 days after the order ended." with an eye-off icon. Status-specific states are designed in ship-order (`default`, `shipped`), cancel-order (`cancel-requested`, `cancelled`), resolve-order-problems (`problem`) and seller-payouts (`completed`).
-- **`OrderStatusBadgeComponent`** — status pill with the status name as text.
-- **`OrdersApiService`** — `listPurchases(cursor?)`, `listSales(cursor?)`, `getPurchase(id)`, `getSale(id)`.
+- **`tl-status`** (`@12l/components`) — the status name after a coloured square: info while open, active when Completed, removed when Cancelled or Refunded.
+- **`OrdersApi`** (`@12l/api`, `src/lib/orders/orders-api.ts`) — `purchases()`, `sales()` and `sale(id)`; the buyer's order is read through `CheckoutApi`.
 
 ### API (`TwelveL.Api`)
 
 All endpoints require a signed-in member. An order the caller is not party to returns `404` (`L2-010` criterion 2).
 
-- **`PurchasesController`**
-  - `GET /api/purchases?cursor=` — `200` `OrderListDto` (`items`, `counts`, `nextCursor`); `401`.
-  - `GET /api/purchases/{id}` — `200` `OrderDetailDto`; `401`; `404`.
-- **`SalesController`**
-  - `GET /api/sales?cursor=` — `200` `OrderListDto`; `401`.
-  - `GET /api/sales/{id}` — `200` `SaleDetailDto`; `401`; `404`.
+- **`OrdersController`**
+  - `GET /api/purchases` — `200` `OrderListDto` (`items`, `counts`); `401`.
+  - `GET /api/sales` — `200` `OrderListDto`; `401`.
+  - `GET /api/sales/{id}` — `200` `SaleDto`, `shipTo` null after the address window; `401`; `404`.
+- **`CheckoutsController`** — `GET /api/purchases/{id}` (checkout-and-pay) — `200`; `401`; `404`.
 
 `{id}` is the order `Id` (`Guid`); the order `Number` (`12L-48213`) is display-only.
-Page size is `Orders:HistoryPageSize` (`<TO SUPPLY>`); the frontend loads further pages
-on scroll or with a "Show more" control, whose copy is `<TO SUPPLY>` because the mocks
-show at most 3 rows.
+Lists are not paged yet ([ADR orders/0008](../../../adr/orders/0008-order-history-unpaged-lists-and-address-window-on-read.md)):
+the page size and "Show more" copy are `<TO SUPPLY>`, so every order is returned in keyset order.
 
 ### Application and domain
 
-- **`ListOrdersQuery`** / **`ListOrdersQueryHandler`** — `AsNoTracking` projection filtered by `BuyerId` or `SellerId`. It orders by `PaidAt DESC, Id DESC` (newest first, `L2-037` criterion 1) with a keyset cursor over the same pair. It joins the listing title and cover thumbnail URL, plus the other party's handle. It returns `OrderCountsDto` (`OnTheWay` = Shipped, `ToConfirm` = Delivered, `ToShip` = Paid). The row date is `PaidAt`.
+- **`ListOrdersQuery`** / **`ListOrdersQueryHandler`** — `AsNoTracking` projection filtered by `BuyerId` or `SellerId`. It orders by `PaidAt DESC, Id DESC` (newest first, `L2-037` criterion 1) (`Orders/OrderHistory.cs`, `OrderRole` Buyer or Seller). It joins the listing title and cover thumbnail URL, plus the other party's handle. It returns `OrderCountsDto` (`OnTheWay` = Shipped, `ToConfirm` = Delivered, `ToShip` = Paid). The row date is `PaidAt`.
 - **`GetPurchaseDetailQuery`** / handler and **`GetSaleDetailQuery`** / handler — load one order by `Id` and the caller's role. They return:
   - the timeline from `OrderStatusChanges`;
   - amounts (item, shipping, sales tax, total);
@@ -67,15 +66,14 @@ show at most 3 rows.
   - problem, cancellation and refund summaries;
   - for the seller, the payout summary;
   - `OrderActionsDto`, computed from the same domain rules the commands enforce (`Order.CanReportProblem`, status checks), so the page never offers an action the API would refuse with 409.
-- **`ShippingAddressVisibility.IsVisibleToSeller(order, now)`** — true when `EndedAt` is null or `now <= EndedAt + Orders:AddressVisibleAfterEnd` (30 days) (`L2-037` criteria 2 and 3). The purchase projection never includes the address, and no public API returns it (`L2-054`). Whether `ShippingAddressCipher` is also erased after the window is a retention decision for the privacy subsystem, `<TO SUPPLY>`.
+- **`ShippingAddressVisibility.IsVisibleToSeller(order, now)`** — applied by `GetSaleQueryHandler`; true when `EndedAt` is null or `now <= EndedAt + 30 days` (`L2-037` criteria 2 and 3). The purchase projection never includes the address, and no public API returns it (`L2-054`). Whether `ShippingAddressCipher` is also erased after the window is a retention decision for the privacy subsystem, `<TO SUPPLY>`.
 - **Shipping address storage** — the address is read from `Orders.ShippingAddressCipher` through the `AesGcmFieldEncryptor` value converter defined in [protect-personal-data](../../privacy/protect-personal-data/README.md).
 
 ### Data
 
 No new tables. The queries use `IX_Orders_BuyerId_PaidAt` and `IX_Orders_SellerId_PaidAt`
 (both including `Id`, `Status`, `Total`, `ListingId`) and
-`IX_OrderStatusChanges_OrderId_OccurredAt`, all defined in ship-order. Configuration:
-`Orders:HistoryPageSize`, `Orders:AddressVisibleAfterEnd` = `30.00:00:00`.
+`IX_OrderStatusChanges_OrderId_OccurredAt`, all defined in ship-order. The 30-day window is the constant `ShippingAddressVisibility.AfterEnd`.
 
 ## Requirements
 
@@ -125,3 +123,17 @@ A non-seller receives HTTP 404. The seller sees the decrypted address until 30 d
 after the order ends, and the "Removed" note afterwards.
 
 ![Sequence diagram for opening a sale](diagrams/sequence-view-sale.png)
+
+## Testing
+
+- `tests/TwelveL.Api.Tests/OrderHistoryTests.cs` (xUnit, in-memory database, fake clock): newest
+  first, the other party, counts, sales separate from purchases, 401 for visitors, and the address
+  shown 30 days and hidden 31 days after the order ended.
+- `src/frontend/e2e/tests/order-history.spec.ts` (Playwright, `page.route` fixtures only): both
+  lists and their links, empty, error with reference and retry, loading skeletons, and the
+  address-hidden sale.
+
+## Open questions
+
+- Page size and "Show more" copy (`<TO SUPPLY>`); lists are unpaged until supplied (ADR orders/0008).
+- Whether the stored address cipher is erased after the window (privacy subsystem).

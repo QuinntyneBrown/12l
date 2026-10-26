@@ -211,15 +211,23 @@ built: the API has no expected date.
 
 ### Purchases — `/account/purchases` (`pages/purchases`: default, loading, empty, error)
 
-- Library: not yet composed
-- Local: not yet composed
+App shell. `@12l/orders` `OrderHistoryPage` (`src/lib/order-history/`, route data `list: 'purchases'`),
+built by order-history. The account sub-navigation of the mocks is composed with the account
+overview journey.
+
+- Library: `tl-item-row` (title, "from {seller} · {date}", thumbnail), `tl-status` (info; active
+  when Completed; removed when Cancelled or Refunded), `tl-empty-state` (icon `bag`, "Nothing
+  bought yet" with primary `tl-button` "Browse the catalog"; error tone, icon `refresh`, "Couldn’t
+  load purchases" with the reference and primary "Try again" with icon `refresh`)
+- Local: the page header with the counts subtitle, the `.order-list` rows linking to `/orders/{id}`
+  with the price, and the three skeleton rows
 
 ### Sale (seller) — `/sales/{id}` (`pages/sale-detail`: default, shipped, cancel-requested, problem, completed, address-hidden, cancelled, loading, error)
 
 Built by ship-order in `@12l/orders` (`src/lib/sale-detail/`) for default (Paid), shipped,
 cancelled, loading and error. cancel-order adds "Cancel order", cancel-requested and "Relist
-item"; seller-payouts adds completed; resolve-order-problems adds problem. address-hidden is
-composed by protect-personal-data.
+item"; seller-payouts adds completed; resolve-order-problems adds problem; order-history adds
+address-hidden (`tl-icon` `eye-off`, "Removed 30 days after the order ended.").
 
 - Library: `tl-button` (primary "Add tracking" with icon `truck`, opening the Add tracking
   dialog through `DialogService`; ghost "Cancel order" beside it, opening Cancel order; primary
@@ -240,8 +248,13 @@ composed by protect-personal-data.
 
 ### Sales — `/account/sales` (`pages/sales`: default, loading, empty, error)
 
-- Library: not yet composed
-- Local: not yet composed
+App shell. The same `OrderHistoryPage` with route data `list: 'sales'`, built by order-history.
+
+- Library: `tl-item-row` ("to {buyer} · ship by {date} · {date}" while Paid, else "to {buyer} ·
+  {date}"), `tl-status`, `tl-empty-state` (icon `tag`, "No sales yet" with primary "Sell an item";
+  error tone "Couldn’t load sales" with the reference and "Try again")
+- Local: the page header with "{n} to ship", the `.order-list` rows linking to `/sales/{id}`, and
+  the skeleton rows
 
 ### Edit listing — `/items/{id}/edit` (`pages/edit-listing`: default, loading, error, invalid, submitting, success, locked)
 
