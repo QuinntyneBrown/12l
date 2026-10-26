@@ -53,8 +53,8 @@ email copy is not supplied, and the backend tests run on SQLite in memory, never
   after payment) and `Orders.ShipReminderSentAt` let `ShipReminderJob` remind once; the order's
   status token stops a reminder for an order shipped meanwhile. The migration marks existing
   orders as reminded.
-- **Deferred:** the preference check and unsubscribe headers (manage-notification-preferences;
-  every type built here is always sent under L2-043), the retention job, the dispatch metrics
+- **Deferred:** the preference check and unsubscribe headers (manage-notification-preferences,
+  since built, see ADR notifications/0002; every type built here is always sent under L2-043), the retention job, the dispatch metrics
   and the delay alert (L2-069), and parallel dispatch within one pass.
 
 ## Consequences
