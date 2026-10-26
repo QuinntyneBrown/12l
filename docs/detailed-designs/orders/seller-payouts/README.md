@@ -16,83 +16,96 @@ Terms used in this design:
 - **12L fee** — configurable percentage of item price plus shipping that 12L keeps from each sale
 - **gross amount** — item price plus shipping cost of an order; sales tax is excluded
 - **net amount** — gross amount less the 12L fee; the amount paid out
-- **held payout** — payout that cannot be released yet because its order is not Completed, the seller has not finished onboarding, or a problem is open
+- **held payout** — payout that cannot be released yet because its order is not Completed or the seller has not finished onboarding
 
 Every order gets one payout when it is created (see
 [checkout-and-pay](../checkout-and-pay/README.md)). The payout stays held through
 `Paid`, `Shipped` and `Delivered`. Only the `Completed` status, defined in the state
-machine of [ship-order](../ship-order/README.md), makes it releasable. A `Cancelled`
-or `Refunded` order cancels its payout. An open problem holds it
-([resolve-order-problems](../resolve-order-problems/README.md)).
+machine of [ship-order](../ship-order/README.md) and reached through
+[complete-order](../complete-order/README.md), makes it releasable. The payout of a
+`Cancelled` or `Refunded` order is never released and is left out of the seller's
+summary. Decisions taken while building are in
+[ADR orders/0005](../../../adr/orders/0005-seller-payouts-payout-port-fee-snapshot-and-shell-banner.md).
 
 ## Description
 
-### Frontend (`src/frontend/src/app/orders/payouts/`)
+### Frontend
 
-- **`PayoutsPage`** (route `/account/payouts`, mock `docs/mocks/pages/payouts/`) — account area page "Payouts". States:
-  - `default` — stats "Paid out" and "Pending", a payout method row ("Chase checking •••• 6021", "Managed by our payment provider", external "Change" link to onboarding), and a "History" list. Each row shows the order number, the item, a meta line ("Held until the order completes" or "Fee $3.70 · Mon 5 Oct"), the amount and the status "Pending" or "Paid", and links to `/sales/:id`.
-  - `not-onboarded` — warning alert "Set up payouts to get paid" / "{amount} is waiting for you." with primary "Set up payouts", then a "Held" list.
-  - `loading` — skeleton stats and rows.
+- **`PayoutsPage`** (`@12l/orders`, `src/lib/payouts/`, route `/account/payouts`, mock `docs/mocks/pages/payouts/`) — account area page "Payouts". States:
+  - `default` (onboarding `Complete`) — `tl-stat` "Paid out" and "Pending", a payout method row ("Chase •••• 6021", "Managed by our payment provider", "Change", which opens the provider's onboarding again), and a "History" list. Each row shows the item, a meta line ("12L-48302 · Held until the order completes", "Held until you set up payouts", or "Fee $3.70 · Mon 5 Oct" / "On its way" / "Releasing soon" / "Returned by the bank"), the amount and "Pending", "Paid" or "Failed", and links to `/sales/:id`.
+  - `not-onboarded` — warning `tl-alert` "Set up payouts to get paid" / "{pending} is waiting for you." with primary "Set up payouts", then a "Held" list. A provider failure shows a danger alert with the API's message and keeps the seller on the page.
+  - `loading` — skeleton stats and a row.
   - `empty` — "No payouts yet", "Your earnings show up here after your first sale.", "Sell an item".
   - `error` — "Couldn't load payouts", reference code, "Try again".
-- **`PayoutBannerComponent`** (mock `docs/mocks/notifications/payout-banner/`) — shown on My listings (listings subsystem) from `PayoutSummaryDto.Banner`:
-  - `info` — "{amount} is on its way to {bank}." with a "Payouts" link; shown while a payout is `Sent`.
-  - `success` — "Payouts are set up. You'll be paid when orders complete."; shown once after onboarding returns `Complete`.
-  - `warning` — "Finish payout setup to receive {amount}." with "Set up payouts"; not dismissible; shown while onboarding is incomplete and money is held.
-  - `danger` — "Your last payout was returned by the bank." with "Update bank details"; not dismissible; shown while the latest payout is `Failed`.
-- **`SalePayoutPanelComponent`** — on `SaleDetailPage` for a Completed order (mock `sale-detail/completed`): "Item and shipping", "12L fee (10%)", "Your payout", and "Sent {date} to {bank}".
-- **`PayoutsApiService`** — `getSummary()`, `createOnboardingLink()`, `getFeeSchedule()`.
+- **`PayoutBannerComponent`** (`@12l/orders`, exported for the app shell; mock `docs/mocks/notifications/payout-banner/`) — `tl-alert` banner above the top bar for verified members, from `PayoutSummaryDto.banner`:
+  - `info` — "{amount of Sent payouts} is on its way to {bank}." with a "Payouts" link; dismissible.
+  - `success` — "Payouts are set up. You'll be paid when orders complete."; shown by the browser on `/account/payouts?onboarding=return` once onboarding is `Complete`; dismissible.
+  - `warning` — "Finish payout setup to receive {pending}." with "Set up payouts"; not dismissible.
+  - `danger` — "Your last payout was returned by the bank." with "Update bank details"; not dismissible.
+  - On `/account/payouts` only `success` shows, because the page carries the rest. The banner loads the summary once per session after the first navigation; the payouts page refreshes it through `PayoutBannerState`.
+- **Sale payout panel** — local to `SaleDetailPage` for a Completed order (mock `sale-detail/completed`): "Item and shipping", "12L fee (10%)", "Your payout", and "Sent {date} to {bank}.".
+- **`PayoutsApi`** (`@12l/api`, `src/lib/orders/payouts-api.ts`) — `summary()`, `onboardingLink()`. `Sale` gains `payout: SalePayout | null`.
 
 ### API (`TwelveL.Api`)
 
 - **`PayoutsController`** (policy `VerifiedMember`)
   - `GET /api/payouts` — `200` `PayoutSummaryDto` (`paidOut`, `pending`, `onboarding`, `bankDisplay`, `banner`, `history[]`); `401`.
-  - `POST /api/payouts/onboarding-link` — `200` `{ url }` to the provider-hosted onboarding; `401`; `502` `payout.provider_unavailable`.
-  - `GET /api/payouts/fee-schedule` — `200` `{ feePercent }`; anonymous allowed. The listing form (listings subsystem) uses it to show estimated earnings before publishing (`L2-031` criterion 4).
-- **`PaymentWebhookController`** (shared with checkout-and-pay) — handles `account.updated`, `payout.paid` and `payout.failed` after signature verification and event-ID deduplication.
+  - `POST /api/payouts/onboarding-link` — `200` `{ url }` to the provider-hosted onboarding; `401`; `502` `PAYOUT_PROVIDER_UNAVAILABLE`.
+- **`PayoutWebhookController`** (anonymous) — `POST /api/payouts/webhook` with header `Payout-Signature`: `account.updated`, `payout.paid` and `payout.failed` after signature verification and event-ID deduplication in `PaymentWebhookEvents`. `400` `WEBHOOK_SIGNATURE_INVALID`, logged as a security event.
+- **`GET /api/sales/{id}`** — `SaleDto.payout` (`gross`, `feePercent`, `fee`, `net`, `status`, `sentAt`, `bankDisplay`).
+- The fee shown before publishing (`L2-031` criterion 4) comes from the existing `GET /api/selling/options` (`feePercent`); no separate fee-schedule endpoint.
 
 ### Application and domain
 
-- **`Payout`** (aggregate) — `Id`, `OrderId` (unique), `SellerId`, `GrossAmount`, `FeeRate`, `FeeAmount`, `NetAmount`, `Status` (`Held`, `Releasable`, `Sent`, `Paid`, `Failed`, `Cancelled`), `HoldReason` (`OrderNotCompleted`, `OnboardingIncomplete`, `OpenProblem`), `ProviderPayoutId`, `ReleasableAt`, `SentAt`, `PaidAt`, `FailureReason`, `RowVersion`.
-  - `CreateHeld(order)` — created with the order; `Held` with `OrderNotCompleted`.
-  - `MarkReleasable(at)` — only when the order is `Completed`; falls back to `Hold(OnboardingIncomplete)` when the seller's account is not `Complete`.
-  - `Hold(OpenProblem)` — set when a problem opens.
-  - `Cancel()` — on `OrderCancelled` or `OrderRefunded`; no payout is made.
-  - `MarkSent`, `MarkPaid`, `MarkFailed`.
-- **`FeeCalculator`** — `fee = round(feeRate × (itemPrice + shippingCost), 2)` and `net = gross − fee`. Example from `L2-031` criterion 2: a 10% fee on $80.00 plus $10.00 shipping gives a $9.00 fee and an $81.00 payout. The mocks agree: $37.00 gross gives a $3.70 fee and a $33.30 payout. The midpoint rounding mode is `<TO SUPPLY>`. `Order.CreatePaid` snapshots `FeeRate` from `Payouts:FeePercent`, so a later configuration change does not alter existing orders. The fee is recorded on the order as `Order.FeeAmount`.
-- **`SellerPayoutAccount`** — `MemberId` (PK), `ProviderAccountId`, `Status` (`NotStarted`, `Pending`, `Complete`, `Restricted`), `BankName`, `BankLast4`, `UpdatedAt`. 12L stores no full bank account number.
-- **`GetPayoutSummaryQuery`** / handler — sums `NetAmount` of `Paid` payouts as "Paid out", and of `Held`, `Releasable` and `Sent` payouts as "Pending". It lists history newest first and derives `Banner`.
-- **`CreateOnboardingLinkCommand`** / handler — creates the connected account on first use, then requests an onboarding link with return URL `/account/payouts?onboarding=return` and a refresh URL.
-- **`OrderCompletedPayoutHandler`** — MediatR `INotificationHandler<OrderCompleted>`; complete-order publishes the event once after saving the completion ([ADR orders/0004](../../../adr/orders/0004-complete-order-in-process-event-and-fixed-3-day-window.md)). It calls `MarkReleasable`.
-- **`OrderEndedWithoutSalePayoutHandler`** — handles `OrderCancelled` and `OrderRefunded`; calls `Cancel`.
-- **`IPaymentProvider`** (payout part) — `CreateConnectedAccountAsync`, `CreateOnboardingLinkAsync`, `CreatePayoutAsync(accountId, amount, idempotencyKey)`.
-
-The first-listing prompt in `L2-031` criterion 1 belongs to the listings subsystem: the
-listing publishes and the seller is linked to "Set up payouts". This feature supplies
-the hold, so no payout leaves while onboarding is incomplete.
+- **`Payout`** (`TwelveL.Domain.Payouts`) — `Id`, `OrderId` (unique), `SellerId`, `GrossAmount`, `FeeRate`, `FeeAmount`, `NetAmount`, `Status` (`Held`, `Releasable`, `Sent`, `Paid`, `Failed`), `HoldReason` (`OrderNotCompleted`, `OnboardingIncomplete`), `ProviderPayoutId`, `CreatedAt`, `ReleasableAt`, `SentAt`, `PaidAt`, `FailedAt`, `FailureReason`. `Status` is the concurrency token.
+  - `CreateHeld(order, now)` — created with the order; `Held` with `OrderNotCompleted`.
+  - `OrderCompleted(sellerOnboarded, now)` — `Releasable`, or `Held` with `OnboardingIncomplete`.
+  - `SellerOnboarded(now)` — releases a payout held only for onboarding.
+  - `MarkSent`, `MarkPaid`, `MarkFailed` — only from `Releasable`, `Sent`, `Sent`.
+- **`PayoutFees`** — `fee = round(feeRate × (itemPrice + shippingCost), 2)`, midpoint away from zero, and `net = gross − fee`. A 10% fee on $80.00 plus $10.00 shipping gives a $9.00 fee and an $81.00 payout (`L2-031` criterion 2); $37.00 gives $3.70 and $33.30. `Order.CreatePaid` snapshots `FeeRate` from `Selling:PlatformFeePercent` and records `Order.FeeAmount`, so a later configuration change does not alter existing orders.
+- **`SellerPayoutAccount`** — `MemberId` (PK), `ProviderAccountId`, `Status` (`Pending`, `Complete`, `Restricted`; no row means `NotStarted`), `BankName`, `BankLast4`, `UpdatedAt`. 12L stores no full bank account number. Only `account.updated` marks it `Complete`.
+- **`GetPayoutSummaryHandler`** — sums `NetAmount` of `Paid` payouts as "Paid out" and of `Held`, `Releasable` and `Sent` payouts as "Pending", leaving out payouts of Cancelled or Refunded orders. It lists history newest first and derives `banner`: `danger` when the latest sent payout failed, `warning` when onboarding is not Complete and something is pending, `info` while a payout is `Sent`.
+- **`CreateOnboardingLinkHandler`** — creates the connected account on first use, then requests an onboarding link with return URL `{App:BaseUrl}/account/payouts?onboarding=return` and refresh URL `...?onboarding=refresh`.
+- **`OrderCompletedPayoutHandler`** — MediatR `INotificationHandler<OrderCompleted>`; complete-order publishes the event once after saving the completion ([ADR orders/0004](../../../adr/orders/0004-complete-order-in-process-event-and-fixed-3-day-window.md)). It calls `Payout.OrderCompleted` with whether the seller is onboarded.
+- **`PayoutWebhookHandler`** — `account.updated` updates the account and, when onboarding just became Complete, releases payouts held for it; `payout.paid` and `payout.failed` settle a `Sent` payout. Unknown accounts and payouts are ignored.
+- **`IPayoutProvider`** (`TwelveL.Application.Abstractions`) — `CreateConnectedAccountAsync`, `CreateOnboardingLinkAsync`, `CreatePayoutAsync(accountId, amount, idempotencyKey)`, `ReadWebhook`. `UnconfiguredPayoutProvider` stands in until a provider is chosen; tests use `FakePayoutProvider`.
+- **`PayoutAccountReader`** (`TwelveL.Infrastructure.Payouts`) implements `ISellerPayoutAccountReader`, so publishing a listing stops prompting for payouts once onboarding is Complete (`L2-031` criterion 1).
 
 ### Worker (`TwelveL.Worker`)
 
-- **`PayoutReleaseJob`** — every `Payouts:ReleaseJobInterval` (`<TO SUPPLY>`). It selects payouts with `Status = 'Releasable'` joined to an order with `Status = 'Completed'`, an account with `Status = 'Complete'`, and no open problem. A payout whose order is `Paid`, `Shipped` or `Delivered` cannot match (`L2-031` criterion 3). For each match it calls `CreatePayoutAsync` with `Payout.Id` as the idempotency key and marks it `Sent`. A provider error leaves it `Releasable` for the next run.
-- After `account.updated` reports `Complete`, payouts held with `OnboardingIncomplete` whose order is Completed become `Releasable`.
-- Re-sending a `Failed` payout after the seller updates bank details is `<TO SUPPLY>`; the design leaves it `Failed` and visible in the danger banner.
+- **`PayoutReleaseJob`** — every `Payouts:ReleaseJobInterval` (15 minutes) sends `ReleasePayoutsCommand`. The handler first applies `OrderCompleted` to any payout still `Held` for its order although the order is Completed (a lost event, ADR orders/0004), then selects payouts with `Status = 'Releasable'` joined to an order with `Status = 'Completed'` and an account with `Status = 'Complete'`. A payout whose order is `Paid`, `Shipped` or `Delivered` cannot match (`L2-031` criterion 3). For each match it calls `CreatePayoutAsync` with `Payout.Id` as the idempotency key and marks it `Sent`. A provider error leaves it `Releasable` for the next run.
+- Re-sending a `Failed` payout after the seller updates bank details is deferred; the payout stays `Failed` and the danger banner shows.
 
 ### Data
 
 | Table | Key columns and constraints |
 |-------|-----------------------------|
-| `Payouts` | `Id` PK; unique `UX_Payouts_OrderId`; `SellerId`; amounts `decimal(10,2)`; `FeeRate decimal(5,4)`; `Status`, `HoldReason`; `RowVersion`; index `IX_Payouts_Status` (release job), `IX_Payouts_SellerId_Status` (summary) |
-| `SellerPayoutAccounts` | `MemberId` PK; unique `UX_SellerPayoutAccounts_ProviderAccountId` |
-| `Orders` | `FeeRate`, `FeeAmount` columns (see [ship-order](../ship-order/README.md)) |
+| `Payouts` | `Id` PK; unique `UX_Payouts_OrderId`; FK `SellerId`; amounts `decimal(10,2)`; `FeeRate decimal(5,4)`; `Status` (concurrency token), `HoldReason`; index `IX_Payouts_Status` (release job), `IX_Payouts_SellerId_Status` (summary) |
+| `SellerPayoutAccounts` | `MemberId` PK; unique `UX_SellerPayoutAccounts_ProviderAccountId`; `BankLast4 char(4)` |
+| `Orders` | `FeeRate decimal(5,4)`, `FeeAmount decimal(10,2)` |
 
-Configuration: `Payouts:FeePercent` (value `<TO SUPPLY>`; the mocks and `L2-031` use 10),
-`Payouts:ReleaseJobInterval`.
+Migration `AddSellerPayouts`. Configuration: `Selling:PlatformFeePercent` (10) and
+`Payouts:ReleaseJobInterval` (Worker, `00:15:00`).
 
 ### Error codes
 
 | Code | HTTP | Meaning |
 |------|------|---------|
-| `payout.provider_unavailable` | 502 | The provider did not return an onboarding link |
+| `PAYOUT_PROVIDER_UNAVAILABLE` | 502 | The provider did not create the account or the onboarding link |
+| `WEBHOOK_SIGNATURE_INVALID` | 400 | The payout webhook's signature is not valid |
+
+### Tests
+
+- `tests/TwelveL.Domain.Tests/PayoutTests.cs` — fee and rounding, hold and release rules, onboarding state.
+- `tests/TwelveL.Api.Tests/PayoutTests.cs` — onboarding link, 502, summary and banners, held payouts, release only for Completed orders, idempotent send, lost completion events, webhook signature and deduplication, sale payout panel. SQLite in-memory and `FakePayoutProvider`; no real database or provider.
+- `tests/TwelveL.Worker.Tests/PayoutReleaseJobTests.cs` — one command per pass.
+- `src/frontend/e2e/tests/seller-payouts.spec.ts` — every page state, the four banners and the sale payout panel, with `page.route` fixtures.
+
+### Open questions
+
+- Which payment provider, and its credentials and webhook secret (ADR orders/0001).
+- Re-sending a failed payout once the seller changes bank details.
+- Holding a payout while a problem is open arrives with resolve-order-problems.
 
 ## Requirements
 
@@ -118,8 +131,8 @@ release job against the provider.
 
 ### Components
 
-`OrderCompletedPayoutHandler` makes a payout releasable, and `PayoutReleaseJob`
-transfers it. `FeeCalculator` fixes the fee and the net amount.
+`OrderCompletedPayoutHandler` makes a payout releasable, and `ReleasePayoutsHandler`,
+sent by `PayoutReleaseJob`, transfers it. `PayoutFees` fixes the fee when the order is created.
 
 ![C4 component view for seller payouts](diagrams/c4-component.png)
 

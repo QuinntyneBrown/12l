@@ -39,7 +39,7 @@ seller summary, the edit and star icons and the status code of the center state.
 | [Button](components/button.html) | primary, secondary, ghost, link, danger | default, hover, focus, active, disabled, loading | catalog/guest, nav-menu, toast |
 | [Link](components/link.html) | inline, nav, footer | default, hover, focus, current | catalog, rules |
 | [Form field](components/form-field.html) | input, textarea, select | default, hover, focus, invalid, disabled, read only | sign-in, sell |
-| [Alert](components/alert.html) | info, success, warning, danger; banner without title | static, polite, assertive | sign-in/invalid, sell/draft-saved, verify-email-prompt |
+| [Alert](components/alert.html) | info, success, warning, danger; banner without title; projected actions; dismissible | static, polite, assertive | sign-in/invalid, sell/draft-saved, verify-email-prompt, payout-banner |
 | [Center state](components/center-state.html) | blocked, limited, error, success; icon or status code | static | sell/unverified, sell/limited, sell/error, sell/success, listing-detail/unavailable, listing-detail/error |
 | [Choice](components/choice.html) | plain, with links | unticked, ticked, invalid | register, sell |
 | [Dialog](components/dialog.html) | default, with top alert | default, busy, sent, limited | dialogs/verify-email-prompt |
@@ -63,6 +63,7 @@ seller summary, the edit and star icons and the status code of the center state.
 | [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |
 | [Spinner](components/spinner.html) | with message | running | verify-email/loading |
+| [Stat](components/stat.html) | in a `.stats` row | static, loading skeleton | payouts/default, payouts/loading |
 
 ## Patterns
 

@@ -204,8 +204,9 @@ protect-personal-data.
   `tl-alert` (info "Cancelled · Buyer refunded in full"), `tl-order-summary` (no visible
   heading), `tl-center-state` (error, with "Try again" and "Back to sales")
 - Local: the breadcrumb, eyebrow and heading block, "Ship by {date}." lead, the "Ship to"
-  address block with its caption, `OrderPartyComponent` ("Buyer") projected into the summary, and
-  the loading skeleton
+  address block with its caption, `OrderPartyComponent` ("Buyer") projected into the summary, the
+  loading skeleton, and (completed, by seller-payouts) the sunken "Payout" panel with its
+  `.totals` list ("Item and shipping", "12L fee (10%)", "Your payout") and "Sent {date} to {bank}." caption
 
 ### Sales — `/account/sales` (`pages/sales`: default, loading, empty, error)
 
@@ -224,8 +225,17 @@ protect-personal-data.
 
 ### Payouts — `/account/payouts` (`pages/payouts`: default, not-onboarded, loading, empty, error)
 
-- Library: not yet composed
-- Local: not yet composed
+App shell. `@12l/orders` `PayoutsPage` (`src/lib/payouts/`), built by seller-payouts. The account
+sub-navigation of the mocks is composed with the account overview journey.
+
+- Library: `tl-stat` ("Paid out", "Pending"), `tl-button` ("Change" and primary "Set up payouts",
+  both with icon `external`; "Try again" with icon `refresh`; primary "Sell an item"), `tl-alert`
+  (warning "Set up payouts to get paid" with the button projected as `actions`; danger for a
+  provider failure), `tl-item-row` (each history row), `tl-empty-state` (empty with icon `tag`;
+  error tone with the reference), `tl-icon`
+- Local: the page header, the `.stats` row, the payout method `.settings-list` row, the
+  `.section-head` ("History" or "Held"), the `.order-list` rows with their thumbnail, amount and
+  status caption, and the loading skeleton
 
 ### Sell an item — `/sell` (`pages/sell`: default, filled, invalid, submitting, draft-saved, success, unverified, limited, error)
 
@@ -309,7 +319,7 @@ uploads at once and a save sends the photo IDs in order. The footer stays visibl
 |---|---|---|---|
 | Account banner (`notifications/account-banner`: info, success, warning) | banner above the top bar | not yet composed | not yet composed |
 | Reservation timer (`notifications/reservation-timer`: info, warning, danger, success) | timer under the checkout title; warning and danger banners at the top of checkout | `tl-reservation-timer`, `tl-alert` (banner, icon `clock`) | None; success is the confirmation page until `ToastService` exists |
-| Payout banner (`notifications/payout-banner`: info, success, warning, danger) | banner above the top bar | not yet composed | not yet composed |
+| Payout banner (`notifications/payout-banner`: info, success, warning, danger) | banner above the top bar, `@12l/orders` `PayoutBannerComponent` in the app shell | `tl-alert` (`banner`, links projected as `actions`; info and success `dismissible`) | None |
 | Toasts (`notifications/toast`: info, success, warning, danger, with-action, stacked) | toast region | `tl-toast-region`, `tl-toast`, `ToastService` | None |
 | Cookie consent (`notifications/cookie-consent`: info, success) | fixed bottom panel | not yet composed | not yet composed |
 | System notices (`notifications/system-banner`: info, success, warning, danger) | banner above the top bar | not yet composed | not yet composed |
