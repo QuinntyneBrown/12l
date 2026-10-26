@@ -74,7 +74,7 @@ an operations address, `Notifications:OperationsInbox`, whose value is `<TO SUPP
 
 The types that `L2-042` names and whose events exist in the code are built:
 `EmailVerification`, `SaleMade`, `OrderShipped`, `OrderDelivered`, `ShipByReminder`,
-`OrderCancelled` and `OrderRefunded`. The `NotificationType` enumeration in
+`OrderCancelled`, `OrderRefunded` and (added by cancel-order) `CancellationRequested`. The `NotificationType` enumeration in
 `TwelveL.Domain` holds only these. The other rows of the table above are added, each with its
 model and template, by the feature that raises the event (password reset, lockout, draft
 expiry, cancel-order, resolve-order-problems, reviews and marketing). See
@@ -88,6 +88,8 @@ expiry, cancel-order, resolve-order-problems, reviews and marketing). See
 | Carrier reports delivery | `CarrierWebhookHandler` | buyer |
 | No tracking 3 business days after payment | `SendShipRemindersHandler` (`ShipReminderJob`) | seller, once |
 | Ship deadline passes | `CancelUnshippedOrdersHandler` | buyer and seller (`OrderCancelled`), then buyer (`OrderRefunded`) when the provider issues the refund |
+| Seller cancels, or accepts the buyer's request | `OrderCancellation` (cancel-order) | buyer (`OrderCancelled` with the reason and note), then buyer (`OrderRefunded`) |
+| Buyer asks to cancel | `RequestCancellationCommandHandler` (cancel-order) | seller (`CancellationRequested` with the message) |
 
 A buyer who confirms receipt of a Shipped order gets no delivery email, because they made the
 change themselves.

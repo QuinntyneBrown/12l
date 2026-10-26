@@ -324,6 +324,20 @@ def _():
     return order_page("12L-48213", head="Waiting to ship", body=body)
 
 
+@od.state("cancel-requested", "Paid, and the buyer asked to cancel: the seller has not answered, so the request cannot be sent again.")
+def _():
+    body = (timeline("Paid", {"Paid": "Thu 22 Oct"}) + '<p class="text-muted">vintage_lou ships by Thu 29 Oct. If not, you’re refunded automatically.</p>'
+            '<p>You asked vintage_lou to cancel. They haven’t answered yet.</p>')
+    return order_page("12L-48213", head="Waiting to ship", body=body)
+
+
+@od.state("cancel-declined", "Paid, and the seller declined the buyer’s request: the order goes ahead and cannot be asked about again.")
+def _():
+    body = (timeline("Paid", {"Paid": "Thu 22 Oct"}) + '<p class="text-muted">vintage_lou ships by Thu 29 Oct. If not, you’re refunded automatically.</p>'
+            '<p>vintage_lou declined to cancel. They still ship by Thu 29 Oct.</p>')
+    return order_page("12L-48213", head="Waiting to ship", body=body)
+
+
 @od.state("delivered", "Delivered: confirm receipt, or report a problem within 3 days.")
 def _():
     body = (timeline("Delivered", {"Paid": "Mon 19 Oct", "Shipped": "Tue 20 Oct", "Delivered": "Sat 24 Oct"}) +

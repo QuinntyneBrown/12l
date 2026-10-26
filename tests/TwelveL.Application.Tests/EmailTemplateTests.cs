@@ -22,6 +22,8 @@ public sealed class EmailTemplateTests
         { NotificationType.ShipByReminder, new ShipByReminderEmail(OrderId, "12L-10001", "Jordan 1 Retro", new DateTime(2026, 11, 2)), $"https://12l.test/sales/{OrderId}" },
         { NotificationType.OrderCancelled, new OrderCancelledEmail(OrderId, "12L-10001", "Jordan 1 Retro", ToSeller: false), $"https://12l.test/orders/{OrderId}" },
         { NotificationType.OrderCancelled, new OrderCancelledEmail(OrderId, "12L-10001", "Jordan 1 Retro", ToSeller: true), $"https://12l.test/sales/{OrderId}" },
+        { NotificationType.OrderCancelled, new OrderCancelledEmail(OrderId, "12L-10001", "Jordan 1 Retro", ToSeller: false, "Item damaged", "Sorry"), $"https://12l.test/orders/{OrderId}" },
+        { NotificationType.CancellationRequested, new CancellationRequestedEmail(OrderId, "12L-10001", "Jordan 1 Retro", "Wrong colour"), $"https://12l.test/sales/{OrderId}" },
         { NotificationType.OrderRefunded, new OrderRefundedEmail(OrderId, "12L-10001", 102.34m, "Visa", "4242"), $"https://12l.test/orders/{OrderId}" },
     };
 

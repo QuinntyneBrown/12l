@@ -2,7 +2,7 @@
 
 | Design | Effort | Complete |
 |---|---|---|
-| cancel-order | 3 days | 0% |
+| cancel-order | 3 days | 95% |
 | checkout-and-pay | 7 days | 90% |
 | complete-order | 3 days | 90% |
 | order-history | 3 days | 0% |
@@ -25,3 +25,7 @@ for resolve-order-problems, which introduces problems ([ADR orders/0004](../adr/
 seller-payouts is at 90%: the payout provider adapter and its credentials wait until a provider is
 chosen, and re-sending a failed payout and the open-problem hold are deferred
 ([ADR orders/0005](../adr/orders/0005-seller-payouts-payout-port-fee-snapshot-and-shell-banner.md)).
+
+cancel-order is at 95%: refunds go through the payment provider port, whose adapter waits for a
+provider; "Edit first" in the relist dialog waits for edit-and-withdraw-listing
+([ADR orders/0006](../adr/orders/0006-cancel-order-one-path-request-on-the-order-and-relist.md)).

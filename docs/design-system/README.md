@@ -8,7 +8,8 @@ built; until then their mocks remain the reference. Create-listing added the com
 the join, verify-email, sign-in and sell screens and the verify-email-prompt dialog;
 upload-listing-photos added the photo uploader and the camera icon; browse-catalog added the
 empty state, listing card and load more; view-listing-detail added the gallery, buy bar,
-seller summary, the edit and star icons and the status code of the center state.
+seller summary, the edit and star icons and the status code of the center state;
+cancel-order added the quote, the radio group and the danger tone of the dialog.
 
 ## Foundations
 
@@ -43,7 +44,7 @@ seller summary, the edit and star icons and the status code of the center state.
 | [Center state](components/center-state.html) | blocked, limited, error, success; icon or status code | static | sell/unverified, sell/limited, sell/error, sell/success, listing-detail/unavailable, listing-detail/error |
 | [Chip](components/chip.html) | selected, with remove button | default, hover, focus | catalog/filtered, catalog/no-results |
 | [Choice](components/choice.html) | plain, with links | unticked, ticked, invalid | register, sell |
-| [Dialog](components/dialog.html) | default, with top alert | default, busy, sent, limited | dialogs/verify-email-prompt |
+| [Dialog](components/dialog.html) | default, with top alert; info or danger icon tone | default, busy, sent, limited | dialogs/verify-email-prompt, dialogs/cancel-order |
 | [Earnings](components/earnings.html) | one | unknown, known | sell/filled |
 | [Error summary](components/error-summary.html) | one | shown and focused | sell/invalid, register/invalid |
 | [Fixed size](components/fixed-size.html) | men's US 12, men's L | absent, shown | sell/filled |
@@ -65,6 +66,8 @@ seller summary, the edit and star icons and the status code of the center state.
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |
 | [Spinner](components/spinner.html) | with message | running | verify-email/loading |
 | [Stat](components/stat.html) | in a `.stats` row | static, loading skeleton | payouts/default, payouts/loading |
+| [Quote](components/quote.html) | one | static | order-detail/cancelled, sale-detail/cancel-requested, respond-cancellation |
+| [Radio group](components/radio-group.html) | one | nothing chosen, chosen, invalid | cancel-order/default, cancel-order/invalid |
 
 ## Patterns
 
