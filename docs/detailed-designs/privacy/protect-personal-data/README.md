@@ -150,7 +150,7 @@ The slice runs from the Privacy page through `12L API` down to the stored bytes.
 | `SavedAddresses` | `AddressCipher` | `varbinary(1024)` | Buyer's saved address for checkout (`L2-027`) |
 | `SavedAddresses` | `AddressKeyId` | `uniqueidentifier` | Indexed `IX_SavedAddresses_AddressKeyId` |
 
-No plaintext address column exists. Searching by address is not supported.
+No plaintext address column exists once this feature is built. Searching by address is not supported. [checkout-and-pay](../../orders/checkout-and-pay/README.md) stores addresses in plain `Shipping*` columns on `Checkouts` and `Orders` and in `SavedAddresses` until then ([ADR orders/0002](../../../adr/orders/0002-reserve-with-a-conditional-update-and-a-filtered-unique-index.md)); this feature's migration encrypts them into the cipher columns above, `Checkouts` included, and drops the plain ones.
 
 ### Configuration
 

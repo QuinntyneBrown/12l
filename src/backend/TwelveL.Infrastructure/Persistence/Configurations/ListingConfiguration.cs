@@ -39,5 +39,6 @@ internal sealed class ListingConfiguration : IEntityTypeConfiguration<Listing>
         builder.HasIndex(l => new { l.SellerId, l.Status, l.CreatedAt }).HasDatabaseName("IX_Listings_SellerId_Status_CreatedAt");
         builder.HasIndex(l => new { l.SellerId, l.PublishedAt }).HasDatabaseName("IX_Listings_SellerId_PublishedAt");
         builder.HasIndex(l => new { l.Status, l.PublishedAt }).HasDatabaseName("IX_Listings_Status_PublishedAt");
+        builder.HasIndex(l => new { l.Status, l.ReservedUntil }).HasDatabaseName("IX_Listings_Status_ReservedUntil");
     }
 }

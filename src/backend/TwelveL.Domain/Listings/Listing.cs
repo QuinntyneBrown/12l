@@ -89,6 +89,40 @@ public sealed class Listing
 
     public DateTime? PublishedAt { get; private set; }
 
+    /// <summary>The checkout holding a Reserved listing (L2-028); set by a conditional update so one checkout wins (L2-029).</summary>
+    public Guid? ReservedByCheckoutId { get; private set; }
+
+    public DateTime? ReservedUntil { get; private set; }
+
+    /// <summary>A seller may not buy their own listing (L2-026 AC2).</summary>
+    public bool CanBePurchasedBy(Guid buyerId) => buyerId != SellerId;
+
+    /// <summary>Reserved → Active when the holding checkout ends without payment; any other checkout changes nothing.</summary>
+    public void ReleaseReservation(Guid checkoutId, DateTime now)
+    {
+        if (Status == ListingStatus.Reserved && ReservedByCheckoutId == checkoutId)
+        {
+            Status = ListingStatus.Active;
+            ReservedByCheckoutId = null;
+            ReservedUntil = null;
+            UpdatedAt = now;
+        }
+    }
+
+    /// <summary>Reserved (or Active again after an expiry) → Sold once the payment succeeded (L2-030 AC2).</summary>
+    public void MarkSold(DateTime now)
+    {
+        if (Status is not (ListingStatus.Reserved or ListingStatus.Active))
+        {
+            throw new InvalidOperationException("Only a reserved or active listing can be sold.");
+        }
+
+        Status = ListingStatus.Sold;
+        ReservedByCheckoutId = null;
+        ReservedUntil = null;
+        UpdatedAt = now;
+    }
+
     public static string ReferenceFor(long number) => $"L-{number}";
 
     /// <summary>Creates a draft. Call <see cref="CheckDraft"/> first; the category must be accepted.</summary>

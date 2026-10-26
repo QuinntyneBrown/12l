@@ -139,13 +139,35 @@ edit-and-withdraw-listing. Sellers show no city until member profiles record one
 
 ### Checkout — `/checkout/{id}` (`pages/checkout`: default, new-address, invalid, non-us, submitting, declined, expired, conflict, loading, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by checkout-and-pay in `@12l/orders` (`src/lib/checkout/`) for every state; `{id}` is
+the listing reference. A refused start for the seller's own, a sold or a missing listing goes
+back to `/items/{id}`, and a visitor goes to sign in with checkout as the return URL.
+
+- Library: `tl-reservation-timer` (under the title; its phase drives the banners),
+  `tl-alert` (banner warning "Less than a minute left to pay…" and danger "Your reservation
+  ended…" with "Start again", both icon `clock`; non-us, declined, total changed and payment
+  failure alerts in the form), `tl-error-summary` (invalid), `tl-form-field` (Full name,
+  Street address, Apartment, suite (optional), City, State, ZIP code with `inputmode="numeric"`,
+  Country), `tl-order-summary`, `tlButton` (primary lg block "Pay $102.34", or "Continue" before
+  a total exists, busy while submitting and disabled at zero; ghost "Cancel and release item"),
+  `tl-center-state` (conflict: icon `lock`; expired: icon `clock`; error: reference and "Try
+  again" with icon `refresh`), `tl-icon`
+- Local: `.page-header`, the `.split` layout, the `.checkout-step` sections, the saved-address
+  radios (`.option`, `address.address`), `HostedCardFieldsComponent` (the "Card" field, the
+  provider's hosted fields from `PAYMENT_FIELDS` in `@12l/api` and the `.secure-note`), the
+  "Confirming with your bank…" status line and the loading skeleton
 
 ### Order confirmed — `/orders/{id}/confirmed` (`pages/order-confirmation`: default, loading, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by checkout-and-pay in `@12l/orders` (`src/lib/order-confirmation/`). The "Payment
+confirmed" toast of `notifications/reservation-timer` success waits for `ToastService`
+(responsive-accessible-shell); the page itself shows the amount and card.
+
+- Library: `tl-item-row` ("Paid $102.34 · Visa ending 4242"), `tlButton` ("View order",
+  "Keep shopping"), `tl-center-state` (error: reference, "Try again" and "Go to purchases"),
+  `tl-icon` (`check`, `refresh`)
+- Local: the `.confirm` block (mark, `.eyebrow` order reference, heading), the
+  `ol.next-steps` list and the loading center state with the large spinner
 
 ### Order (buyer) — `/orders/{id}` (`pages/order-detail`: default, paid, delivered, completed, cancelled, refunded, problem, loading, error)
 
@@ -263,7 +285,7 @@ uploads at once and a save sends the photo IDs in order. The footer stays visibl
 | Notification (mock folder: states) | Surface | Library components | Local UI |
 |---|---|---|---|
 | Account banner (`notifications/account-banner`: info, success, warning) | banner above the top bar | not yet composed | not yet composed |
-| Reservation timer (`notifications/reservation-timer`: info, warning, danger, success) | banner above the top bar | not yet composed | not yet composed |
+| Reservation timer (`notifications/reservation-timer`: info, warning, danger, success) | timer under the checkout title; warning and danger banners at the top of checkout | `tl-reservation-timer`, `tl-alert` (banner, icon `clock`) | None; success is the confirmation page until `ToastService` exists |
 | Payout banner (`notifications/payout-banner`: info, success, warning, danger) | banner above the top bar | not yet composed | not yet composed |
 | Toasts (`notifications/toast`: info, success, warning, danger, with-action, stacked) | toast region | `tl-toast-region`, `tl-toast`, `ToastService` | None |
 | Cookie consent (`notifications/cookie-consent`: info, success) | fixed bottom panel | not yet composed | not yet composed |

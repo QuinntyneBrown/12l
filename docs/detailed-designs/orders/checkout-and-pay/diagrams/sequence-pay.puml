@@ -20,7 +20,7 @@ actor "Buyer" as actor
 box "Frontend — 12L Web application" #E0F2FE
   participant "CheckoutPage" as page
   participant "HostedCardFields" as hf
-  participant "CheckoutApiService" as client
+  participant "CheckoutApi (@12l/api)" as client
 end box
 participant "Payment provider" as pay
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
@@ -41,7 +41,7 @@ alt missing street, city, state or ZIP (L2-027)
   qh --> ctrl : 400 field errors
   ctrl --> page : Error summary and inline errors (invalid state)
 else country is not United States
-  qh --> ctrl : 422 "checkout.non_us_address"
+  qh --> ctrl : 422 "NON_US_ADDRESS"
   ctrl --> page : "12L ships within the United States only" (non-us state)
 else valid US address
   qh -> pay : QuoteTaxAsync(address, item + shipping)
@@ -59,10 +59,10 @@ page -> client : submitPayment(checkoutId, token, expectedTotal, key)
 client -> ctrl : POST /api/checkouts/{id}/payments, header Idempotency-Key
 ctrl -> ph : Send SubmitPaymentCommand
 alt reservation expired or released
-  ph --> ctrl : 409 "checkout.reservation_expired"
+  ph --> ctrl : 409 "RESERVATION_EXPIRED"
   ctrl --> page : Expired state "Your reservation ended"
 else expectedTotal differs from Checkout.Total (L2-027 criterion 5)
-  ph --> ctrl : 409 "checkout.total_changed"
+  ph --> ctrl : 409 "TOTAL_CHANGED"
 else same key already used
   ph -> db : Find Payment by IdempotencyKey
   ph --> ctrl : 202 with the existing payment (charged once, L2-030)

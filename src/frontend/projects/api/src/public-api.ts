@@ -13,4 +13,20 @@ export { AuthState, type CurrentMember } from './lib/auth/auth-state';
 export { ListingsApi, type ListingDetails, type MyListing, type PublishResult } from './lib/listings/listings-api';
 export { PhotosApi, type Photo, type PhotoVersion } from './lib/listings/photos-api';
 export { SellingApi, type Category, type SellingOptions } from './lib/listings/selling-api';
+export {
+  CheckoutApi,
+  type Checkout,
+  type CheckoutItem,
+  type CheckoutStatus,
+  type PaymentAccepted,
+  type Purchase,
+  type ShippingAddress,
+} from './lib/orders/checkout-api';
+export {
+  PAYMENT_FIELDS,
+  TEST_CARDS,
+  TestModePaymentFields,
+  type PaymentFields,
+  type TokenizeResult,
+} from './lib/orders/payment-fields';
 export { provideApi } from './lib/provide-api';
