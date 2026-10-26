@@ -110,7 +110,7 @@ test.describe('browse catalog', () => {
     await expect(page).toHaveURL(/\/tops$/);
     await expect(catalog.heading).toHaveText('Tops');
     await expect(page.locator('main .page-header').getByLabel('Size L')).toBeVisible();
-    await expect.poll(() => requests.at(-1)?.get('category')).toBe('Tops');
+    await expect.poll(() => requests.at(-1)?.get('category')).toBe('tops');
   });
 
   test('skeleton cards show while the first page loads', async ({ page }) => {

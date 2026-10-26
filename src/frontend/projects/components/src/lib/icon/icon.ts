@@ -20,7 +20,8 @@ export type IconName =
   | 'edit'
   | 'star'
   | 'truck'
-  | 'external';
+  | 'external'
+  | 'search';
 
 /** One decorative inline SVG icon from the 12L set, hidden from assistive technology (design system: Icon). */
 @Component({

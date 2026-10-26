@@ -138,7 +138,7 @@ test.describe('view listing detail', () => {
     await expect(detail.buyNow).toHaveCount(0);
     await expect(detail.similar.getByRole('listitem')).toHaveCount(4);
     await expect(detail.similar.getByRole('link').first()).toHaveAttribute('href', '/items/L-10002');
-    expect(requests[0].get('category')).toBe('Shoes');
+    expect(requests[0].get('category')).toBe('shoes');
   });
 
   test('a hidden or missing listing shows This item isn’t available', async ({ page }) => {

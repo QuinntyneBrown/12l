@@ -1,5 +1,5 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { CatalogApi, ListingCard, shortRef } from '@12l/api';
+import { CatalogApi, CatalogFilterParams, ListingCard, shortRef } from '@12l/api';
 
 export type CatalogView = 'loading' | 'loaded' | 'empty' | 'error' | 'offline';
 
@@ -7,14 +7,16 @@ export type CatalogView = 'loading' | 'loaded' | 'empty' | 'error' | 'offline';
 const SNAPSHOT_KEY = '12l.catalog.snapshot.v1';
 
 /**
- * Signal state of one catalog page (browse-catalog). load() fetches page 1 and replaces the
- * cards; loadMore() appends the next page, dropping any card already shown. Offline, the last
- * saved first page is shown instead. Storage failures only disable the offline view.
+ * Signal state of one catalog page (browse-catalog). load() fetches page 1 of a result set
+ * (search-and-filter-catalog) and replaces the cards; loadMore() appends the next page, dropping any card already shown. Offline, the last
+ * saved first page of the unfiltered catalog is shown instead. Storage failures only disable the offline view.
  */
 @Injectable()
 export class CatalogStore {
   private readonly api = inject(CatalogApi);
-  private category: string | null = null;
+  private filters: CatalogFilterParams = {};
+  /** Only the latest load may set the state, so a slow earlier result set never wins. */
+  private sequence = 0;
 
   readonly items = signal<ListingCard[]>([]);
   readonly totalCount = signal(0);
@@ -26,13 +28,16 @@ export class CatalogStore {
 
   readonly hasMore = computed(() => this.view() === 'loaded' && this.items().length < this.totalCount());
 
-  async load(category: string | null): Promise<void> {
-    this.category = category;
+  async load(filters: CatalogFilterParams): Promise<void> {
+    this.filters = filters;
+    const whole = Object.keys(filters).length === 0;
     this.view.set('loading');
     this.moreErrorRef.set(null);
-    const result = await this.api.listings(1, category);
+    const sequence = ++this.sequence;
+    const result = await this.api.listings(1, filters);
+    if (sequence !== this.sequence) return;
     if (!result.ok) {
-      const snapshot = result.problem.status === 0 && !navigator.onLine && !category ? readSnapshot() : null;
+      const snapshot = result.problem.status === 0 && !navigator.onLine && whole ? readSnapshot() : null;
       if (snapshot) {
         this.items.set(snapshot);
         this.totalCount.set(snapshot.length);
@@ -47,11 +52,11 @@ export class CatalogStore {
     this.totalCount.set(result.value.totalCount);
     this.page.set(1);
     this.view.set(result.value.totalCount === 0 ? 'empty' : 'loaded');
-    if (!category) writeSnapshot(result.value.items);
+    if (whole) writeSnapshot(result.value.items);
   }
 
   retry(): Promise<void> {
-    return this.load(this.category);
+    return this.load(this.filters);
   }
 
   async loadMore(): Promise<void> {
@@ -59,8 +64,10 @@ export class CatalogStore {
     this.loadingMore.set(true);
     this.moreErrorRef.set(null);
     const next = this.page() + 1;
-    const result = await this.api.listings(next, this.category);
+    const sequence = this.sequence;
+    const result = await this.api.listings(next, this.filters);
     this.loadingMore.set(false);
+    if (sequence !== this.sequence) return;
     if (!result.ok) {
       this.moreErrorRef.set(shortRef(result.problem.correlationId));
       return;

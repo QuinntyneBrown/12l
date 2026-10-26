@@ -37,6 +37,18 @@ export interface CatalogPage {
   totalCount: number;
 }
 
+/** One brand of the visible catalog and how many listings carry it. */
+export interface CatalogBrand {
+  name: string;
+  listingCount: number;
+}
+
+/**
+ * The filter query parameters of the catalog endpoints, the same names and slugs as the page URL
+ * (q, category, subcategory, brand, condition, min, max, sort); arrays repeat the parameter.
+ */
+export type CatalogFilterParams = Record<string, string | readonly string[]>;
+
 /** How the person viewing relates to a listing; decides whether the page offers Buy now (L2-026). */
 export type ViewerRelation = 'Anonymous' | 'Seller' | 'OtherMember';
 
@@ -67,18 +79,28 @@ export interface ListingDetail {
   viewer: { relation: ViewerRelation };
 }
 
-/** Typed client for the public catalog: GET /api/catalog/listings and /api/catalog/listings/{reference}. */
+/** Typed client for the public catalog: listings, their count, brands and one listing. */
 @Injectable({ providedIn: 'root' })
 export class CatalogApi {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = inject(API_BASE_URL);
 
-  /** One page of Active and Reserved listings, newest first, optionally in one category. */
-  listings(page: number, category: string | null = null): Promise<ApiResult<CatalogPage>> {
-    let params = new HttpParams();
+  /** One page of Active and Reserved listings meeting the filters; 400 CATALOG_FILTER_INVALID or CATALOG_PRICE_RANGE_INVALID. */
+  listings(page: number, filters: CatalogFilterParams = {}): Promise<ApiResult<CatalogPage>> {
+    let params = new HttpParams({ fromObject: filters });
     if (page > 1) params = params.set('page', page);
-    if (category) params = params.set('category', category);
     return toResult(this.http.get<CatalogPage>(`${this.baseUrl}/catalog/listings`, { params }));
+  }
+
+  /** How many listings the filters keep, for the filter sheet's "Show {n} items". */
+  count(filters: CatalogFilterParams): Promise<ApiResult<{ totalCount: number }>> {
+    const params = new HttpParams({ fromObject: filters });
+    return toResult(this.http.get<{ totalCount: number }>(`${this.baseUrl}/catalog/listings/count`, { params }));
+  }
+
+  /** Brands of the visible catalog, most listed first. */
+  brands(): Promise<ApiResult<CatalogBrand[]>> {
+    return toResult(this.http.get<CatalogBrand[]>(`${this.baseUrl}/catalog/brands`));
   }
 
   /** One listing; 404 LISTING_NOT_FOUND when it is unknown or hidden from this viewer. */

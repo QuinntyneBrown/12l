@@ -216,8 +216,40 @@ export async function serveCatalog(page: Page, total: number): Promise<URLSearch
     requests.push(query);
     return route.fulfill({ json: catalogPage(total, Number(query.get('page') ?? 1)) });
   });
+  await page.route('**/api/catalog/brands', (route) => route.fulfill({ json: catalogBrands }));
   await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
   return requests;
+}
+
+/** GET /api/catalog/brands: 8 brands, most listed first. */
+export const catalogBrands = [
+  { name: 'Nike', listingCount: 212 },
+  { name: 'Adidas', listingCount: 180 },
+  { name: 'New Balance', listingCount: 96 },
+  { name: 'Patagonia', listingCount: 54 },
+  { name: 'Carhartt', listingCount: 41 },
+  { name: 'Red Wing', listingCount: 30 },
+  { name: 'Allen Edmonds', listingCount: 12 },
+  { name: 'Birkenstock', listingCount: 9 },
+];
+
+/**
+ * Answers the search-and-filter calls: GET /api/catalog/listings with `total` cards (0 shows the
+ * no-results state), /listings/count with `count`, and /brands. Returns the listing and count
+ * query strings, in order.
+ */
+export async function serveSearch(
+  page: Page,
+  total: number,
+  count = total,
+): Promise<{ listings: URLSearchParams[]; counts: URLSearchParams[] }> {
+  const listings = await serveCatalog(page, total);
+  const counts: URLSearchParams[] = [];
+  await page.route('**/api/catalog/listings/count**', (route) => {
+    counts.push(new URL(route.request().url()).searchParams);
+    return route.fulfill({ json: { totalCount: count } });
+  });
+  return { listings, counts };
 }
 
 /** A listing as GET /api/catalog/listings/{reference} returns it, seen by another member. */

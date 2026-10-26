@@ -2,6 +2,7 @@ export { AlertComponent, type AlertTone } from './lib/alert/alert';
 export { BuyBarComponent } from './lib/buy-bar/buy-bar';
 export { ButtonDirective } from './lib/button/button';
 export { CenterStateComponent } from './lib/center-state/center-state';
+export { ChipComponent } from './lib/chip/chip';
 export { ChoiceComponent } from './lib/choice/choice';
 export { DialogComponent } from './lib/dialog/dialog';
 export { DIALOG_DATA, DialogRef } from './lib/dialog/dialog-ref';
@@ -26,6 +27,8 @@ export { PhotoUploaderComponent, type UploaderMove, type UploaderTile } from './
 export { ReservationTimerComponent, type ReservationPhase } from './lib/reservation-timer/reservation-timer';
 export { SegmentedComponent } from './lib/segmented/segmented';
 export { SellerSummaryComponent, type SellerSummaryView } from './lib/seller-summary/seller-summary';
+export { SheetComponent } from './lib/sheet/sheet';
+export { SheetService } from './lib/sheet/sheet-service';
 export { SizeTagComponent } from './lib/size-tag/size-tag';
 export { SkipLinkComponent } from './lib/skip-link/skip-link';
 export { SpinnerComponent } from './lib/spinner/spinner';
