@@ -408,6 +408,9 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("CheckoutId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("DeliveredAt")
                         .HasColumnType("datetime2");
 
@@ -494,6 +497,9 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SellerId", "PaidAt")
                         .HasDatabaseName("IX_Orders_SellerId_PaidAt");
+
+                    b.HasIndex("Status", "DeliveredAt")
+                        .HasDatabaseName("IX_Orders_Status_DeliveredAt");
 
                     b.HasIndex("Status", "ShipBy")
                         .HasDatabaseName("IX_Orders_Status_ShipBy");

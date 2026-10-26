@@ -1,8 +1,9 @@
 // Unit Test
-// Traces to: L2-032, L2-033
+// Traces to: L2-032, L2-033, L2-034
 // Description: The order state machine allows only the L2-032 transitions and records each one
 // with its time and actor; the ship-by date is 5 business days after payment; tracking numbers
-// are checked against the carrier's format.
+// are checked against the carrier's format. Confirming receipt completes a Shipped or Delivered
+// order, and a Delivered order is due for automatic completion 3 days after delivery.
 
 using TwelveL.Domain.Orders;
 
@@ -151,6 +152,83 @@ public sealed class OrderTests
     public void The_usps_message_says_how_long_the_number_usually_is()
     {
         Assert.Equal("That doesn’t look like a USPS tracking number. It’s usually 22 digits.", TrackingNumbers.InvalidMessage(Carrier.Usps));
+    }
+
+    [Fact]
+    public void Confirming_receipt_of_a_delivered_order_completes_it_as_the_buyer()
+    {
+        var order = DeliveredOrder();
+        var at = PaidSaturday.AddDays(5);
+
+        order.ConfirmReceipt(at);
+
+        Assert.Equal(OrderStatus.Completed, order.Status);
+        Assert.Equal(at, order.CompletedAt);
+        Assert.Equal(at, order.EndedAt);
+        Assert.Equal(OrderActor.Buyer, order.StatusChanges.Last().Actor);
+    }
+
+    [Fact]
+    public void Confirming_receipt_of_a_shipped_order_records_delivered_then_completed_against_the_buyer()
+    {
+        var order = PaidOrder(PaidSaturday);
+        order.MarkShipped(Carrier.Usps, UspsNumber, PaidSaturday.AddDays(1));
+        var at = PaidSaturday.AddDays(2);
+
+        order.ConfirmReceipt(at);
+
+        Assert.Equal(OrderStatus.Completed, order.Status);
+        Assert.Equal(at, order.DeliveredAt);
+        var last = order.StatusChanges.TakeLast(2).ToList();
+        Assert.Equal([OrderStatus.Delivered, OrderStatus.Completed], last.Select(c => c.To));
+        Assert.All(last, c => Assert.Equal(OrderActor.Buyer, c.Actor));
+    }
+
+    [Fact]
+    public void A_paid_or_completed_order_cannot_be_confirmed()
+    {
+        var paid = PaidOrder(PaidSaturday);
+        Assert.Throws<InvalidOrderTransitionException>(() => paid.ConfirmReceipt(PaidSaturday));
+
+        var completed = DeliveredOrder();
+        completed.ConfirmReceipt(PaidSaturday.AddDays(5));
+        Assert.Throws<InvalidOrderTransitionException>(() => completed.ConfirmReceipt(PaidSaturday.AddDays(6)));
+        Assert.Equal(4, completed.StatusChanges.Count);
+    }
+
+    [Fact]
+    public void A_delivered_order_completes_automatically_3_days_after_delivery()
+    {
+        var order = DeliveredOrder();
+        var deliveredAt = order.DeliveredAt!.Value;
+
+        Assert.Equal(deliveredAt.AddDays(3), order.AutoCompletesAt);
+        Assert.False(order.IsDueForAutoCompletion(deliveredAt.AddDays(3).AddSeconds(-1)));
+        Assert.True(order.IsDueForAutoCompletion(deliveredAt.AddDays(3)));
+
+        order.Complete(OrderActor.System, deliveredAt.AddDays(3));
+
+        Assert.Equal(OrderStatus.Completed, order.Status);
+        Assert.Equal(OrderActor.System, order.StatusChanges.Last().Actor);
+        Assert.Null(order.AutoCompletesAt);
+    }
+
+    [Fact]
+    public void Only_a_delivered_order_has_an_automatic_completion_time()
+    {
+        var order = PaidOrder(PaidSaturday);
+        order.MarkShipped(Carrier.Usps, UspsNumber, PaidSaturday.AddDays(1));
+
+        Assert.Null(order.AutoCompletesAt);
+        Assert.False(order.IsDueForAutoCompletion(PaidSaturday.AddDays(30)));
+    }
+
+    private static Order DeliveredOrder()
+    {
+        var order = PaidOrder(PaidSaturday);
+        order.MarkShipped(Carrier.Usps, UspsNumber, PaidSaturday.AddDays(1));
+        order.MarkDelivered(OrderActor.Carrier, PaidSaturday.AddDays(3));
+        return order;
     }
 
     private static Order PaidOrder(DateTime paidAt)

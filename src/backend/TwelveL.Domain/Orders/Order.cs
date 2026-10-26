@@ -22,6 +22,9 @@ public sealed class Order
     /// <summary>Business days the seller has to add tracking (L2-033).</summary>
     public const int ShipWithinBusinessDays = 5;
 
+    /// <summary>How long after delivery a Delivered order completes by itself (L2-034 AC2).</summary>
+    public static readonly TimeSpan AutoCompleteAfter = TimeSpan.FromDays(3);
+
     private readonly List<OrderStatusChange> _statusChanges = [];
 
     private Order()
@@ -65,6 +68,12 @@ public sealed class Order
     public DateTime? ShippedAt { get; private set; }
 
     public DateTime? DeliveredAt { get; private set; }
+
+    /// <summary>When the buyer confirmed receipt or the order completed automatically (L2-034).</summary>
+    public DateTime? CompletedAt { get; private set; }
+
+    /// <summary>When a Delivered order completes by itself: 3 days after delivery; null in any other status.</summary>
+    public DateTime? AutoCompletesAt => Status == OrderStatus.Delivered ? DeliveredAt + AutoCompleteAfter : null;
 
     /// <summary>When the order reached a terminal status.</summary>
     public DateTime? EndedAt { get; private set; }
@@ -119,6 +128,30 @@ public sealed class Order
         TransitionTo(OrderStatus.Delivered, actor, now);
         DeliveredAt = now;
     }
+
+    /// <summary>
+    /// The buyer confirmed receipt (L2-034 AC1). A Shipped order first becomes Delivered, because
+    /// L2-032 has no direct Shipped to Completed move; both changes are recorded against the buyer.
+    /// </summary>
+    public void ConfirmReceipt(DateTime now)
+    {
+        if (Status == OrderStatus.Shipped)
+        {
+            MarkDelivered(OrderActor.Buyer, now);
+        }
+
+        Complete(OrderActor.Buyer, now);
+    }
+
+    /// <summary>Delivered to Completed, by the buyer, the system after 3 days, or an administrator.</summary>
+    public void Complete(OrderActor actor, DateTime now)
+    {
+        TransitionTo(OrderStatus.Completed, actor, now);
+        CompletedAt = now;
+    }
+
+    /// <summary>Whether the completion job should complete this order at <paramref name="now"/> (L2-034 AC2).</summary>
+    public bool IsDueForAutoCompletion(DateTime now) => AutoCompletesAt <= now;
 
     /// <summary>The seller cancelled, or the ship deadline passed: Paid to Cancelled.</summary>
     public void Cancel(OrderActor actor, DateTime now) => TransitionTo(OrderStatus.Cancelled, actor, now);

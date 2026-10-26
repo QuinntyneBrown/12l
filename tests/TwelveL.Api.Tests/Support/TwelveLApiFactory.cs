@@ -1,3 +1,4 @@
+using MediatR;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using TwelveL.Application.Abstractions;
+using TwelveL.Application.Orders;
 using TwelveL.Infrastructure.Persistence;
 
 namespace TwelveL.Api.Tests.Support;
@@ -44,6 +46,8 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
 
     public FakeCarrierTracking Carriers { get; } = new();
 
+    public RecordingOrderCompleted Completed { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -74,6 +78,7 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<IPaymentProvider>(Payments);
             services.RemoveAll<ICarrierTracking>();
             services.AddSingleton<ICarrierTracking>(Carriers);
+            services.AddSingleton<INotificationHandler<OrderCompleted>>(Completed);
         });
     }
 

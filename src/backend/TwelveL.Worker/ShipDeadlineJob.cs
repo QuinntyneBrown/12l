@@ -9,6 +9,9 @@ public sealed class OrderJobOptions
 {
     /// <summary>How often Paid orders past their ship-by date are cancelled and refunded.</summary>
     public TimeSpan DeadlineJobInterval { get; set; } = TimeSpan.FromMinutes(5);
+
+    /// <summary>How often Delivered orders 3 days after delivery are completed.</summary>
+    public TimeSpan CompletionJobInterval { get; set; } = TimeSpan.FromMinutes(5);
 }
 
 /// <summary>

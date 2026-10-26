@@ -10,6 +10,7 @@ builder.Services.Configure<OrderJobOptions>(builder.Configuration.GetSection("Or
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<ReservationExpiryJob>();
 builder.Services.AddHostedService<ShipDeadlineJob>();
+builder.Services.AddHostedService<OrderCompletionJob>();
 
 var host = builder.Build();
 host.Run();

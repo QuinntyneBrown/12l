@@ -8,8 +8,9 @@ using TwelveL.Application.Orders;
 namespace TwelveL.Api.Controllers;
 
 /// <summary>
-/// The seller's side of an order (L2-032, L2-033): read the sale and add tracking. 401 for
-/// visitors, 404 for anyone but the order's seller, 409 ORDER_INVALID_TRANSITION when not Paid.
+/// Order actions (L2-032, L2-033, L2-034): the seller reads the sale and adds tracking; the buyer
+/// confirms receipt. 401 for visitors, 404 for anyone but the order's seller or buyer, 409
+/// ORDER_INVALID_TRANSITION when the order's status does not allow the action.
 /// </summary>
 [ApiController]
 [Authorize(Policy = Policies.VerifiedMember)]
@@ -26,6 +27,13 @@ public sealed class OrdersController(ISender sender) : ControllerBase
     public async Task<IActionResult> AddTracking(Guid id, AddTrackingRequest request, CancellationToken cancellationToken)
     {
         var result = await sender.Send(new AddTrackingCommand(User.MemberId(), id, request.Carrier, request.TrackingNumber), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Error!);
+    }
+
+    [HttpPost("api/orders/{id:guid}/receipt")]
+    public async Task<IActionResult> ConfirmReceipt(Guid id, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new ConfirmReceiptCommand(User.MemberId(), id), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Error!);
     }
 }
