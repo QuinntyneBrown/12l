@@ -16,11 +16,11 @@ skinparam package {
 }
 actor "Seller" as actor
 box "Frontend — 12L Web application" #E0F2FE
-  participant "MyListingsPage" as page
-  participant "ListingsApiService" as client
+  participant "MyListingsPage (@12l/listings)" as page
+  participant "ListingsApi (@12l/api)" as client
 end box
 box "Backend — 12L API application" #D1FADF
-  participant "MyListingsController" as controller
+  participant "ListingsController" as controller
 end box
 box "Backend — TwelveL Application and Domain" #ECFDF3
   participant "GetMyListingsQueryHandler" as handler
@@ -30,9 +30,9 @@ box "Backend — TwelveL Infrastructure" #FFF4E5
 end box
 actor -> page : Open /account/listings (optionally ?status=sold)
 page --> actor : Loading state: skeleton rows
-page -> client : getMyListings(status, cursor)
+page -> client : mine(status)
 client -> controller : GET /api/me/listings?status=Sold
-controller -> controller : Authenticate member (401 if anonymous)
+controller -> controller : Verified member (401 if anonymous)
 controller -> handler : Send GetMyListingsQuery(sellerId from token)
 handler -> db : SELECT seller's listings by status ORDER BY CreatedAt DESC, Id DESC (L2-021)
 handler -> db : SELECT COUNT per status for chips
@@ -42,7 +42,7 @@ alt database or network failure
   client --> page : Error state "Couldn't load your listings" with Ref and "Try again"
 else rows returned
   db --> handler : Rows with cover version and sale order ID
-  handler --> controller : MyListingsPage
+  handler --> controller : MyListingsDto
   controller --> client : 200
   alt seller has no listings
     client --> page : Empty state "Nothing listed yet" with "Sell an item"
@@ -55,7 +55,7 @@ actor -> page : Select a row
 alt Draft
   page --> actor : Navigate to /sell/{reference}
 else Sold
-  page --> actor : Navigate to the sale detail of SaleOrderId
+  page --> actor : Navigate to /sales/{saleOrderId}
 else Active, Reserved or Removed
   page --> actor : Navigate to /items/{reference}
 end
