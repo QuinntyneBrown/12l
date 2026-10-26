@@ -37,11 +37,21 @@
             <h1>{{ heading() }}</h1>
           </div>
           @if (ended()) {
-            <tl-alert tone="info" [heading]="sale.status + ' · Buyer refunded in full'"
-              >The listing stays off the catalog until you relist it.</tl-alert
-            >
+            <tl-alert tone="info" [heading]="sale.status + ' · Buyer refunded in full'">{{ endedNote() }}</tl-alert>
+            @if (sale.canRelist) {
+              <div class="cluster">
+                <button tlButton="primary" type="button" (click)="relist()">Relist item</button>
+              </div>
+            }
           } @else {
-            @if (sale.status === 'Paid') {
+            @if (requested() && sale.cancellationRequest; as request) {
+              @if (request.message) {
+                <tl-quote [text]="request.message" [cite]="sale.buyerDisplayName" />
+              }
+              <div class="cluster">
+                <button tlButton="primary" type="button" (click)="respond()">Respond</button>
+              </div>
+            } @else if (sale.status === 'Paid') {
               <p class="lead">
                 Ship by <strong>{{ day(sale.shipBy) }}</strong
                 >.
@@ -82,11 +92,12 @@
               </address>
               <p class="text-caption">Visible until 30 days after the order ends.</p>
             </div>
-            @if (sale.status === 'Paid') {
+            @if (sale.status === 'Paid' && !requested()) {
               <div class="cluster">
                 <button tlButton="primary" type="button" (click)="addTracking()">
                   <tl-icon name="truck" />Add tracking
                 </button>
+                <button tlButton="ghost" type="button" (click)="cancelOrder()">Cancel order</button>
               </div>
             }
           }

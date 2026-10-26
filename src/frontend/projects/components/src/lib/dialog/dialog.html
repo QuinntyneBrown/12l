@@ -9,7 +9,14 @@
   <div class="dialog__panel" [class.dialog__panel--sm]="size() === 'sm'" [class.dialog__panel--lg]="size() === 'lg'">
     <div class="dialog__header">
       @if (icon(); as icon) {
-        <div class="dialog__icon dialog__icon--info" aria-hidden="true"><tl-icon [name]="icon" /></div>
+        <div
+          class="dialog__icon"
+          [class.dialog__icon--info]="tone() === 'info'"
+          [class.dialog__icon--danger]="tone() === 'danger'"
+          aria-hidden="true"
+        >
+          <tl-icon [name]="icon" />
+        </div>
       }
       <div class="dialog__heading">
         <h2 class="dialog__title" [id]="id + '-title'">{{ heading() }}</h2>

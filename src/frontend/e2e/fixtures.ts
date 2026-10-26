@@ -465,6 +465,9 @@ export function sale(fields: Record<string, unknown> = {}): Record<string, unkno
     timeline: timeline(),
     tracking: null,
     payout: null,
+    cancellation: null,
+    cancellationRequest: null,
+    canRelist: false,
     ...fields,
   };
 }
@@ -480,8 +483,16 @@ export function buyerOrder(fields: Record<string, unknown> = {}): Record<string,
     salesTax: '8.34',
     timeline: timeline(),
     tracking: null,
+    autoCompletesAt: null,
+    cancellation: null,
+    cancellationRequest: null,
     ...fields,
   };
+}
+
+/** The buyer's request to cancel as the API returns it, Pending unless <status> says otherwise. */
+export function cancellationRequest(status = 'Pending'): Record<string, unknown> {
+  return { message: 'Ordered the wrong colour, sorry. Can we cancel?', status, requestedAt: '2026-10-24T18:00:00Z' };
 }
 
 /** One row of the payouts history: the hoodie sold as 12L-48302, held until the order completes. */
