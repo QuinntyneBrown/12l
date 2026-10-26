@@ -1,9 +1,12 @@
 using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using TwelveL.Application.Abstractions;
 using TwelveL.Application.Common;
+using TwelveL.Application.Listings;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Orders;
+using TwelveL.Domain.Payouts;
 
 namespace TwelveL.Application.Checkouts;
 
@@ -17,12 +20,12 @@ public enum WebhookOutcome
 
 /// <summary>
 /// A raw provider webhook. The payment result comes only from here, never from the browser
-/// (L2-030): a success creates the Paid order and sells the listing, a decline lets the buyer
+/// (L2-030): a success creates the Paid order with its held payout (L2-031) and sells the listing, a decline lets the buyer
 /// retry, and a success for a listing that already has an order is refunded (L2-029 AC2).
 /// </summary>
 public sealed record HandlePaymentWebhookCommand(string Body, string? Signature) : IRequest<Result<WebhookOutcome>>;
 
-public sealed class PaymentWebhookHandler(ITwelveLDbContext db, IPaymentProvider provider, TimeProvider clock) :
+public sealed class PaymentWebhookHandler(ITwelveLDbContext db, IPaymentProvider provider, IOptions<SellingOptions> selling, TimeProvider clock) :
     IRequestHandler<HandlePaymentWebhookCommand, Result<WebhookOutcome>>
 {
     /// <summary>First order number; references start at 12L-10001.</summary>
@@ -66,8 +69,10 @@ public sealed class PaymentWebhookHandler(ITwelveLDbContext db, IPaymentProvider
         if (!sold && stillOurs)
         {
             var last = await db.Orders.MaxAsync(o => (long?)o.Number, cancellationToken);
-            var order = Order.CreatePaid((last ?? FirstOrderNumber - 1) + 1, checkout, listing.SellerId, payment, now);
+            var feeRate = PayoutFees.RateFromPercent(selling.Value.PlatformFeePercent);
+            var order = Order.CreatePaid((last ?? FirstOrderNumber - 1) + 1, checkout, listing.SellerId, payment, feeRate, now);
             db.Orders.Add(order);
+            db.Payouts.Add(Payout.CreateHeld(order, now));
             listing.MarkSold(now);
             checkout.MarkPaid(order.Id, now);
             var saved = await db.SavedAddresses.SingleOrDefaultAsync(a => a.MemberId == checkout.BuyerId, cancellationToken);

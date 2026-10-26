@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
 using TwelveL.Domain.Orders;
+using TwelveL.Domain.Payouts;
 
 namespace TwelveL.Application.Abstractions;
 
@@ -31,6 +32,10 @@ public interface ITwelveLDbContext
     DbSet<SavedAddress> SavedAddresses { get; }
 
     DbSet<PaymentWebhookEvent> PaymentWebhookEvents { get; }
+
+    DbSet<Payout> Payouts { get; }
+
+    DbSet<SellerPayoutAccount> SellerPayoutAccounts { get; }
 
     /// <summary>Transactions, for the steps of checkout that must commit together.</summary>
     DatabaseFacade Database { get; }
@@ -147,6 +152,49 @@ public interface IPaymentProvider
 
     /// <summary>The event when the signature over the raw body is valid, otherwise null (L2-030 AC4).</summary>
     PaymentEvent? ReadWebhook(string body, string? signature);
+}
+
+/// <summary>Kinds of payout webhook events 12L acts on.</summary>
+public enum PayoutEventType
+{
+    AccountUpdated,
+    PayoutPaid,
+    PayoutFailed,
+}
+
+/// <summary>
+/// One verified payout webhook event. Account events carry the provider account ID, whether
+/// onboarding is complete and the bank's display name and last four digits; payout events carry
+/// the 12L payout ID sent as the idempotency key (L2-031).
+/// </summary>
+public sealed record PayoutEvent(
+    string EventId,
+    PayoutEventType Type,
+    string? ProviderAccountId,
+    bool AccountComplete,
+    string? BankName,
+    string? BankLast4,
+    Guid? PayoutId,
+    string? FailureReason);
+
+/// <summary>
+/// The payout side of the payment provider (L2-031, ADR orders/0005): connected accounts, the
+/// provider-hosted onboarding, transfers to the seller's bank and their webhook. Failures throw
+/// <see cref="HttpRequestException"/>. Tests use a fake; no real credentials exist yet.
+/// </summary>
+public interface IPayoutProvider
+{
+    /// <summary>Creates the seller's connected account; returns the provider account ID.</summary>
+    Task<string> CreateConnectedAccountAsync(Guid memberId, string email, CancellationToken cancellationToken);
+
+    /// <summary>A short-lived link to the provider-hosted onboarding for the account.</summary>
+    Task<string> CreateOnboardingLinkAsync(string accountId, string returnUrl, string refreshUrl, CancellationToken cancellationToken);
+
+    /// <summary>Pays the amount to the account; the key makes a repeated call pay once. Returns the provider payout ID.</summary>
+    Task<string> CreatePayoutAsync(string accountId, decimal amount, Guid idempotencyKey, CancellationToken cancellationToken);
+
+    /// <summary>The event when the signature over the raw body is valid, otherwise null.</summary>
+    PayoutEvent? ReadWebhook(string body, string? signature);
 }
 
 /// <summary>One verified carrier tracking event: the number as the carrier stores it and whether it reports delivery.</summary>

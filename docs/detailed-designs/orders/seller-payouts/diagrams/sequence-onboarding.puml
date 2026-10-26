@@ -19,48 +19,51 @@ skinparam maxMessageSize 260
 actor "Seller" as actor
 box "Frontend — 12L Web application" #E0F2FE
   participant "PayoutsPage" as page
-  participant "PayoutsApiService" as client
+  participant "PayoutsApi (@12l/api)" as client
 end box
 participant "Payment provider" as pay
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
   participant "PayoutsController" as ctrl
-  participant "PaymentWebhookController" as wh
+  participant "PayoutWebhookController" as wh
 end box
 box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
-  participant "CreateOnboardingLinkCommandHandler" as h
+  participant "CreateOnboardingLinkHandler" as h
   participant "SellerPayoutAccount" as acct
 end box
 box "Backend — TwelveL.Infrastructure" #FFF4E5
   database "12L database" as db
 end box
 actor -> page : Open /account/payouts
-page -> client : getSummary()
+page -> client : summary()
 client -> ctrl : GET /api/payouts
-ctrl --> client : 200 PayoutSummaryDto (Onboarding NotStarted, held $40.00)
+ctrl --> client : 200 PayoutSummaryDto (onboarding NotStarted, pending 40.50)
 page --> actor : not-onboarded state: "Set up payouts to get paid" / "Set up payouts"
 actor -> page : Choose "Set up payouts"
-page -> client : createOnboardingLink()
+page -> client : onboardingLink()
 client -> ctrl : POST /api/payouts/onboarding-link
 ctrl -> h : Send CreateOnboardingLinkCommand
 h -> db : Load SellerPayoutAccount
 opt no provider account yet
-  h -> pay : CreateConnectedAccountAsync(memberId)
+  h -> pay : CreateConnectedAccountAsync(memberId, email)
   pay --> h : ProviderAccountId
   h -> db : Save account (Pending)
 end
 h -> pay : CreateOnboardingLinkAsync(accountId, returnUrl /account/payouts?onboarding=return)
 pay --> h : Hosted onboarding URL
 h --> ctrl : URL
-ctrl --> client : 200 { url }
-client --> page : Redirect
+ctrl --> client : 200 { url }, or 502 PAYOUT_PROVIDER_UNAVAILABLE
+client --> page : window.location.assign(url)
 page --> actor : Browser leaves for provider onboarding
 actor -> pay : Completes identity and bank details
-pay -> wh : account.updated (signed)
-wh -> wh : Verify signature, deduplicate by event id
+pay -> wh : account.updated (Payout-Signature)
+wh -> wh : Verify signature, deduplicate by event id (PaymentWebhookEvents)
 wh -> acct : Status Complete, BankName, BankLast4
-wh -> db : Save; held payouts with HoldReason OnboardingIncomplete become Releasable when their order is Completed
-alt seller returns before webhook arrives
-  page -> client : getSummary() (poll)
-  page --> actor : Pending; then success banner "Payouts are set up. You'll be paid when orders complete."
+wh -> db : Save; payouts held with OnboardingIncomplete (order already Completed) become Releasable
+actor -> page : Returns to /account/payouts?onboarding=return
+page -> client : summary()
+alt onboarding Complete (webhook arrived)
+  page --> actor : success banner "Payouts are set up. You'll be paid when orders complete."
+else still Pending
+  page --> actor : not-onboarded state until a later visit
 end
 @enduml

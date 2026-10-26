@@ -93,6 +93,8 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.ShippingCost).HasPrecision(10, 2);
         builder.Property(o => o.SalesTax).HasPrecision(10, 2);
         builder.Property(o => o.Total).HasPrecision(10, 2);
+        builder.Property(o => o.FeeRate).HasPrecision(5, 4);
+        builder.Property(o => o.FeeAmount).HasPrecision(10, 2);
         builder.OwnsOne(o => o.ShippingAddress, a => AddressColumns.Map(a, "Shipping"));
         builder.Navigation(o => o.ShippingAddress).IsRequired();
         builder.HasOne<Checkout>().WithMany().HasForeignKey(o => o.CheckoutId).OnDelete(DeleteBehavior.Restrict);

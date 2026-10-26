@@ -1,3 +1,5 @@
+using TwelveL.Domain.Payouts;
+
 namespace TwelveL.Domain.Orders;
 
 /// <summary>Order states (L2-032). Cancelled, Completed and Refunded are terminal.</summary>
@@ -58,6 +60,12 @@ public sealed class Order
 
     public decimal Total { get; private set; }
 
+    /// <summary>The 12L fee rate when the order was paid (0.10 for 10%); later configuration changes do not alter it (L2-031).</summary>
+    public decimal FeeRate { get; private set; }
+
+    /// <summary>The 12L fee on item plus shipping, recorded against the order (L2-031 AC2).</summary>
+    public decimal FeeAmount { get; private set; }
+
     public ShippingAddress ShippingAddress { get; private set; } = null!;
 
     public DateTime PaidAt { get; private set; }
@@ -87,8 +95,11 @@ public sealed class Order
 
     public static string ReferenceFor(long number) => $"12L-{number}";
 
-    /// <summary>The Paid order of a checkout whose payment succeeded. The checkout must have an address and a tax quote.</summary>
-    public static Order CreatePaid(long number, Checkout checkout, Guid sellerId, Payment payment, DateTime now)
+    /// <summary>
+    /// The Paid order of a checkout whose payment succeeded, with the fee at <paramref name="feeRate"/>.
+    /// The checkout must have an address and a tax quote.
+    /// </summary>
+    public static Order CreatePaid(long number, Checkout checkout, Guid sellerId, Payment payment, decimal feeRate, DateTime now)
     {
         var order = new Order
         {
@@ -105,6 +116,8 @@ public sealed class Order
             ShippingCost = checkout.ShippingCost,
             SalesTax = checkout.SalesTax ?? throw new InvalidOperationException("The checkout has no tax."),
             Total = payment.Amount,
+            FeeRate = feeRate,
+            FeeAmount = PayoutFees.Fee(feeRate, checkout.ItemPrice + checkout.ShippingCost),
             ShippingAddress = checkout.Address ?? throw new InvalidOperationException("The checkout has no address."),
             PaidAt = now,
             ShipBy = BusinessDays.Add(now, ShipWithinBusinessDays),

@@ -21,24 +21,27 @@ box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
   participant "Payout" as payout
 end box
 box "Backend — 12L Worker application (TwelveL.Worker)" #D1FADF
-  participant "PayoutReleaseJob" as job
+  participant "PayoutReleaseJob / ReleasePayoutsHandler" as job
 end box
 box "Backend — TwelveL.Infrastructure" #FFF4E5
   database "12L database" as db
 end box
 participant "Payment provider" as pay
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
-  participant "PaymentWebhookController" as wh
+  participant "PayoutWebhookController" as wh
 end box
-== Order reaches Completed (complete-order or resolve-order-problems) ==
+== OrderCompleted published after the completion is saved (ADR orders/0004) ==
 evh -> db : Load Payout by OrderId
-evh -> payout : MarkReleasable(now)
-alt seller onboarding not Complete (L2-031 criterion 1)
-  payout -> payout : Hold(OnboardingIncomplete)
+evh -> payout : OrderCompleted(sellerOnboarded, now)
+alt seller onboarding Complete
+  payout -> payout : Releasable
+else not Complete (L2-031 criterion 1)
+  payout -> payout : Held, OnboardingIncomplete
 end
-evh -> db : Save in the OrderCompleted unit of work
+evh -> db : Save
 == Every Payouts:ReleaseJobInterval ==
-job -> db : SELECT payouts p JOIN orders o WHERE p.Status='Releasable' AND o.Status='Completed' AND account.Status='Complete' AND no open problem
+job -> db : Catch up: Held/OrderNotCompleted payouts of Completed orders get OrderCompleted (lost event)
+job -> db : SELECT payouts p JOIN orders o JOIN accounts a WHERE p.Status='Releasable' AND o.Status='Completed' AND a.Status='Complete'
 note right of job : Paid, Shipped and Delivered orders never match (L2-031 criterion 3)
 db --> job : Releasable payouts
 loop each payout
@@ -52,7 +55,7 @@ loop each payout
     job -> db : Keep Releasable, log, retry next run
   end
 end
-pay -> wh : payout.paid or payout.failed (signed)
+pay -> wh : payout.paid or payout.failed (Payout-Signature)
 alt payout.paid
   wh -> db : Payout Paid, PaidAt
 else payout.failed

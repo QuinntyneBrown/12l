@@ -4,6 +4,7 @@ import { ActivatedRouteSnapshot, ResolveEnd, Router, RouterOutlet } from '@angul
 import { filter, map } from 'rxjs';
 import { AuthState } from '@12l/api';
 import { FooterComponent, LogoComponent, TopBarComponent } from '@12l/components';
+import { PayoutBannerComponent } from '@12l/orders';
 
 /** Shell named by the deepest route's data.shell: 'app' (default) or 'auth'. */
 type Shell = 'app' | 'auth';
@@ -15,12 +16,12 @@ function shellOf(route: ActivatedRouteSnapshot): Shell {
 }
 
 /**
- * App shell: top bar with the member from AuthState, main#main with the router outlet and the
- * footer. Routes with data.shell 'auth' render in the auth shell: large logo above a centred card.
+ * App shell: the payout banner, top bar with the member from AuthState, main#main with the router
+ * outlet and the footer. Routes with data.shell 'auth' render in the auth shell: large logo above a centred card.
  */
 @Component({
   selector: 'tl-app-shell',
-  imports: [RouterOutlet, TopBarComponent, FooterComponent, LogoComponent],
+  imports: [RouterOutlet, TopBarComponent, FooterComponent, LogoComponent, PayoutBannerComponent],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

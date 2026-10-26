@@ -7,10 +7,12 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.Configure<CheckoutJobOptions>(builder.Configuration.GetSection("Checkout"));
 builder.Services.Configure<OrderJobOptions>(builder.Configuration.GetSection("Orders"));
+builder.Services.Configure<PayoutJobOptions>(builder.Configuration.GetSection("Payouts"));
 builder.Services.AddHostedService<Worker>();
 builder.Services.AddHostedService<ReservationExpiryJob>();
 builder.Services.AddHostedService<ShipDeadlineJob>();
 builder.Services.AddHostedService<OrderCompletionJob>();
+builder.Services.AddHostedService<PayoutReleaseJob>();
 
 var host = builder.Build();
 host.Run();

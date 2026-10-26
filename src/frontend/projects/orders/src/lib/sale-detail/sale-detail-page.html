@@ -52,6 +52,26 @@
                 <tl-tracking-link [carrier]="tracking.carrier" [number]="tracking.number" [url]="tracking.url" />
               }
             }
+            @if (sale.status === 'Completed' && sale.payout; as payout) {
+              <div class="panel panel--sunken stack">
+                <h2 class="panel__title">Payout</h2>
+                <dl class="totals">
+                  <div>
+                    <dt>Item and shipping</dt>
+                    <dd>{{ money(payout.gross) }}</dd>
+                  </div>
+                  <div>
+                    <dt>12L fee ({{ payout.feePercent }}%)</dt>
+                    <dd>−{{ money(payout.fee) }}</dd>
+                  </div>
+                  <div class="totals__total">
+                    <dt>Your payout</dt>
+                    <dd>{{ money(payout.net) }}</dd>
+                  </div>
+                </dl>
+                <p class="text-caption">{{ payoutNote() }}</p>
+              </div>
+            }
             <div class="stack stack--sm">
               <h2 class="panel__title">Ship to</h2>
               <address class="address">
