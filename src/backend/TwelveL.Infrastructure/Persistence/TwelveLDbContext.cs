@@ -39,6 +39,8 @@ public sealed class TwelveLDbContext(DbContextOptions<TwelveLDbContext> options)
 
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
+    public DbSet<OrderProblem> OrderProblems => Set<OrderProblem>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TwelveLDbContext).Assembly);
 }

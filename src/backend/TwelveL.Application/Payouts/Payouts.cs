@@ -226,7 +226,9 @@ public sealed class ReleasePayoutsHandler(ITwelveLDbContext db, IPayoutProvider 
         var stale = await (
             from payout in db.Payouts
             join order in db.Orders on payout.OrderId equals order.Id
-            where payout.Status == PayoutStatus.Held && payout.HoldReason == PayoutHoldReason.OrderNotCompleted && order.Status == OrderStatus.Completed
+            where payout.Status == PayoutStatus.Held
+                && (payout.HoldReason == PayoutHoldReason.OrderNotCompleted || payout.HoldReason == PayoutHoldReason.OpenProblem)
+                && order.Status == OrderStatus.Completed
             select payout)
             .ToListAsync(cancellationToken);
         if (stale.Count == 0)

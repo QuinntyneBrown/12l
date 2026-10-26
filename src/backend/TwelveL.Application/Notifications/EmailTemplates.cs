@@ -30,6 +30,8 @@ public static class EmailTemplates
         NotificationType.OrderCancelled => typeof(OrderCancelledEmail),
         NotificationType.OrderRefunded => typeof(OrderRefundedEmail),
         NotificationType.CancellationRequested => typeof(CancellationRequestedEmail),
+        NotificationType.ProblemReported => typeof(ProblemReportedEmail),
+        NotificationType.ProblemResolved => typeof(ProblemResolvedEmail),
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, "No template for this notification type."),
     };
 
@@ -70,6 +72,15 @@ public static class EmailTemplates
             CancellationRequestedEmail m => (
                 $"The buyer asked to cancel order {m.OrderReference}",
                 $"The buyer of {m.ItemTitle} asked you to cancel order {m.OrderReference}.{(m.Message is null ? string.Empty : $"\n“{m.Message}”")}\n\nAccept to refund them in full, or decline and ship it:\n{root}/sales/{m.OrderId}"),
+            ProblemReportedEmail { ToAdministrator: true } m => (
+                $"Problem {m.ProblemReference} reported on order {m.OrderReference}",
+                $"The buyer of {m.ItemTitle} reported a problem: {m.Reason}.\n“{m.Description}”\n\nReview it and decide:\n{root}/admin/problems/{m.ProblemReference}"),
+            ProblemReportedEmail m => (
+                $"The buyer reported a problem with order {m.OrderReference}",
+                $"The buyer of {m.ItemTitle} reported a problem: {m.Reason}.\n“{m.Description}”\n\nYour payout is on hold while our team reviews it. You can reply once:\n{root}/sales/{m.OrderId}"),
+            ProblemResolvedEmail m => (
+                $"We decided the problem with order {m.OrderReference}",
+                $"Our team reviewed the problem with {m.ItemTitle} and decided to {m.Decision}.\nReason: {m.Reason}\n{root}/{(m.ToSeller ? "sales" : "orders")}/{m.OrderId}"),
             _ => throw new InvalidOperationException($"No template for {type}."),
         };
 

@@ -180,7 +180,7 @@ public sealed class RequestCancellationCommandHandler(ITwelveLDbContext db, IEma
             return OrderErrors.InvalidTransition;
         }
 
-        return await PurchaseViews.PurchaseAsync(db, order, photoOptions.Value, cancellationToken);
+        return await PurchaseViews.PurchaseAsync(db, order, photoOptions.Value, clock, cancellationToken);
     }
 }
 

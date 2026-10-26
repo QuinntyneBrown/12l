@@ -33,6 +33,12 @@ public sealed class ConfirmReceiptCommandHandler(ITwelveLDbContext db, IPublishe
             return OrderErrors.NotFound;
         }
 
+        if (await ProblemViews.IsOpenAsync(db, order.Id, cancellationToken))
+        {
+            // An open problem is decided by an administrator, not by the buyer (L2-036).
+            return OrderErrors.InvalidTransition;
+        }
+
         try
         {
             order.ConfirmReceipt(clock.GetUtcNow().UtcDateTime);
@@ -45,13 +51,14 @@ public sealed class ConfirmReceiptCommandHandler(ITwelveLDbContext db, IPublishe
         }
 
         await publisher.Publish(OrderCompleted.From(order), cancellationToken);
-        return await PurchaseViews.PurchaseAsync(db, order, photoOptions.Value, cancellationToken);
+        return await PurchaseViews.PurchaseAsync(db, order, photoOptions.Value, clock, cancellationToken);
     }
 }
 
 /// <summary>
 /// The completion job's pass: every Delivered order 3 days after delivery is completed by the
-/// system (L2-034 AC2). Returns how many were completed.
+/// system (L2-034 AC2), except an order with an open problem, which waits for an administrator
+/// (L2-034 AC3, L2-036). Returns how many were completed.
 /// </summary>
 public sealed record CompleteDeliveredOrdersCommand : IRequest<int>;
 
@@ -62,7 +69,11 @@ public sealed class CompleteDeliveredOrdersHandler(ITwelveLDbContext db, IPublis
     {
         var now = clock.GetUtcNow().UtcDateTime;
         var deliveredBy = now - Order.AutoCompleteAfter;
-        var ids = await db.Orders.Where(o => o.Status == OrderStatus.Delivered && o.DeliveredAt <= deliveredBy).Select(o => o.Id).ToListAsync(cancellationToken);
+        var ids = await db.Orders
+            .Where(o => o.Status == OrderStatus.Delivered && o.DeliveredAt <= deliveredBy)
+            .Where(o => !db.OrderProblems.Any(p => p.OrderId == o.Id && p.Status == ProblemStatus.Open))
+            .Select(o => o.Id)
+            .ToListAsync(cancellationToken);
         var completed = 0;
         foreach (var id in ids)
         {

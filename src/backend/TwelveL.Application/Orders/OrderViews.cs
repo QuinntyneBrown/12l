@@ -25,7 +25,8 @@ public sealed record CancellationRequestDto(string? Message, string Status, Date
 /// One order as its seller's sale page shows it (mocks pages/sale-detail): ship-by date, the
 /// buyer's address under "Ship to" (L2-033), the summary, the timeline, the tracking once shipped,
 /// the payout after the fee (L2-031), and the cancellation, the buyer's request to cancel and
-/// whether the listing can be relisted (L2-035).
+/// whether the listing can be relisted (L2-035), and the buyer's problem with the seller's reply
+/// (L2-036).
 /// </summary>
 public sealed record SaleDto(
     Guid Id,
@@ -45,7 +46,8 @@ public sealed record SaleDto(
     SalePayoutDto? Payout,
     CancellationDto? Cancellation,
     CancellationRequestDto? CancellationRequest,
-    bool CanRelist);
+    bool CanRelist,
+    ProblemDto? Problem);
 
 public static class OrderViews
 {
@@ -100,6 +102,7 @@ public static class OrderViews
             await SalePayouts.ForAsync(db, order, cancellationToken),
             Cancellation(order),
             CancellationRequest(order),
-            order.Status == OrderStatus.Cancelled && await db.Listings.AsNoTracking().AnyAsync(l => l.Id == order.ListingId && l.Status == ListingStatus.Removed && l.RemovalReason == ListingRemovalReason.OrderCancelled, cancellationToken));
+            order.Status == OrderStatus.Cancelled && await db.Listings.AsNoTracking().AnyAsync(l => l.Id == order.ListingId && l.Status == ListingStatus.Removed && l.RemovalReason == ListingRemovalReason.OrderCancelled, cancellationToken),
+            await ProblemViews.ForOrderAsync(db, order.Id, cancellationToken));
     }
 }

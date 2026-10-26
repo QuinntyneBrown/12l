@@ -5,6 +5,7 @@ public enum RefundReason
     DuplicatePayment,
     ShipDeadlinePassed,
     OrderCancelled,
+    ProblemResolved,
 }
 
 public enum RefundStatus
@@ -15,7 +16,8 @@ public enum RefundStatus
 
 /// <summary>
 /// Money returned to a buyer. A payment for a listing that already has an order (L2-029 AC2) and
-/// a cancelled order (L2-035, L2-033 AC2) are refunded in full.
+/// a cancelled order (L2-035, L2-033 AC2) and an order whose problem was decided for the buyer
+/// (L2-036) are refunded in full.
 /// </summary>
 public sealed class Refund
 {
@@ -54,6 +56,17 @@ public sealed class Refund
         PaymentId = payment.Id,
         Amount = payment.Amount,
         Reason = reason == CancellationReason.ShipDeadlinePassed ? RefundReason.ShipDeadlinePassed : RefundReason.OrderCancelled,
+        Status = RefundStatus.Pending,
+        CreatedAt = now,
+    };
+
+    /// <summary>The full refund an administrator decides on an order problem (L2-036 AC3).</summary>
+    public static Refund ForProblem(Payment payment, DateTime now) => new()
+    {
+        Id = Guid.NewGuid(),
+        PaymentId = payment.Id,
+        Amount = payment.Amount,
+        Reason = RefundReason.ProblemResolved,
         Status = RefundStatus.Pending,
         CreatedAt = now,
     };

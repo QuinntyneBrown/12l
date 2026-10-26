@@ -10,6 +10,9 @@ public enum PayoutStatus
     Sent,
     Paid,
     Failed,
+
+    /// <summary>Never paid: the order was refunded on a problem (L2-036 AC3).</summary>
+    Cancelled,
 }
 
 /// <summary>Why a payout is Held.</summary>
@@ -17,6 +20,9 @@ public enum PayoutHoldReason
 {
     OrderNotCompleted,
     OnboardingIncomplete,
+
+    /// <summary>The buyer reported a problem; held until an administrator decides (L2-036).</summary>
+    OpenProblem,
 }
 
 /// <summary>
@@ -90,6 +96,21 @@ public sealed class Payout
         HoldReason = PayoutHoldReason.OrderNotCompleted,
         CreatedAt = now,
     };
+
+    /// <summary>A problem was opened on the order: a Held payout stays Held for the problem (L2-036 AC1).</summary>
+    public void HoldForProblem()
+    {
+        EnsureStatus(PayoutStatus.Held);
+        HoldReason = PayoutHoldReason.OpenProblem;
+    }
+
+    /// <summary>The order was refunded on a problem: the payout is never made (L2-036 AC3).</summary>
+    public void Cancel()
+    {
+        EnsureStatus(PayoutStatus.Held);
+        Status = PayoutStatus.Cancelled;
+        HoldReason = null;
+    }
 
     /// <summary>The order completed: Releasable when the seller is onboarded, otherwise Held for onboarding.</summary>
     public void OrderCompleted(bool sellerOnboarded, DateTime now)
