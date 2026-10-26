@@ -4,7 +4,9 @@ using Microsoft.Extensions.Options;
 using TwelveL.Application.Abstractions;
 using TwelveL.Application.Common;
 using TwelveL.Application.Listings;
+using TwelveL.Application.Notifications;
 using TwelveL.Domain.Listings;
+using TwelveL.Domain.Notifications;
 using TwelveL.Domain.Orders;
 using TwelveL.Domain.Payouts;
 
@@ -25,7 +27,12 @@ public enum WebhookOutcome
 /// </summary>
 public sealed record HandlePaymentWebhookCommand(string Body, string? Signature) : IRequest<Result<WebhookOutcome>>;
 
-public sealed class PaymentWebhookHandler(ITwelveLDbContext db, IPaymentProvider provider, IOptions<SellingOptions> selling, TimeProvider clock) :
+public sealed class PaymentWebhookHandler(
+    ITwelveLDbContext db,
+    IPaymentProvider provider,
+    IEmailOutbox notifications,
+    IOptions<SellingOptions> selling,
+    TimeProvider clock) :
     IRequestHandler<HandlePaymentWebhookCommand, Result<WebhookOutcome>>
 {
     /// <summary>First order number; references start at 12L-10001.</summary>
@@ -75,6 +82,10 @@ public sealed class PaymentWebhookHandler(ITwelveLDbContext db, IPaymentProvider
             db.Payouts.Add(Payout.CreateHeld(order, now));
             listing.MarkSold(now);
             checkout.MarkPaid(order.Id, now);
+            notifications.Enqueue(
+                NotificationType.SaleMade,
+                order.SellerId,
+                new SaleMadeEmail(order.Id, order.Reference, listing.Title ?? order.Reference, order.Total, order.ShipBy));
             var saved = await db.SavedAddresses.SingleOrDefaultAsync(a => a.MemberId == checkout.BuyerId, cancellationToken);
             if (saved is null)
             {

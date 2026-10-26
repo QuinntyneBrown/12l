@@ -327,6 +327,65 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.ToTable("Sessions", (string)null);
                 });
 
+            modelBuilder.Entity("TwelveL.Domain.Notifications.OutboxMessage", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ClaimToken")
+                        .IsConcurrencyToken()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("LastError")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("LockedUntil")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("NextAttemptAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("NotificationType")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<string>("Payload")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RecipientMemberId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("SentAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("SuppressionReason")
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Status", "NextAttemptAt")
+                        .HasDatabaseName("IX_OutboxMessages_Due")
+                        .HasFilter("Status IN ('Pending', 'Processing')");
+
+                    b.ToTable("OutboxMessages", (string)null);
+                });
+
             modelBuilder.Entity("TwelveL.Domain.Orders.Checkout", b =>
                 {
                     b.Property<Guid>("Id")
@@ -456,6 +515,12 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.Property<DateTime>("ShipBy")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime>("ShipReminderDue")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ShipReminderSentAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime?>("ShippedAt")
                         .HasColumnType("datetime2");
 
@@ -511,6 +576,9 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("Status", "ShipBy")
                         .HasDatabaseName("IX_Orders_Status_ShipBy");
+
+                    b.HasIndex("Status", "ShipReminderDue")
+                        .HasDatabaseName("IX_Orders_Status_ShipReminderDue");
 
                     b.ToTable("Orders", (string)null);
                 });

@@ -24,6 +24,9 @@ public sealed class Order
     /// <summary>Business days the seller has to add tracking (L2-033).</summary>
     public const int ShipWithinBusinessDays = 5;
 
+    /// <summary>Business days after payment at which an unshipped seller is reminded (L2-033 AC3).</summary>
+    public const int RemindAfterBusinessDays = 3;
+
     /// <summary>How long after delivery a Delivered order completes by itself (L2-034 AC2).</summary>
     public static readonly TimeSpan AutoCompleteAfter = TimeSpan.FromDays(3);
 
@@ -73,6 +76,12 @@ public sealed class Order
     /// <summary>When the seller must have added tracking: 5 business days after payment (L2-033).</summary>
     public DateTime ShipBy { get; private set; }
 
+    /// <summary>When an unshipped seller is reminded: 3 business days after payment (L2-033 AC3).</summary>
+    public DateTime ShipReminderDue { get; private set; }
+
+    /// <summary>When the ship-by reminder was queued; null until then, so it is sent once.</summary>
+    public DateTime? ShipReminderSentAt { get; private set; }
+
     public DateTime? ShippedAt { get; private set; }
 
     public DateTime? DeliveredAt { get; private set; }
@@ -121,9 +130,24 @@ public sealed class Order
             ShippingAddress = checkout.Address ?? throw new InvalidOperationException("The checkout has no address."),
             PaidAt = now,
             ShipBy = BusinessDays.Add(now, ShipWithinBusinessDays),
+            ShipReminderDue = BusinessDays.Add(now, RemindAfterBusinessDays),
         };
         order._statusChanges.Add(OrderStatusChange.Record(order.Id, null, OrderStatus.Paid, OrderActor.System, now));
         return order;
+    }
+
+    /// <summary>Whether the reminder job should remind the seller at <paramref name="now"/>: Paid, due and not yet reminded.</summary>
+    public bool IsDueForShipReminder(DateTime now) => Status == OrderStatus.Paid && ShipReminderSentAt is null && ShipReminderDue <= now;
+
+    /// <summary>Records that the ship-by reminder was queued, so the job does not send it again.</summary>
+    public void MarkShipReminderSent(DateTime now)
+    {
+        if (!IsDueForShipReminder(now))
+        {
+            throw new InvalidOperationException("The order is not due for a ship-by reminder.");
+        }
+
+        ShipReminderSentAt = now;
     }
 
     /// <summary>The seller added a well-formed tracking number: Paid to Shipped.</summary>

@@ -223,6 +223,30 @@ public sealed class OrderTests
         Assert.False(order.IsDueForAutoCompletion(PaidSaturday.AddDays(30)));
     }
 
+    [Fact]
+    public void A_paid_order_reminds_its_seller_once_3_business_days_after_payment()
+    {
+        var order = PaidOrder(PaidSaturday);
+
+        Assert.Equal(BusinessDays.Add(PaidSaturday, 3), order.ShipReminderDue);
+        Assert.False(order.IsDueForShipReminder(order.ShipReminderDue.AddSeconds(-1)));
+        Assert.True(order.IsDueForShipReminder(order.ShipReminderDue));
+
+        order.MarkShipReminderSent(order.ShipReminderDue);
+
+        Assert.False(order.IsDueForShipReminder(order.ShipReminderDue.AddDays(1)));
+        Assert.Throws<InvalidOperationException>(() => order.MarkShipReminderSent(order.ShipReminderDue.AddDays(1)));
+    }
+
+    [Fact]
+    public void A_shipped_order_is_not_due_for_a_reminder()
+    {
+        var order = PaidOrder(PaidSaturday);
+        order.MarkShipped(Carrier.Usps, "9400111899223456120477", PaidSaturday.AddHours(1));
+
+        Assert.False(order.IsDueForShipReminder(PaidSaturday.AddDays(10)));
+    }
+
     private static Order DeliveredOrder()
     {
         var order = PaidOrder(PaidSaturday);

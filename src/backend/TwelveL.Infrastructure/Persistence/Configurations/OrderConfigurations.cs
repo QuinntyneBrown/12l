@@ -107,6 +107,7 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => new { o.BuyerId, o.PaidAt }).HasDatabaseName("IX_Orders_BuyerId_PaidAt");
         builder.HasIndex(o => new { o.SellerId, o.PaidAt }).HasDatabaseName("IX_Orders_SellerId_PaidAt");
         builder.HasIndex(o => new { o.Status, o.ShipBy }).HasDatabaseName("IX_Orders_Status_ShipBy");
+        builder.HasIndex(o => new { o.Status, o.ShipReminderDue }).HasDatabaseName("IX_Orders_Status_ShipReminderDue");
         builder.HasIndex(o => new { o.Status, o.DeliveredAt }).HasDatabaseName("IX_Orders_Status_DeliveredAt");
         builder.Ignore(o => o.AutoCompletesAt);
         builder.HasIndex(o => new { o.Carrier, o.TrackingNumber }).HasDatabaseName("IX_Orders_Carrier_TrackingNumber");

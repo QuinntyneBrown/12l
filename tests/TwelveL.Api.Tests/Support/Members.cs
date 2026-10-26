@@ -18,6 +18,7 @@ public static class Members
 
     public static async Task VerifyAsync(this HttpClient client, TwelveLApiFactory factory, string email = "marcus.bell@example.com")
     {
+        await factory.DispatchEmailsAsync();
         using var response = await client.PostAsJsonAsync("/api/auth/verify-email", new { token = factory.Email.LastVerificationToken(email) });
         response.EnsureSuccessStatusCode();
     }

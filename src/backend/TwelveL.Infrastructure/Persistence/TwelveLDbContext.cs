@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using TwelveL.Application.Abstractions;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
+using TwelveL.Domain.Notifications;
 using TwelveL.Domain.Orders;
 using TwelveL.Domain.Payouts;
 
@@ -35,6 +36,8 @@ public sealed class TwelveLDbContext(DbContextOptions<TwelveLDbContext> options)
     public DbSet<Payout> Payouts => Set<Payout>();
 
     public DbSet<SellerPayoutAccount> SellerPayoutAccounts => Set<SellerPayoutAccount>();
+
+    public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TwelveLDbContext).Assembly);

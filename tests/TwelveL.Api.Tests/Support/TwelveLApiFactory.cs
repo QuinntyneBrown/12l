@@ -9,6 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Time.Testing;
 using TwelveL.Application.Abstractions;
+using TwelveL.Application.Notifications;
 using TwelveL.Application.Orders;
 using TwelveL.Infrastructure.Persistence;
 
@@ -98,6 +99,15 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
     {
         EnsureDatabase();
         return CreateClient(new WebApplicationFactoryClientOptions { BaseAddress = new Uri("https://localhost") });
+    }
+
+    /// <summary>One dispatcher pass, as the worker runs it; returns the emails it sent.</summary>
+    public async Task<IReadOnlyList<EmailMessage>> DispatchEmailsAsync()
+    {
+        var before = Email.Sent.Count;
+        using var scope = Services.CreateScope();
+        await scope.ServiceProvider.GetRequiredService<ISender>().Send(new DispatchEmailsCommand());
+        return Email.Sent.Skip(before).ToList();
     }
 
     public void InDatabase(Action<TwelveLDbContext> action)

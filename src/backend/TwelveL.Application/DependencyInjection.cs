@@ -10,6 +10,7 @@ public static class DependencyInjection
     {
         services.AddMediatR(config => config.RegisterServicesFromAssemblyContaining(typeof(DependencyInjection)));
         services.AddScoped<VerificationEmails>();
+        services.AddScoped<Notifications.IEmailOutbox, Notifications.EmailOutbox>();
         services.AddScoped<Listings.ListingPhotoAttacher>();
         return services;
     }
