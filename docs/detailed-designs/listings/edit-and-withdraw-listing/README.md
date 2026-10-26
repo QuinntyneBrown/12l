@@ -64,7 +64,7 @@ Every action requires an authenticated member and the anti-forgery token on stat
   - trims text and sets `UpdatedAt`.
 - **`WithdrawListingCommand`** / **`WithdrawListingCommandHandler`** — calls `Listing.Withdraw(clock)`, which allows only `Active → Removed`, sets `RemovalReason = Withdrawn` and `RemovedAt`, and saves with the `RowVersion` check. A `Draft` cannot be withdrawn (`409` `LISTING_NOT_EDITABLE`); draft deletion is not in the specs and is `<TO SUPPLY>`.
 - **`RelistListingCommand`** / **`RelistListingCommandHandler`** — calls `Listing.Relist(clock)`, which allows `Removed → Active` only when `RemovalReason = OrderCancelled` (`L2-035`). It keeps the original photos, price and description, clears `RemovalReason` and `RemovedAt`, and sets `PublishedAt`. A withdrawn listing is not relistable, matching the dialog copy "This can't be undone."
-- **`Listing.RemoveAfterCancellation(clock)`** — domain method `Sold → Removed` with `RemovalReason = OrderCancelled`, called by the cancel-order handler in the orders subsystem when an order is cancelled before shipping. `<TO SUPPLY>`: confirm that the cancel-order design uses this transition.
+- **`Listing.RemoveAfterCancellation(now)`** — domain method `Sold → Removed` with `RemovalReason = OrderCancelled`, called by `OrderCancellation` in the orders subsystem whenever an order is cancelled before shipping ([cancel-order](../../orders/cancel-order/README.md)). cancel-order built it with `Listing.Relist`, `POST /api/listings/{reference}/relist` (`204`) and a `RelistDialog` in `@12l/orders` without "Edit first"; this feature adds the edit page, "Edit first", the toast and the `Withdrawn` reason.
 - **Status transitions owned or guarded here**:
 
 | From | To | Trigger | Guard |

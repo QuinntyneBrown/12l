@@ -10,10 +10,17 @@ import {
   OrderSummaryComponent,
   OrderSummaryItem,
   OrderTimelineComponent,
+  QuoteComponent,
   TrackingLinkComponent,
 } from '@12l/components';
 
 import { AddTrackingData, AddTrackingDialog } from '../add-tracking/add-tracking-dialog';
+import { CancelOrderData, CancelOrderDialog } from '../cancel-order/cancel-order-dialog';
+import { RelistData, RelistDialog } from '../relist/relist-dialog';
+import {
+  RespondCancellationData,
+  RespondCancellationDialog,
+} from '../respond-cancellation/respond-cancellation-dialog';
 import { formatMoney } from '../money';
 import { formatDay, timelineSteps } from '../order-dates';
 import { OrderPartyComponent } from '../order-party/order-party';
@@ -29,8 +36,9 @@ const HEADINGS: Record<string, string> = {
 
 /**
  * The seller's sale at /sales/{id} (mocks pages/sale-detail, L2-033): the ship-by date and the
- * buyer's address while Paid, with Add tracking; the timeline and tracking link once shipped; the
- * payout after the 12L fee once Completed (L2-031).
+ * buyer's address while Paid, with Add tracking and Cancel order; the buyer's request to cancel
+ * with Respond; the timeline and tracking link once shipped; the payout after the 12L fee once
+ * Completed (L2-031); and Relist item once Cancelled (L2-035).
  */
 @Component({
   selector: 'tl-sale-detail-page',
@@ -43,6 +51,7 @@ const HEADINGS: Record<string, string> = {
     OrderPartyComponent,
     OrderSummaryComponent,
     OrderTimelineComponent,
+    QuoteComponent,
     TrackingLinkComponent,
   ],
   templateUrl: './sale-detail-page.html',
@@ -60,7 +69,19 @@ export class SaleDetailPage {
   readonly view = signal<'loading' | 'loaded' | 'error'>('loading');
   readonly errorRef = signal('');
 
-  readonly heading = computed(() => HEADINGS[this.sale()?.status ?? 'Paid']);
+  /** A Paid sale the buyer asked to cancel and the seller has not answered (mocks sale-detail/cancel-requested). */
+  readonly requested = computed(
+    () => this.sale()?.status === 'Paid' && this.sale()?.cancellationRequest?.status === 'Pending',
+  );
+  readonly heading = computed(() =>
+    this.requested() ? 'Buyer asked to cancel' : HEADINGS[this.sale()?.status ?? 'Paid'],
+  );
+  readonly endedNote = computed(() => {
+    const sale = this.sale();
+    if (sale?.canRelist || sale?.status !== 'Cancelled')
+      return 'The listing stays off the catalog until you relist it.';
+    return 'The listing is back in the catalog.';
+  });
   readonly ended = computed(() => ['Cancelled', 'Refunded'].includes(this.sale()?.status ?? ''));
   readonly steps = computed(() => timelineSteps(this.sale()?.timeline ?? []));
   readonly summaryItem = computed<OrderSummaryItem | null>(() => {
@@ -103,6 +124,43 @@ export class SaleDetailPage {
     });
     const shipped = await ref.closed;
     if (shipped) this.sale.set(shipped);
+  }
+
+  async cancelOrder(): Promise<void> {
+    const sale = this.sale();
+    if (!sale) return;
+    const ref = this.dialogs.open<CancelOrderDialog, CancelOrderData, Sale>(CancelOrderDialog, {
+      orderId: sale.id,
+      buyerDisplayName: sale.buyerDisplayName,
+      total: sale.total,
+    });
+    const cancelled = await ref.closed;
+    if (cancelled) this.sale.set(cancelled);
+  }
+
+  async respond(): Promise<void> {
+    const sale = this.sale();
+    if (!sale) return;
+    const ref = this.dialogs.open<RespondCancellationDialog, RespondCancellationData, Sale>(RespondCancellationDialog, {
+      orderId: sale.id,
+      buyerDisplayName: sale.buyerDisplayName,
+      message: sale.cancellationRequest?.message ?? null,
+      total: sale.total,
+      shipBy: sale.shipBy,
+    });
+    const answered = await ref.closed;
+    if (answered) this.sale.set(answered);
+  }
+
+  async relist(): Promise<void> {
+    const sale = this.sale();
+    if (!sale) return;
+    const ref = this.dialogs.open<RelistDialog, RelistData, boolean>(RelistDialog, {
+      item: sale.item,
+      itemPrice: sale.itemPrice,
+      shippingCost: sale.shippingCost,
+    });
+    if (await ref.closed) this.sale.set({ ...sale, canRelist: false });
   }
 
   private async load(id: string): Promise<void> {

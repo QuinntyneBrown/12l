@@ -38,6 +38,14 @@
           </div>
           @if (ended()) {
             <tl-alert tone="info" heading="Refunded in full">{{ refund() }}</tl-alert>
+            @if (order.cancellation?.note; as note) {
+              <tl-quote [text]="note" [cite]="order.sellerDisplayName" />
+            }
+            @if (order.status === 'Cancelled') {
+              <div class="cluster">
+                <a tlButton="primary" routerLink="/">Shop similar items</a>
+              </div>
+            }
           } @else {
             <tl-order-timeline [steps]="steps()" />
             @if (order.tracking; as tracking) {
@@ -47,6 +55,14 @@
               <p class="text-muted order__note">
                 {{ order.sellerDisplayName }} ships by {{ day(order.shipBy) }}. If not, you’re refunded automatically.
               </p>
+            }
+            @if (requestNote()) {
+              <p class="order__request">{{ requestNote() }}</p>
+            }
+            @if (canAskToCancel()) {
+              <div class="cluster">
+                <button tlButton type="button" (click)="askToCancel()">Ask to cancel</button>
+              </div>
             }
             @if (order.status === 'Delivered' && order.autoCompletesAt) {
               <p class="text-muted order__completes">

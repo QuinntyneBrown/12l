@@ -24,76 +24,67 @@ enum CancellationRequestStatus {
   Accepted
   Declined
 }
-enum CancellationDecision {
-  Accept
-  Decline
-}
-  None
-  Reserved
-  PaidOrder
-  OrderPastPaid
+enum ListingRemovalReason {
+  OrderCancelled
 }
 class Order <<see ship-order>> {
   +OrderStatus Status
   +CancellationReason? CancellationReason
   +string? CancellationNote
-  +Cancel(reason, note, actor, at): void
+  +CancellationRequestStatus? CancellationRequestStatus
+  +string? CancellationRequestMessage
+  +DateTime? CancellationRequestedAt
+  +DateTime? CancellationRespondedAt
+  +Cancel(reason, note, actor, now): void
+  +RequestCancellation(message, now): void
+  +DeclineCancellation(now): void
 }
-class CancellationRequest {
-  +Guid Id
-  +Guid OrderId
-  +string? Message
-  +CancellationRequestStatus Status
-  +DateTimeOffset RequestedAt
-  +DateTimeOffset? RespondedAt
-  +Accept(at): void
-  +Decline(at): void
-}
-class CancelOrderCommand {
-  +Guid OrderId
-  +CancellationReason Reason
-  +string? Note
-  +OrderActorType ActorType
-  +Guid? ActorId
-}
-class CancelOrderCommandValidator
-class CancelOrderCommandHandler {
-  +Handle(cmd): Task<SaleDetailDto>
-}
-class RequestCancellationCommand {
-  +Guid OrderId
-  +string? Message
-}
-class RequestCancellationCommandHandler
-class RespondToCancellationCommand {
-  +Guid OrderId
-  +CancellationDecision Decision
-}
-class RespondToCancellationCommandHandler
-class RefundRequester {
-  +RequestFullRefund(order, reason): Refund
-}
-class Refund <<see checkout-and-pay>>
 class Listing <<listings subsystem>> {
-  +RemoveAfterCancellation(clock): void
-  +Relist(clock): void
+  +ListingStatus Status
+  +ListingRemovalReason? RemovalReason
+  +bool CanRelist
+  +RemoveAfterCancellation(now): void
+  +Relist(now): void
+}
+class Refund <<see checkout-and-pay>> {
+  +ForCancellation(payment, reason, now): Refund
+}
+class OrderCancellation {
+  +CancelAsync(order, reason, note, actor): (Refund, Payment)
+  +IssueRefundAsync(order, refund, payment): Task
+}
+class CancelOrderCommandHandler {
+  +Handle(CancelOrderCommand): Result<SaleDto>
+}
+class RequestCancellationCommandHandler {
+  +Handle(RequestCancellationCommand): Result<PurchaseDto>
+}
+class RespondToCancellationCommandHandler {
+  +Handle(RespondToCancellationCommand): Result<SaleDto>
+}
+class CancelUnshippedOrdersHandler <<see ship-order>>
+class RelistListingCommandHandler {
+  +Handle(RelistListingCommand): Result<bool>
 }
 interface IEmailOutbox <<notifications subsystem>> {
   +Enqueue(type, recipientMemberId, model): void
 }
-Order "1" *-- "0..1" CancellationRequest
+interface IPaymentProvider {
+  +RefundAsync(providerPaymentId, amount, key): string
+}
 Order --> CancellationReason
-CancellationRequest --> CancellationRequestStatus
-CancelOrderCommandHandler ..> CancelOrderCommand : handles
-CancelOrderCommandValidator ..> CancelOrderCommand : validates
-CancelOrderCommandHandler --> Order : Cancel
-CancelOrderCommandHandler --> Listing : RemoveAfterCancellation
-CancelOrderCommandHandler ..> RefundRequester
-CancelOrderCommandHandler ..> IEmailOutbox
-RefundRequester ..> Refund : creates
-RequestCancellationCommandHandler ..> RequestCancellationCommand : handles
-RequestCancellationCommandHandler --> CancellationRequest : creates
-RespondToCancellationCommandHandler ..> RespondToCancellationCommand : handles
-RespondToCancellationCommandHandler --> CancellationRequest : Accept / Decline
-RespondToCancellationCommandHandler ..> CancelOrderCommand : sends on accept
+Order --> CancellationRequestStatus
+Listing --> ListingRemovalReason
+CancelOrderCommandHandler ..> OrderCancellation
+RespondToCancellationCommandHandler ..> OrderCancellation : on accept
+RespondToCancellationCommandHandler --> Order : DeclineCancellation
+CancelUnshippedOrdersHandler ..> OrderCancellation
+RequestCancellationCommandHandler --> Order : RequestCancellation
+RequestCancellationCommandHandler ..> IEmailOutbox
+OrderCancellation --> Order : Cancel
+OrderCancellation --> Listing : RemoveAfterCancellation
+OrderCancellation ..> Refund : creates
+OrderCancellation ..> IEmailOutbox
+OrderCancellation ..> IPaymentProvider
+RelistListingCommandHandler --> Listing : Relist
 @enduml

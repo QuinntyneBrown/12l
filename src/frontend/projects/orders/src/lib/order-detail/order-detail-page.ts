@@ -10,6 +10,7 @@ import {
   OrderSummaryComponent,
   OrderSummaryItem,
   OrderTimelineComponent,
+  QuoteComponent,
   TrackingLinkComponent,
 } from '@12l/components';
 
@@ -17,6 +18,10 @@ import { formatMoney } from '../money';
 import { formatDay, timelineSteps } from '../order-dates';
 import { ConfirmReceiptData, ConfirmReceiptDialog } from '../confirm-receipt/confirm-receipt-dialog';
 import { OrderPartyComponent } from '../order-party/order-party';
+import {
+  RequestCancellationData,
+  RequestCancellationDialog,
+} from '../request-cancellation/request-cancellation-dialog';
 
 const HEADINGS: Record<string, string> = {
   Paid: 'Waiting to ship',
@@ -30,7 +35,8 @@ const HEADINGS: Record<string, string> = {
 /**
  * The buyer's order at /orders/{id} (mocks pages/order-detail, L2-032, L2-033): waiting to ship
  * with the ship-by date, on its way with the tracking link, delivered with the automatic completion
- * date, completed, or cancelled and refunded. A Shipped or Delivered order offers "I received it" (L2-034).
+ * date, completed, or cancelled and refunded with the seller's note. A Shipped or Delivered order
+ * offers "I received it" (L2-034); a Paid order offers "Ask to cancel" once (L2-035).
  */
 @Component({
   selector: 'tl-order-detail-page',
@@ -43,6 +49,7 @@ const HEADINGS: Record<string, string> = {
     OrderPartyComponent,
     OrderSummaryComponent,
     OrderTimelineComponent,
+    QuoteComponent,
     TrackingLinkComponent,
   ],
   templateUrl: './order-detail-page.html',
@@ -63,6 +70,15 @@ export class OrderDetailPage {
   readonly heading = computed(() => HEADINGS[this.order()?.status ?? 'Paid']);
   readonly canConfirm = computed(() => ['Shipped', 'Delivered'].includes(this.order()?.status ?? ''));
   readonly ended = computed(() => ['Cancelled', 'Refunded'].includes(this.order()?.status ?? ''));
+  readonly canAskToCancel = computed(() => this.order()?.status === 'Paid' && !this.order()?.cancellationRequest);
+  /** Where the buyer's request to cancel a Paid order stands (mocks order-detail/cancel-requested). */
+  readonly requestNote = computed(() => {
+    const order = this.order();
+    if (order?.status !== 'Paid' || !order.cancellationRequest) return '';
+    return order.cancellationRequest.status === 'Declined'
+      ? `${order.sellerDisplayName} declined to cancel. They still ship by ${formatDay(order.shipBy)}.`
+      : `You asked ${order.sellerDisplayName} to cancel. They haven’t answered yet.`;
+  });
   readonly steps = computed(() => timelineSteps(this.order()?.timeline ?? []));
   readonly refund = computed(() => {
     const order = this.order();
@@ -99,6 +115,17 @@ export class OrderDetailPage {
     });
     const completed = await ref.closed;
     if (completed) this.order.set(completed);
+  }
+
+  async askToCancel(): Promise<void> {
+    const order = this.order();
+    if (!order) return;
+    const ref = this.dialogs.open<RequestCancellationDialog, RequestCancellationData, Purchase>(
+      RequestCancellationDialog,
+      { orderId: order.id, sellerDisplayName: order.sellerDisplayName },
+    );
+    const requested = await ref.closed;
+    if (requested) this.order.set(requested);
   }
 
   private async load(id: string): Promise<void> {

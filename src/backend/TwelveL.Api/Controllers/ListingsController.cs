@@ -39,6 +39,13 @@ public sealed class ListingsController(ISender sender) : ControllerBase
         return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Error!);
     }
 
+    [HttpPost("api/listings/{reference}/relist")]
+    public async Task<IActionResult> Relist(string reference, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new RelistListingCommand(User.MemberId(), reference), cancellationToken);
+        return result.IsSuccess ? NoContent() : this.ToProblem(result.Error!);
+    }
+
     [HttpGet("api/me/listings/{reference}")]
     public async Task<IActionResult> GetMine(string reference, CancellationToken cancellationToken)
     {

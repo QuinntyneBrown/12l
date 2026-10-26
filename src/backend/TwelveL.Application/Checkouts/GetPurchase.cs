@@ -13,7 +13,8 @@ namespace TwelveL.Application.Checkouts;
 /// One order as its buyer's confirmation page shows it: reference, item, the amount paid with the
 /// card brand and last four digits, and the seller's display name; the buyer's order page adds
 /// the summary, ship-by date, timeline and tracking (ship-order), and when a Delivered order
-/// completes by itself (complete-order). order-history extends it.
+/// completes by itself (complete-order), and the cancellation and the buyer's request to cancel
+/// (cancel-order). order-history extends it.
 /// </summary>
 public sealed record PurchaseDto(
     Guid Id,
@@ -31,7 +32,9 @@ public sealed record PurchaseDto(
     string SalesTax,
     IReadOnlyList<TimelineStepDto> Timeline,
     TrackingDto? Tracking,
-    DateTime? AutoCompletesAt);
+    DateTime? AutoCompletesAt,
+    CancellationDto? Cancellation,
+    CancellationRequestDto? CancellationRequest);
 
 public sealed record GetPurchaseQuery(Guid BuyerId, Guid OrderId) : IRequest<Result<PurchaseDto>>;
 
@@ -73,6 +76,8 @@ public static class PurchaseViews
             CheckoutMoney.Format(order.SalesTax),
             OrderViews.Timeline(order),
             OrderViews.Tracking(order),
-            order.AutoCompletesAt);
+            order.AutoCompletesAt,
+            OrderViews.Cancellation(order),
+            OrderViews.CancellationRequest(order));
     }
 }

@@ -18,6 +18,10 @@ export class OrderDetailPage {
   readonly dialogAlert: Locator;
   readonly completeOrder: Locator;
   readonly notYet: Locator;
+  readonly askToCancel: Locator;
+  readonly requestNote: Locator;
+  readonly quote: Locator;
+  readonly shopSimilar: Locator;
 
   constructor(private readonly page: Page) {
     const main = page.locator('main');
@@ -37,6 +41,10 @@ export class OrderDetailPage {
     this.dialogAlert = this.dialog.getByRole('alert');
     this.completeOrder = this.dialog.locator('.dialog__footer .btn--primary');
     this.notYet = this.dialog.getByRole('button', { name: 'Not yet' });
+    this.askToCancel = main.getByRole('button', { name: 'Ask to cancel' });
+    this.requestNote = main.locator('.order__request');
+    this.quote = main.locator('blockquote');
+    this.shopSimilar = main.getByRole('link', { name: 'Shop similar items' });
   }
 
   async goto(id = 'o-1'): Promise<void> {

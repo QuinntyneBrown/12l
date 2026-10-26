@@ -67,6 +67,10 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)");
 
+                    b.Property<string>("RemovalReason")
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
                     b.Property<Guid?>("ReservedByCheckoutId")
                         .HasColumnType("uniqueidentifier");
 
@@ -460,6 +464,28 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("BuyerId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("CancellationNote")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("CancellationReason")
+                        .HasMaxLength(24)
+                        .HasColumnType("nvarchar(24)");
+
+                    b.Property<string>("CancellationRequestMessage")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("CancellationRequestStatus")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime?>("CancellationRequestedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("CancellationRespondedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Carrier")
                         .HasMaxLength(8)
                         .HasColumnType("nvarchar(8)");
@@ -550,7 +576,8 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("ListingId")
                         .IsUnique()
-                        .HasDatabaseName("UX_Orders_ListingId");
+                        .HasDatabaseName("UX_Orders_ListingId")
+                        .HasFilter("Status <> 'Cancelled'");
 
                     b.HasIndex("Number")
                         .IsUnique()

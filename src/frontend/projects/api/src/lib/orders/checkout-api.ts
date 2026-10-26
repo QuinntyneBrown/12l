@@ -4,7 +4,7 @@ import { Injectable, inject } from '@angular/core';
 import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
 import { CardPhoto } from '../catalog/catalog-api';
-import type { OrderTimelineStep, Tracking } from './orders-api';
+import type { Cancellation, CancellationRequest, OrderTimelineStep, Tracking } from './orders-api';
 
 /** A US shipping address. country is the two-letter code; 12L ships within the US only (L2-027). */
 export interface ShippingAddress {
@@ -76,6 +76,10 @@ export interface Purchase {
   tracking: Tracking | null;
   /** When a Delivered order completes by itself, 3 days after delivery (L2-034); null otherwise. */
   autoCompletesAt: string | null;
+  /** Why the seller or the deadline cancelled it, with the seller's note (L2-035). */
+  cancellation: Cancellation | null;
+  /** The buyer's request to cancel, if they made one. */
+  cancellationRequest: CancellationRequest | null;
 }
 
 /** Typed client for /api/checkouts and /api/purchases (checkout-and-pay). */

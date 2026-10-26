@@ -29,6 +29,7 @@ public static class EmailTemplates
         NotificationType.ShipByReminder => typeof(ShipByReminderEmail),
         NotificationType.OrderCancelled => typeof(OrderCancelledEmail),
         NotificationType.OrderRefunded => typeof(OrderRefundedEmail),
+        NotificationType.CancellationRequested => typeof(CancellationRequestedEmail),
         _ => throw new ArgumentOutOfRangeException(nameof(type), type, "No template for this notification type."),
     };
 
@@ -57,12 +58,18 @@ public static class EmailTemplates
             OrderCancelledEmail { ToSeller: true } m => (
                 $"Order {m.OrderReference} was cancelled",
                 $"Order {m.OrderReference} for {m.ItemTitle} was cancelled because it was not shipped in time. The buyer gets a full refund.\n{root}/sales/{m.OrderId}"),
+            OrderCancelledEmail { Reason: { } reason } m => (
+                $"Your order {m.OrderReference} was cancelled",
+                $"The seller cancelled {m.ItemTitle}. Reason: {reason}.{(m.Note is null ? string.Empty : $"\nTheir note: “{m.Note}”")}\nYou get a full refund.\n{root}/orders/{m.OrderId}"),
             OrderCancelledEmail m => (
                 $"Your order {m.OrderReference} was cancelled",
                 $"The seller did not ship {m.ItemTitle} in time, so your order was cancelled. You get a full refund.\n{root}/orders/{m.OrderId}"),
             OrderRefundedEmail m => (
                 $"Your refund for order {m.OrderReference}",
                 $"We refunded {Money(m.Amount)} to {Card(m.CardBrand, m.CardLast4)}. It can take 5 to 10 business days to show.\n{root}/orders/{m.OrderId}"),
+            CancellationRequestedEmail m => (
+                $"The buyer asked to cancel order {m.OrderReference}",
+                $"The buyer of {m.ItemTitle} asked you to cancel order {m.OrderReference}.{(m.Message is null ? string.Empty : $"\n“{m.Message}”")}\n\nAccept to refund them in full, or decline and ship it:\n{root}/sales/{m.OrderId}"),
             _ => throw new InvalidOperationException($"No template for {type}."),
         };
 

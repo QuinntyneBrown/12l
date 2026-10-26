@@ -15,10 +15,17 @@ public sealed record TimelineStepDto(string Status, DateTime? At);
 /// <summary>The carrier, the tracking number as stored and the carrier's public tracking page.</summary>
 public sealed record TrackingDto(string Carrier, string Number, string Url);
 
+/// <summary>Why a cancelled order was cancelled: the reason code, its label and the seller's note (L2-035).</summary>
+public sealed record CancellationDto(string Reason, string ReasonLabel, string? Note);
+
+/// <summary>The buyer's request to cancel: their message, Pending, Accepted or Declined, and when it was made (L2-035 AC2).</summary>
+public sealed record CancellationRequestDto(string? Message, string Status, DateTime RequestedAt);
+
 /// <summary>
 /// One order as its seller's sale page shows it (mocks pages/sale-detail): ship-by date, the
-/// buyer's address under "Ship to" (L2-033), the summary, the timeline, the tracking once shipped
-/// and the payout after the fee (L2-031).
+/// buyer's address under "Ship to" (L2-033), the summary, the timeline, the tracking once shipped,
+/// the payout after the fee (L2-031), and the cancellation, the buyer's request to cancel and
+/// whether the listing can be relisted (L2-035).
 /// </summary>
 public sealed record SaleDto(
     Guid Id,
@@ -35,7 +42,10 @@ public sealed record SaleDto(
     AddressDto ShipTo,
     IReadOnlyList<TimelineStepDto> Timeline,
     TrackingDto? Tracking,
-    SalePayoutDto? Payout);
+    SalePayoutDto? Payout,
+    CancellationDto? Cancellation,
+    CancellationRequestDto? CancellationRequest,
+    bool CanRelist);
 
 public static class OrderViews
 {
@@ -44,6 +54,14 @@ public static class OrderViews
     /// <summary>The four timeline steps, dated from the order's status history.</summary>
     public static IReadOnlyList<TimelineStepDto> Timeline(Order order) =>
         [.. Steps.Select(step => new TimelineStepDto(step.ToString(), order.StatusChanges.FirstOrDefault(c => c.To == step)?.OccurredAt))];
+
+    public static CancellationDto? Cancellation(Order order) =>
+        order.CancellationReason is { } reason ? new CancellationDto(reason.ToString(), reason.ToLabel(), order.CancellationNote) : null;
+
+    public static CancellationRequestDto? CancellationRequest(Order order) =>
+        order is { CancellationRequestStatus: { } status, CancellationRequestedAt: { } at }
+            ? new CancellationRequestDto(order.CancellationRequestMessage, status.ToString(), at)
+            : null;
 
     public static TrackingDto? Tracking(Order order) =>
         order is { Carrier: { } carrier, TrackingNumber: { } number }
@@ -79,6 +97,9 @@ public static class OrderViews
             AddressDto.From(order.ShippingAddress),
             Timeline(order),
             Tracking(order),
-            await SalePayouts.ForAsync(db, order, cancellationToken));
+            await SalePayouts.ForAsync(db, order, cancellationToken),
+            Cancellation(order),
+            CancellationRequest(order),
+            order.Status == OrderStatus.Cancelled && await db.Listings.AsNoTracking().AnyAsync(l => l.Id == order.ListingId && l.Status == ListingStatus.Removed && l.RemovalReason == ListingRemovalReason.OrderCancelled, cancellationToken));
     }
 }

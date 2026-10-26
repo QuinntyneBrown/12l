@@ -359,6 +359,8 @@
       "states": [
         "default",
         "paid",
+        "cancel-requested",
+        "cancel-declined",
         "delivered",
         "completed",
         "cancelled",

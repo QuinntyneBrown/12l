@@ -21,6 +21,10 @@ export class SaleDetailPage {
   readonly dialogAlert: Locator;
   readonly markShipped: Locator;
   readonly cancel: Locator;
+  readonly cancelOrder: Locator;
+  readonly quote: Locator;
+  readonly respond: Locator;
+  readonly relistItem: Locator;
 
   constructor(private readonly page: Page) {
     const main = page.locator('main');
@@ -43,6 +47,10 @@ export class SaleDetailPage {
     this.dialogAlert = this.dialog.getByRole('alert');
     this.markShipped = this.dialog.locator('.dialog__footer .btn--primary');
     this.cancel = this.dialog.getByRole('button', { name: 'Cancel' });
+    this.cancelOrder = main.getByRole('button', { name: 'Cancel order' });
+    this.quote = main.locator('blockquote');
+    this.respond = main.getByRole('button', { name: 'Respond' });
+    this.relistItem = main.getByRole('button', { name: 'Relist item' });
   }
 
   async goto(id = 'o-1'): Promise<void> {

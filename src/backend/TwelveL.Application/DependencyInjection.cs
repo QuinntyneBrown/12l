@@ -12,6 +12,7 @@ public static class DependencyInjection
         services.AddScoped<VerificationEmails>();
         services.AddScoped<Notifications.IEmailOutbox, Notifications.EmailOutbox>();
         services.AddScoped<Listings.ListingPhotoAttacher>();
+        services.AddScoped<Orders.OrderCancellation>();
         return services;
     }
 }

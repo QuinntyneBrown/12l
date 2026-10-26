@@ -23,6 +23,8 @@ export class DialogComponent {
 
   readonly heading = input.required<string>();
   readonly icon = input<IconName>();
+  /** The icon's colour: `danger` for a destructive action such as cancelling a sale. */
+  readonly tone = input<'info' | 'danger'>('info');
   /** Panel width: `sm` for a short confirmation, `lg` for wide content. */
   readonly size = input<'sm' | 'md' | 'lg'>('md');
 

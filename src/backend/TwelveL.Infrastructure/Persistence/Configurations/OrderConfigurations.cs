@@ -71,9 +71,10 @@ internal sealed class RefundConfiguration : IEntityTypeConfiguration<Refund>
 }
 
 /// <summary>
-/// The Orders table. One order per checkout and per listing (L2-029). Status is a concurrency
-/// token, so two transitions racing from the same status (the seller shipping while the deadline
-/// job cancels) cannot both commit.
+/// The Orders table. One order per checkout, and one order per listing that is not Cancelled
+/// (L2-029), so a relisted listing can sell again (L2-035). Status is a concurrency token, so two
+/// transitions racing from the same status (the seller shipping while the deadline job cancels)
+/// cannot both commit.
 /// </summary>
 internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
@@ -87,6 +88,10 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(16).IsConcurrencyToken();
         builder.Property(o => o.Carrier).HasConversion<string>().HasMaxLength(8);
         builder.Property(o => o.TrackingNumber).HasMaxLength(34);
+        builder.Property(o => o.CancellationReason).HasConversion<string>().HasMaxLength(24);
+        builder.Property(o => o.CancellationNote).HasMaxLength(Order.MaxCancellationText);
+        builder.Property(o => o.CancellationRequestStatus).HasConversion<string>().HasMaxLength(16);
+        builder.Property(o => o.CancellationRequestMessage).HasMaxLength(Order.MaxCancellationText);
         builder.HasMany(o => o.StatusChanges).WithOne().HasForeignKey(c => c.OrderId).OnDelete(DeleteBehavior.Cascade);
         builder.Navigation(o => o.StatusChanges).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Property(o => o.ItemPrice).HasPrecision(10, 2);
@@ -103,7 +108,10 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasOne<Member>().WithMany().HasForeignKey(o => o.SellerId).OnDelete(DeleteBehavior.Restrict);
         builder.HasOne<Payment>().WithMany().HasForeignKey(o => o.PaymentId).OnDelete(DeleteBehavior.Restrict);
         builder.HasIndex(o => o.CheckoutId).IsUnique().HasDatabaseName("UX_Orders_CheckoutId");
-        builder.HasIndex(o => o.ListingId).IsUnique().HasDatabaseName("UX_Orders_ListingId");
+        builder.HasIndex(o => o.ListingId)
+            .IsUnique()
+            .HasFilter("Status <> 'Cancelled'")
+            .HasDatabaseName("UX_Orders_ListingId");
         builder.HasIndex(o => new { o.BuyerId, o.PaidAt }).HasDatabaseName("IX_Orders_BuyerId_PaidAt");
         builder.HasIndex(o => new { o.SellerId, o.PaidAt }).HasDatabaseName("IX_Orders_SellerId_PaidAt");
         builder.HasIndex(o => new { o.Status, o.ShipBy }).HasDatabaseName("IX_Orders_Status_ShipBy");

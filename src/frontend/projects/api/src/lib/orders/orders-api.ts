@@ -21,7 +21,32 @@ export interface Tracking {
   url: string;
 }
 
-/** One order as its seller's sale page shows it (L2-033): ship-by date, buyer's address, tracking and the payout (L2-031). */
+/** The reasons a seller can give for cancelling (L2-035), with the labels the Cancel order dialog shows. */
+export const CANCELLATION_REASONS = [
+  { value: 'ItemDamaged', label: 'Item damaged' },
+  { value: 'NoLongerHave', label: 'No longer have it' },
+  { value: 'ListedByMistake', label: 'Listed by mistake' },
+  { value: 'BuyerAskedToCancel', label: 'Buyer asked me to cancel' },
+] as const;
+
+/** Why a cancelled order was cancelled, and the seller's note to the buyer. */
+export interface Cancellation {
+  reason: string;
+  reasonLabel: string;
+  note: string | null;
+}
+
+/** The buyer's one request to cancel a Paid order (L2-035). */
+export interface CancellationRequest {
+  message: string | null;
+  status: 'Pending' | 'Accepted' | 'Declined';
+  requestedAt: string;
+}
+
+/**
+ * One order as its seller's sale page shows it (L2-033): ship-by date, buyer's address, tracking,
+ * the payout (L2-031), and the cancellation, the buyer's request and whether the item can be relisted (L2-035).
+ */
 export interface Sale {
   id: string;
   reference: string;
@@ -38,12 +63,18 @@ export interface Sale {
   timeline: OrderTimelineStep[];
   tracking: Tracking | null;
   payout: SalePayout | null;
+  cancellation: Cancellation | null;
+  cancellationRequest: CancellationRequest | null;
+  canRelist: boolean;
 }
 
 /** The carriers a seller can choose in Add tracking. */
 export const CARRIERS = ['USPS', 'UPS', 'FedEx', 'DHL'] as const;
 
-/** Typed client for order actions: the seller's sale and tracking (ship-order), the buyer's receipt (complete-order). */
+/**
+ * Typed client for order actions: the seller's sale and tracking (ship-order), the buyer's receipt
+ * (complete-order), cancelling, asking to cancel and answering a request (cancel-order).
+ */
 @Injectable({ providedIn: 'root' })
 export class OrdersApi {
   private readonly http = inject(HttpClient);
@@ -68,5 +99,28 @@ export class OrdersApi {
    */
   confirmReceipt(id: string): Promise<ApiResult<Purchase>> {
     return toResult(this.http.post<Purchase>(`${this.baseUrl}/orders/${id}/receipt`, null));
+  }
+
+  /**
+   * The seller cancels a Paid order; the buyer is refunded in full (L2-035). 422 CANCELLATION_INVALID
+   * with a reason or note field error; 409 ORDER_INVALID_TRANSITION when it is no longer Paid.
+   */
+  cancelOrder(id: string, reason: string, note: string): Promise<ApiResult<Sale>> {
+    return toResult(this.http.post<Sale>(`${this.baseUrl}/orders/${id}/cancellation`, { reason, note }));
+  }
+
+  /** The buyer asks the seller to cancel, once. 409 CANCELLATION_ALREADY_REQUESTED or ORDER_INVALID_TRANSITION. */
+  requestCancellation(id: string, message: string): Promise<ApiResult<Purchase>> {
+    return toResult(this.http.post<Purchase>(`${this.baseUrl}/orders/${id}/cancellation-request`, { message }));
+  }
+
+  /** The seller accepts (cancel and refund) or declines the buyer's request. 409 CANCELLATION_NO_PENDING_REQUEST. */
+  respondToCancellation(id: string, decision: 'Accept' | 'Decline'): Promise<ApiResult<Sale>> {
+    return toResult(this.http.post<Sale>(`${this.baseUrl}/orders/${id}/cancellation-request/response`, { decision }));
+  }
+
+  /** Returns the listing of a cancelled order to the catalog (L2-035 AC4). 409 LISTING_NOT_RELISTABLE. */
+  relist(reference: string): Promise<ApiResult<null>> {
+    return toResult(this.http.post<null>(`${this.baseUrl}/listings/${reference}/relist`, null));
   }
 }

@@ -25,8 +25,11 @@ export {
   type ShippingAddress,
 } from './lib/orders/checkout-api';
 export {
+  CANCELLATION_REASONS,
   CARRIERS,
   OrdersApi,
+  type Cancellation,
+  type CancellationRequest,
   type OrderStatus,
   type OrderTimelineStep,
   type Sale,
