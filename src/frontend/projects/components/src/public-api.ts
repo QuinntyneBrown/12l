@@ -1,4 +1,5 @@
 export { AlertComponent, type AlertTone } from './lib/alert/alert';
+export { BuyBarComponent } from './lib/buy-bar/buy-bar';
 export { ButtonDirective } from './lib/button/button';
 export { CenterStateComponent } from './lib/center-state/center-state';
 export { ChoiceComponent } from './lib/choice/choice';
@@ -11,6 +12,7 @@ export { ErrorSummaryComponent, type SummaryError } from './lib/error-summary/er
 export { FixedSizeComponent } from './lib/fixed-size/fixed-size';
 export { FooterComponent } from './lib/footer/footer';
 export { FormFieldComponent } from './lib/form-field/form-field';
+export { GalleryComponent } from './lib/gallery/gallery';
 export { IconComponent, type IconName } from './lib/icon/icon';
 export { InputGroupComponent } from './lib/input-group/input-group';
 export { ItemRowComponent } from './lib/item-row/item-row';
@@ -20,6 +22,7 @@ export { LoadMoreComponent } from './lib/load-more/load-more';
 export { LogoComponent } from './lib/logo/logo';
 export { PhotoUploaderComponent, type UploaderMove, type UploaderTile } from './lib/photo-uploader/photo-uploader';
 export { SegmentedComponent } from './lib/segmented/segmented';
+export { SellerSummaryComponent, type SellerSummaryView } from './lib/seller-summary/seller-summary';
 export { SizeTagComponent } from './lib/size-tag/size-tag';
 export { SkipLinkComponent } from './lib/skip-link/skip-link';
 export { SpinnerComponent } from './lib/spinner/spinner';

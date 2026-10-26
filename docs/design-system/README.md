@@ -6,7 +6,9 @@ The first extraction covers the tokens, every foundation page and the components
 application shell needs. Components for feature screens are added as those screens are
 built; until then their mocks remain the reference. Create-listing added the components of
 the join, verify-email, sign-in and sell screens and the verify-email-prompt dialog;
-upload-listing-photos added the photo uploader and the camera icon.
+upload-listing-photos added the photo uploader and the camera icon; browse-catalog added the
+empty state, listing card and load more; view-listing-detail added the gallery, buy bar,
+seller summary, the edit and star icons and the status code of the center state.
 
 ## Foundations
 
@@ -38,18 +40,21 @@ upload-listing-photos added the photo uploader and the camera icon.
 | [Link](components/link.html) | inline, nav, footer | default, hover, focus, current | catalog, rules |
 | [Form field](components/form-field.html) | input, textarea, select | default, hover, focus, invalid, disabled, read only | sign-in, sell |
 | [Alert](components/alert.html) | info, success, warning, danger; banner without title | static, polite, assertive | sign-in/invalid, sell/draft-saved, verify-email-prompt |
-| [Center state](components/center-state.html) | blocked, limited, error, success | static | sell/unverified, sell/limited, sell/error, sell/success |
+| [Center state](components/center-state.html) | blocked, limited, error, success; icon or status code | static | sell/unverified, sell/limited, sell/error, sell/success, listing-detail/unavailable, listing-detail/error |
 | [Choice](components/choice.html) | plain, with links | unticked, ticked, invalid | register, sell |
 | [Dialog](components/dialog.html) | default, with top alert | default, busy, sent, limited | dialogs/verify-email-prompt |
 | [Earnings](components/earnings.html) | one | unknown, known | sell/filled |
 | [Error summary](components/error-summary.html) | one | shown and focused | sell/invalid, register/invalid |
 | [Fixed size](components/fixed-size.html) | men's US 12, men's L | absent, shown | sell/filled |
-| [Icon](components/icon.html) | 15 glyphs | static | every page |
+| [Icon](components/icon.html) | 17 glyphs | static | every page |
 | [Input group](components/input-group.html) | leading addon | default, invalid | sell price and shipping |
 | [Item row](components/item-row.html) | with or without thumbnail | default, truncated | sell/success |
 | [Empty state](components/empty-state.html) | default, error (compact) | static | catalog/empty, catalog/error |
 | [Listing card](components/listing-card.html) | active, reserved; grid of 2, 3 or 4 columns | default, hover, focus, loading skeleton | catalog/default, catalog/loading, catalog/category |
 | [Load more](components/load-more.html) | one | default, busy, hidden when all shown | catalog/default |
+| [Gallery](components/gallery.html) | one photo, several photos | selected thumbnail, swiped | listing-detail/default |
+| [Buy bar](components/buy-bar.html) | Buy now, Edit listing | sticky below 992 px, inline from 992 px | listing-detail/default, listing-detail/guest, listing-detail/own |
+| [Seller summary](components/seller-summary.html) | established, new seller | static | listing-detail/default, listing-detail/new-seller |
 | [Photo uploader](components/photo-uploader.html) | one | empty, uploading, filled, rejected, invalid, full | sell/default, sell/filled, sell/invalid |
 | [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |

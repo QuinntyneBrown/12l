@@ -96,9 +96,15 @@ public sealed class BrowseCatalogQueryHandler(ITwelveLDbContext db, IOptions<Cat
         (listing.Price ?? 0m).ToString("0.00", CultureInfo.InvariantCulture),
         listing.Status.ToString(),
         listing.PublishedAt ?? listing.CreatedAt,
-        cover is null ? null : ToPhoto(cover, $"Photo 1 of {listing.Brand} {listing.Title}", baseUrl));
+        cover is null ? null : CatalogPhotos.ToDto(cover, $"Photo 1 of {listing.Brand} {listing.Title}", baseUrl));
 
-    private static CardPhotoDto ToPhoto(ListingPhoto photo, string alt, string baseUrl)
+    private static Error Invalid(string title) => new(400, "VALIDATION_FAILED", title);
+}
+
+/// <summary>Maps a stored photo to the srcset strings the frontend renders (L2-059).</summary>
+public static class CatalogPhotos
+{
+    public static CardPhotoDto ToDto(ListingPhoto photo, string alt, string baseUrl)
     {
         string SrcSet(PhotoFormat format) => string.Join(", ", photo.Versions
             .Where(v => v.Format == format).OrderBy(v => v.Size)
@@ -106,6 +112,4 @@ public sealed class BrowseCatalogQueryHandler(ITwelveLDbContext db, IOptions<Cat
         var smallest = photo.Versions.Where(v => v.Format == PhotoFormat.Jpeg).OrderBy(v => v.Size).FirstOrDefault();
         return new CardPhotoDto(photo.Width, photo.Height, alt, smallest is null ? string.Empty : $"{baseUrl}/{smallest.Key}", SrcSet(PhotoFormat.WebP), SrcSet(PhotoFormat.Jpeg));
     }
-
-    private static Error Invalid(string title) => new(400, "VALIDATION_FAILED", title);
 }

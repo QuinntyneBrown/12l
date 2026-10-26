@@ -87,7 +87,9 @@ Auth shell. `@12l/accounts` `JoinPage`.
 
 ### Sign in — `/sign-in` (`pages/sign-in`: default, return, invalid, submitting, locked, error)
 
-Auth shell. `@12l/accounts` `SignInPage`; `returnUrl` keeps the page the member came from. The
+Auth shell. `@12l/accounts` `SignInPage`; `returnUrl` keeps the page the member came from.
+When `returnUrl` is a listing (`/items/{id}`) the heading reads "Sign in to buy" with the line
+"You’ll go straight back to the item." (state return). The
 `locked` state and the "Forgot password?" link arrive with account lockout and password reset.
 
 - Library: `tl-form-field` (email, password), `tl-alert` (invalid: "Email or password is incorrect"; error with reference), `tl-button` (Sign in primary lg block with busy)
@@ -120,8 +122,20 @@ and the subcategory chips belong to search-and-filter-catalog and are not yet co
 
 ### Listing detail — `/items/{id}` (`pages/listing-detail`: default, guest, new-seller, reserved, sold, own, loading, error, unavailable)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by view-listing-detail in `@12l/catalog` (`src/lib/listing-detail/`) for every state. The
+own state shows "Edit listing" only; "Withdraw" and its dialog arrive with
+edit-and-withdraw-listing. Sellers show no city until member profiles record one.
+
+- Library: `tl-gallery` (main photo track, dots, thumbnails), `tl-size-tag` (lg), `tl-buy-bar`
+  (default and guest: "Buy now" as `tlButton="primary"` lg; own: "Edit listing" with icon
+  `edit`; absent for Reserved and Sold), `tl-alert` (reserved: warning, icon `clock`, "In
+  someone’s checkout"), `tl-seller-summary` (rating or "New seller"), `tl-listing-grid` (sold:
+  "More in size 12" or "More in size L"), `tl-center-state` (unavailable: code "404" and "Shop
+  similar items"; error: reference, "Try again" with icon `refresh` and "Back to shop"),
+  `tlButton`, `tl-icon`
+- Local: the breadcrumb, the info column (`.photo__stamp` Reserved or Sold, `.eyebrow` brand,
+  `h1.detail__title`, `.detail__price` line, `.flaws`, description, `dl.facts` with the
+  relative `time`), the two-column `.detail` layout and the loading skeleton
 
 ### Checkout — `/checkout/{id}` (`pages/checkout`: default, new-address, invalid, non-us, submitting, declined, expired, conflict, loading, error)
 

@@ -11,12 +11,6 @@ skinparam class {
 }
 title Class structure — View a listing's detail
 
-enum ViewerRelation {
-  Anonymous
-  Seller
-  OtherMember
-}
-
 enum ListingStatus {
   Draft
   Active
@@ -30,96 +24,86 @@ class Listing <<aggregate, listings>> {
   +string Reference
   +Guid SellerId
   +ListingStatus Status
-  +DateTimeOffset? ReservedUntil
-  +decimal Price
-  +decimal ShippingCost
+  +decimal? Price
+  +decimal? ShippingCost
   +string? Flaws
-  +byte[] RowVersion
-  +EnsureCanBePurchasedBy(buyerId: Guid): void
 }
 
-class ListingDetailVisibility <<specification>> {
+class ListingDetailVisibility <<static, domain>> {
   +CanView(status: ListingStatus, sellerId: Guid, viewerId: Guid?): bool
 }
 
 class GetListingDetailQuery <<record>> {
   +string Reference
-  +Guid? ViewerMemberId
+  +Guid? ViewerId
 }
 
 class GetListingDetailQueryHandler {
   +Handle(q: GetListingDetailQuery): Task<Result<ListingDetailDto>>
 }
 
-interface IListingDetailReadStore {
-  +GetAsync(reference: string, ct): Task<ListingDetailRow?>
+interface ITwelveLDbContext {
+  +Listings
+  +ListingPhotos
+  +Members
 }
 
-class ListingDetailReadStore {
-  -TwelveLDbContext db
+class CatalogPhotos <<static>> {
+  +ToDto(photo, alt, baseUrl): CardPhotoDto
 }
 
-interface IPhotoUrlBuilder {
-  +Build(version): string
-}
-
-class ListingDetailDto {
+class ListingDetailDto <<record>> {
   +Guid Id
   +string Reference
   +string Title
   +string Brand
   +string Category
-  +string Subcategory
-  +string Size
+  +string? Subcategory
+  +string SizeLabel
   +string Condition
   +string? Flaws
   +string Description
   +string Price
   +string ShippingCost
   +string Total
-  +ListingStatus DisplayStatus
-  +DateTimeOffset PublishedAt
-  +ViewerDto Viewer
+  +string Status
+  +DateTime PublishedAt
 }
 
-class ViewerDto {
-  +ViewerRelation Relation
+class ViewerDto <<record>> {
+  +string Relation  // Anonymous, Seller, OtherMember
 }
 
-class SellerSummaryDto {
+class SellerSummaryDto <<record>> {
   +string DisplayName
-  +string PublicLocation
+  +int CompletedSalesCount
   +decimal? RatingAverage
   +int PublishedReviewCount
-  +int CompletedSalesCount
 }
 
-class PhotoDto {
+class CardPhotoDto <<record>> {
   +int Width
   +int Height
   +string Alt
-}
-
-class DomainRuleException {
-  +string Code
+  +string Src
+  +string Webp
+  +string Jpeg
 }
 
 class CatalogController {
-  +GetListing(reference: string): Task<ActionResult<ListingDetailDto>>
+  +Listing(reference: string): Task<IActionResult>
 }
 
 CatalogController ..> GetListingDetailQuery : sends
 GetListingDetailQueryHandler ..> GetListingDetailQuery : handles
-GetListingDetailQueryHandler --> IListingDetailReadStore
+GetListingDetailQueryHandler --> ITwelveLDbContext
 GetListingDetailQueryHandler --> ListingDetailVisibility
-GetListingDetailQueryHandler --> IPhotoUrlBuilder
-ListingDetailReadStore ..|> IListingDetailReadStore
+GetListingDetailQueryHandler --> CatalogPhotos
 GetListingDetailQueryHandler ..> ListingDetailDto : returns
-ListingDetailDto "1" *-- "1..8" PhotoDto
+ListingDetailDto "1" *-- "1..8" CardPhotoDto
 ListingDetailDto *-- SellerSummaryDto
 ListingDetailDto *-- ViewerDto
-ViewerDto --> ViewerRelation
+ITwelveLDbContext ..> Listing
 ListingDetailVisibility ..> ListingStatus
 Listing --> ListingStatus
-Listing ..> DomainRuleException : throws CANNOT_BUY_OWN_LISTING
 @enduml

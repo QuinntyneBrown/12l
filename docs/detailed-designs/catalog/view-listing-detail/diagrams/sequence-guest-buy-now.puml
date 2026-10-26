@@ -7,9 +7,9 @@ skinparam defaultFontName Arial
 skinparam ArrowColor #344054
 actor "Anonymous visitor" as actor
 box "Frontend — 12L Web application" #E0F2FE
-  participant "BuyBarComponent" as bar
-  participant "SignInPageComponent (accounts)" as signin
-  participant "ListingDetailPageComponent" as page
+  participant "tl-buy-bar (@12l/components)" as bar
+  participant "SignInPage (@12l/accounts)" as signin
+  participant "ListingDetailPage (@12l/catalog)" as page
 end box
 box "Backend — 12L API application" #D1FADF
   participant "AuthController (accounts)" as auth
