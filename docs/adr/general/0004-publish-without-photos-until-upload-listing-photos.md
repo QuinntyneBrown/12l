@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-25
 **Category:** general
-**Status:** Accepted
+**Status:** Superseded (upload-listing-photos landed on 2026-10-25)
 **Deciders:** Quinntyne Brown (product owner)
 
 ## Context
@@ -39,6 +39,14 @@ change, so a published listing without photos can exist only before that release
 ### Risks
 - Release without photos reaches production. Mitigation: production deploy waits for both
   prompts; upload-listing-photos decides what happens to photo-less listings.
+
+## Outcome
+
+Upload-listing-photos added the `ListingPhotos` table, the uploader and `PHOTOS_REQUIRED`
+("Add at least one photo") to `Listing.Publish`. `PHOTOS_PROCESSING` is not needed, because
+photos are processed in the upload request
+([ADR listings/0001](../listings/0001-process-photos-in-the-upload-request.md)). Listings
+published before then keep no photos; no production release had happened, so none exist.
 
 ## References
 

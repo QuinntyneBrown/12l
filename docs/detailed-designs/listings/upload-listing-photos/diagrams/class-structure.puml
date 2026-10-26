@@ -12,11 +12,6 @@ skinparam class {
 title Class structure — Upload listing photos
 
 package "TwelveL.Domain" {
-  enum PhotoStatus {
-    Processing
-    Ready
-    Failed
-  }
   enum PhotoFormat {
     WebP
     Jpeg
@@ -26,94 +21,88 @@ package "TwelveL.Domain" {
     +Guid OwnerId
     +Guid? ListingId
     +int? Position
-    +PhotoStatus Status
     +string OriginalKey
     +string OriginalContentType
     +long OriginalBytes
     +string OriginalHash
     +int Width
     +int Height
-    +string? FailureCode
     +DateTime CreatedAt
-    +DateTime? ProcessedAt
-    +MarkReady(versions): void
-    +MarkFailed(code: string): void
+    +{static} Create(...): ListingPhoto
     +AttachTo(listingId: Guid, position: int): void
     +Detach(): void
   }
-  class ListingPhotoVersion {
+  class ListingPhotoVersion <<record>> {
+    +int Size
+    +PhotoFormat Format
     +int Width
     +int Height
-    +PhotoFormat Format
-    +string ContentHash
     +string Key
     +long Bytes
   }
   class Listing {
-    +Guid Id
-    +SetPhotos(photos: IReadOnlyList<ListingPhoto>): void
+    +Publish(sizeConfirmed, now, photoCount): IReadOnlyList<RuleViolation>
   }
 }
 
 package "TwelveL.Application" {
-  class UploadListingPhotoCommand {
-    +Stream Content
-    +long Length
-    +string FileName
+  class UploadListingPhotoCommand <<record>> {
+    +Guid OwnerId
+    +byte[] Content
   }
-  class UploadListingPhotoCommandHandler {
-    +Handle(command): Task<PhotoUploadDto>
+  class ListingPhotoHandlers {
+    +Handle(UploadListingPhotoCommand): Task<Result<PhotoDto>>
+    +Handle(GetPhotoUploadQuery): Task<Result<PhotoDto>>
   }
-  class ProcessListingPhotoCommand {
-    +Guid PhotoId
-  }
-  class PhotoUploadDto {
+  class PhotoDto <<record>> {
     +Guid Id
-    +string Status
-    +string? ThumbnailUrl
-    +string? ErrorCode
+    +string Url
+    +int Width
+    +int Height
+    +IReadOnlyList<PhotoVersionDto> Versions
   }
   class ListingPhotoAttacher {
-    +AttachAsync(listing: Listing, photoIds: IReadOnlyList<Guid>, ownerId: Guid): Task
+    +AttachAsync(ownerId, listingId, photoIds): Task<Error?>
+    +PhotosOfAsync(listingId): Task<IReadOnlyList<ListingPhoto>>
+  }
+  class PhotoOptions {
+    +long MaxBytes
+    +int MinShortSidePx
+    +long MaxPixels
+    +List<int> VersionSizes
+    +string PublicBaseUrl
   }
   interface IImageInspector {
-    +InspectAsync(stream: Stream): Task<ImageInfo?>
-  }
-  interface IPhotoStorage {
-    +PutOriginalAsync(key, stream): Task
-    +GetOriginalAsync(key): Task<Stream>
-    +PutPublicAsync(key, bytes, contentType): Task
-    +DeleteAsync(key): Task
+    +Inspect(content: byte[]): ImageInfo?
   }
   interface IListingPhotoProcessor {
-    +ProcessAsync(original: Stream): Task<IReadOnlyList<EncodedVersion>>
+    +Process(original: byte[], sizes): IReadOnlyList<ProcessedPhotoVersion>
+  }
+  interface IPhotoStorage {
+    +SaveOriginalAsync(key, content, contentType): Task
+    +SavePublicAsync(key, content, contentType): Task
+    +ReadPublicAsync(key): Task<StoredObject?>
   }
 }
 
-package "TwelveL.Infrastructure / Worker" {
-  class ImageSharpInspector
-  class ImageSharpPhotoProcessor
-  class ObjectStoragePhotoStorage
-  class PhotoProcessingJob
-  class PhotoCleanupJob
+package "TwelveL.Infrastructure" {
+  class SkiaImageInspector
+  class SkiaPhotoProcessor
+  class FileSystemPhotoStorage
 }
 
-UploadListingPhotoCommandHandler ..> UploadListingPhotoCommand : handles
-UploadListingPhotoCommandHandler ..> IImageInspector : uses
-UploadListingPhotoCommandHandler ..> IPhotoStorage : uses
-UploadListingPhotoCommandHandler ..> ListingPhoto : creates
-UploadListingPhotoCommandHandler ..> PhotoUploadDto : returns
-PhotoProcessingJob ..> ProcessListingPhotoCommand : dispatches
-PhotoProcessingJob ..> IListingPhotoProcessor : uses
-PhotoProcessingJob --> ListingPhoto : marks Ready / Failed
-ListingPhotoAttacher --> Listing : sets photos
+ListingPhotoHandlers ..> UploadListingPhotoCommand : handles
+ListingPhotoHandlers ..> IImageInspector : uses
+ListingPhotoHandlers ..> IListingPhotoProcessor : uses
+ListingPhotoHandlers ..> IPhotoStorage : uses
+ListingPhotoHandlers ..> PhotoOptions : reads
+ListingPhotoHandlers ..> ListingPhoto : creates
+ListingPhotoHandlers ..> PhotoDto : returns
 ListingPhotoAttacher --> ListingPhoto : attaches / detaches
-ListingPhoto "1" *-- "0..6" ListingPhotoVersion : versions
-ListingPhoto --> PhotoStatus
+ListingPhoto "1" *-- "6" ListingPhotoVersion : versions
 ListingPhotoVersion --> PhotoFormat
-Listing "1" o-- "0..8" ListingPhoto : ordered photos
-ImageSharpInspector ..|> IImageInspector
-ImageSharpPhotoProcessor ..|> IListingPhotoProcessor
-ObjectStoragePhotoStorage ..|> IPhotoStorage
-PhotoCleanupJob ..> IPhotoStorage : deletes
+Listing "1" o-- "0..8" ListingPhoto : ordered by Position
+SkiaImageInspector ..|> IImageInspector
+SkiaPhotoProcessor ..|> IListingPhotoProcessor
+FileSystemPhotoStorage ..|> IPhotoStorage
 @enduml

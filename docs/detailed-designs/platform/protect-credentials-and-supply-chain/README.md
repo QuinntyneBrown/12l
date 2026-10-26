@@ -74,7 +74,7 @@ secret store.
   | `PaymentProvider--ApiKey` | `PaymentProvider:ApiKey` | payment adapter |
   | `PaymentProvider--WebhookSigningSecret` | `PaymentProvider:WebhookSigningSecret` | webhook verifier |
   | `EmailProvider--ApiKey` | `EmailProvider:ApiKey` | email adapter |
-  | `PhotoStorage--ConnectionString` | `PhotoStorage:ConnectionString` | photo storage adapter |
+  | `PhotoStorage--ConnectionString` | `PhotoStorage:ConnectionString` | object storage adapter behind `IPhotoStorage` (not built yet; the development adapter `FileSystemPhotoStorage` needs only the non-secret `PhotoStorage:RootPath`) |
   | `Auth--TokenSigningKey` | `Auth:TokenSigningKey` | access-token issuer (accounts) |
 
   The secret refresh interval is 30 minutes; rotation procedure per secret is

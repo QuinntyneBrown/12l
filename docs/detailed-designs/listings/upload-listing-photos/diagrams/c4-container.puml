@@ -5,18 +5,15 @@ title Containers — Upload listing photos
 
 Person(seller, "Seller", "Adds photos to a listing")
 System_Boundary(twelvel, "12L") {
-  Container(web, "12L Web", "Angular", "PhotoUploaderComponent")
-  Container(api, "12L API", "ASP.NET Core", "Validates and stores uploads, attaches photos to listings")
-  Container(worker, "12L Worker", ".NET worker service", "Strips metadata, re-encodes, writes versions, cleans orphans")
-  ContainerDb(db, "12L database", "SQL Server", "ListingPhotos, ListingPhotoVersions, OutboxMessages")
-  ContainerDb(storage, "Photo storage", "Object storage behind a CDN", "Private originals; public content-addressed versions cached for one year")
+  Container(web, "12L Web", "Angular", "@12l/listings SellPage with tl-photo-uploader; @12l/api PhotosApi")
+  Container(api, "12L API", "ASP.NET Core", "Validates, strips and re-encodes uploads; attaches photos to listings; serves versions")
+  ContainerDb(db, "12L database", "SQL Server", "ListingPhotos, ListingPhotoVersions")
+  ContainerDb(storage, "Photo storage", "IPhotoStorage (file system now, object storage later)", "Private originals; public content-addressed versions")
 }
 
 Rel(seller, web, "Uses", "HTTPS")
-Rel(web, api, "Uploads files and polls status", "HTTPS multipart / JSON")
-Rel(api, storage, "Writes originals", "SDK over HTTPS")
-Rel(api, db, "Writes photo rows and outbox messages", "EF Core")
-Rel(worker, db, "Reads outbox, updates photo rows", "EF Core")
-Rel(worker, storage, "Reads originals, writes versions", "SDK over HTTPS")
-Rel(web, storage, "Loads thumbnails through the CDN", "HTTPS")
+Rel(web, api, "Uploads one file per request, saves photoIds", "HTTPS multipart / JSON")
+Rel(api, storage, "Writes originals and versions, reads versions")
+Rel(api, db, "Writes photo rows and positions", "EF Core")
+Rel(web, api, "Loads thumbnails from /photos/{hash}/{size}.{ext}", "HTTPS")
 @enduml

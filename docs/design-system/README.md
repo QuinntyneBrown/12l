@@ -5,7 +5,8 @@ Extracted from [docs/mocks](../mocks/README.md) on 2026-10-25. Open [index.html]
 The first extraction covers the tokens, every foundation page and the components the
 application shell needs. Components for feature screens are added as those screens are
 built; until then their mocks remain the reference. Create-listing added the components of
-the join, verify-email, sign-in and sell screens and the verify-email-prompt dialog.
+the join, verify-email, sign-in and sell screens and the verify-email-prompt dialog;
+upload-listing-photos added the photo uploader and the camera icon.
 
 ## Foundations
 
@@ -43,9 +44,10 @@ the join, verify-email, sign-in and sell screens and the verify-email-prompt dia
 | [Earnings](components/earnings.html) | one | unknown, known | sell/filled |
 | [Error summary](components/error-summary.html) | one | shown and focused | sell/invalid, register/invalid |
 | [Fixed size](components/fixed-size.html) | men's US 12, men's L | absent, shown | sell/filled |
-| [Icon](components/icon.html) | 12 glyphs | static | every page |
+| [Icon](components/icon.html) | 13 glyphs | static | every page |
 | [Input group](components/input-group.html) | leading addon | default, invalid | sell price and shipping |
 | [Item row](components/item-row.html) | with or without thumbnail | default, truncated | sell/success |
+| [Photo uploader](components/photo-uploader.html) | one | empty, uploading, filled, rejected, invalid, full | sell/default, sell/filled, sell/invalid |
 | [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |
 | [Spinner](components/spinner.html) | with message | running | verify-email/loading |
