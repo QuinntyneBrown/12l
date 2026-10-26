@@ -30,9 +30,10 @@ test.describe('empty guest shell', () => {
     await expect(shell.menuButton).toBeVisible();
     await expect(shell.menuButton).toHaveAttribute('aria-expanded', 'false');
     await expect(shell.signIn).toBeVisible();
-    for (const name of ['Marketplace rules', 'Privacy', 'Terms', 'Cookie settings']) {
+    for (const name of ['Marketplace rules', 'Privacy', 'Terms']) {
       await expect(shell.footerLink(name)).toBeVisible();
     }
+    await expect(shell.footer.getByRole('button', { name: 'Cookie settings' })).toBeVisible();
     await expect(shell.footer).toContainText(`© ${new Date().getFullYear()} 12L`);
     expect(await shell.hasHorizontalScroll()).toBe(false);
     expect(unfixturedApiCalls).toEqual([]);
