@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
@@ -33,6 +34,9 @@ public interface ITwelveLDbContext
 
     /// <summary>Transactions, for the steps of checkout that must commit together.</summary>
     DatabaseFacade Database { get; }
+
+    /// <summary>Lets a batch job drop the changes of one item that lost a concurrency check.</summary>
+    ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
@@ -143,6 +147,19 @@ public interface IPaymentProvider
 
     /// <summary>The event when the signature over the raw body is valid, otherwise null (L2-030 AC4).</summary>
     PaymentEvent? ReadWebhook(string body, string? signature);
+}
+
+/// <summary>One verified carrier tracking event: the number as the carrier stores it and whether it reports delivery.</summary>
+public sealed record CarrierEvent(string EventId, Carrier Carrier, string TrackingNumber, bool Delivered, DateTime OccurredAt);
+
+/// <summary>
+/// The carrier tracking service that reports delivery (L2-033 AC4). Which service, and whether it
+/// pushes or is polled, is still to be chosen (ADR orders/0003); tests use a fake.
+/// </summary>
+public interface ICarrierTracking
+{
+    /// <summary>The event when the signature over the raw body is valid, otherwise null.</summary>
+    CarrierEvent? ReadWebhook(string body, string? signature);
 }
 
 /// <summary>Public settings of the application.</summary>

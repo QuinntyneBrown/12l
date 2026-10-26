@@ -5,6 +5,7 @@ using TwelveL.Application.Abstractions;
 using TwelveL.Application.Catalog;
 using TwelveL.Application.Listings;
 using TwelveL.Infrastructure.Accounts;
+using TwelveL.Infrastructure.Carriers;
 using TwelveL.Infrastructure.Email;
 using TwelveL.Infrastructure.Listings;
 using TwelveL.Infrastructure.Payments;
@@ -35,6 +36,7 @@ public static class DependencyInjection
         services.AddSingleton<IListingPhotoProcessor, SkiaPhotoProcessor>();
         services.AddSingleton<IPhotoStorage, FileSystemPhotoStorage>();
         services.AddSingleton<IPaymentProvider, UnconfiguredPaymentProvider>();
+        services.AddSingleton<ICarrierTracking, UnconfiguredCarrierTracking>();
         return services;
     }
 }

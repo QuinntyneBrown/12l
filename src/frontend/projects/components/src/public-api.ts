@@ -20,6 +20,7 @@ export { ListingCardComponent, type ListingCardPhoto, type ListingCardView } fro
 export { ListingGridComponent } from './lib/listing-grid/listing-grid';
 export { LoadMoreComponent } from './lib/load-more/load-more';
 export { LogoComponent } from './lib/logo/logo';
+export { OrderTimelineComponent, type TimelineStep } from './lib/order-timeline/order-timeline';
 export { OrderSummaryComponent, type OrderSummaryItem } from './lib/order-summary/order-summary';
 export { PhotoUploaderComponent, type UploaderMove, type UploaderTile } from './lib/photo-uploader/photo-uploader';
 export { ReservationTimerComponent, type ReservationPhase } from './lib/reservation-timer/reservation-timer';
@@ -29,4 +30,5 @@ export { SizeTagComponent } from './lib/size-tag/size-tag';
 export { SkipLinkComponent } from './lib/skip-link/skip-link';
 export { SpinnerComponent } from './lib/spinner/spinner';
 export { ToastRegionComponent } from './lib/toast-region/toast-region';
+export { TrackingLinkComponent } from './lib/tracking-link/tracking-link';
 export { TopBarComponent, type TopBarMember } from './lib/top-bar/top-bar';

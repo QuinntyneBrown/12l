@@ -401,8 +401,18 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("BuyerId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("Carrier")
+                        .HasMaxLength(8)
+                        .HasColumnType("nvarchar(8)");
+
                     b.Property<Guid>("CheckoutId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("EndedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<decimal>("ItemPrice")
                         .HasPrecision(10, 2)
@@ -432,11 +442,18 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("SellerId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<DateTime>("ShipBy")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("ShippedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<decimal>("ShippingCost")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
 
                     b.Property<string>("Status")
+                        .IsConcurrencyToken()
                         .IsRequired()
                         .HasMaxLength(16)
                         .HasColumnType("nvarchar(16)");
@@ -444,6 +461,10 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.Property<decimal>("Total")
                         .HasPrecision(10, 2)
                         .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("TrackingNumber")
+                        .HasMaxLength(34)
+                        .HasColumnType("nvarchar(34)");
 
                     b.HasKey("Id");
 
@@ -468,10 +489,49 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.HasIndex("BuyerId", "PaidAt")
                         .HasDatabaseName("IX_Orders_BuyerId_PaidAt");
 
+                    b.HasIndex("Carrier", "TrackingNumber")
+                        .HasDatabaseName("IX_Orders_Carrier_TrackingNumber");
+
                     b.HasIndex("SellerId", "PaidAt")
                         .HasDatabaseName("IX_Orders_SellerId_PaidAt");
 
+                    b.HasIndex("Status", "ShipBy")
+                        .HasDatabaseName("IX_Orders_Status_ShipBy");
+
                     b.ToTable("Orders", (string)null);
+                });
+
+            modelBuilder.Entity("TwelveL.Domain.Orders.OrderStatusChange", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Actor")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("From")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("To")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OrderId", "OccurredAt")
+                        .HasDatabaseName("IX_OrderStatusChanges_OrderId_OccurredAt");
+
+                    b.ToTable("OrderStatusChanges", (string)null);
                 });
 
             modelBuilder.Entity("TwelveL.Domain.Orders.Payment", b =>
@@ -838,6 +898,15 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TwelveL.Domain.Orders.OrderStatusChange", b =>
+                {
+                    b.HasOne("TwelveL.Domain.Orders.Order", null)
+                        .WithMany("StatusChanges")
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("TwelveL.Domain.Orders.Payment", b =>
                 {
                     b.HasOne("TwelveL.Domain.Orders.Checkout", null)
@@ -920,6 +989,11 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
 
                     b.Navigation("Address")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TwelveL.Domain.Orders.Order", b =>
+                {
+                    b.Navigation("StatusChanges");
                 });
 #pragma warning restore 612, 618
         }

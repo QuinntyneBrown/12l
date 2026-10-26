@@ -20,37 +20,30 @@ participant "Carrier tracking service" as carrier
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
   participant "CarrierWebhookController" as cwh
 end box
-box "Backend — 12L Worker application (TwelveL.Worker)" #D1FADF
-  participant "DeliveryPollingJob" as poll
-end box
 box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
-  participant "MarkDeliveredCommandHandler" as h
+  participant "CarrierWebhookHandler" as h
+  participant "ICarrierTracking" as port
   participant "Order" as order
 end box
 box "Backend — TwelveL.Infrastructure" #FFF4E5
   database "12L database" as db
 end box
-alt push from carrier service
-  carrier -> cwh : POST /api/carriers/webhook (signed)
-  cwh -> cwh : Verify signature
-  alt invalid signature
-    cwh --> carrier : 400, logged as security event
-  else valid
-    cwh -> h : Send MarkDeliveredCommand(trackingNumber, Carrier, deliveredAt)
+carrier -> cwh : POST /api/carriers/webhook (Carrier-Signature)
+cwh -> h : Send HandleCarrierWebhookCommand(body, signature)
+h -> port : ReadWebhook(body, signature)
+alt invalid signature
+  port --> h : null
+  cwh --> carrier : 400 WEBHOOK_SIGNATURE_INVALID, logged as security event
+else valid
+  port --> h : CarrierEvent(carrier, number, delivered, occurredAt)
+  h -> db : Load the Shipped order with this carrier and number
+  alt not a delivery, or no Shipped order (repeat, unknown number)
+    cwh --> carrier : 200, nothing changes
+  else Shipped
+    h -> order : MarkDelivered(Carrier, occurredAt)
+    order -> order : Append Shipped to Delivered, actor Carrier (L2-033 AC4)
+    h -> db : Save WHERE Status = 'Shipped'
+    cwh --> carrier : 200
   end
-else polling
-  poll -> db : Select Shipped orders not polled within Orders:DeliveryPollInterval
-  poll -> carrier : GetStatusAsync(carrier, tracking)
-  carrier --> poll : Delivered at time T
-  poll -> h : Send MarkDeliveredCommand(orderId, Carrier, T)
-end
-h -> db : Load order
-h -> order : MarkDelivered(Carrier, T)
-alt already Delivered, Completed or Refunded
-  order --> h : No-op (idempotent)
-else Shipped
-  order -> order : Append Shipped to Delivered, actor Carrier (L2-033)
-  h -> db : Save order, enqueue OrderDelivered notification
-  db --> h : Committed
 end
 @enduml

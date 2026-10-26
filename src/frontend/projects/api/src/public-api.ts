@@ -23,6 +23,14 @@ export {
   type ShippingAddress,
 } from './lib/orders/checkout-api';
 export {
+  CARRIERS,
+  OrdersApi,
+  type OrderStatus,
+  type OrderTimelineStep,
+  type Sale,
+  type Tracking,
+} from './lib/orders/orders-api';
+export {
   PAYMENT_FIELDS,
   TEST_CARDS,
   TestModePaymentFields,

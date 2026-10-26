@@ -70,7 +70,11 @@ internal sealed class RefundConfiguration : IEntityTypeConfiguration<Refund>
     }
 }
 
-/// <summary>The Orders table. One order per checkout and per listing (L2-029); ship-order adds its states and columns.</summary>
+/// <summary>
+/// The Orders table. One order per checkout and per listing (L2-029). Status is a concurrency
+/// token, so two transitions racing from the same status (the seller shipping while the deadline
+/// job cancels) cannot both commit.
+/// </summary>
 internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
 {
     public void Configure(EntityTypeBuilder<Order> builder)
@@ -80,7 +84,11 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.Property(o => o.Reference).HasMaxLength(16).IsRequired();
         builder.HasIndex(o => o.Reference).IsUnique().HasDatabaseName("UX_Orders_Reference");
         builder.HasIndex(o => o.Number).IsUnique().HasDatabaseName("UX_Orders_Number");
-        builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(o => o.Status).HasConversion<string>().HasMaxLength(16).IsConcurrencyToken();
+        builder.Property(o => o.Carrier).HasConversion<string>().HasMaxLength(8);
+        builder.Property(o => o.TrackingNumber).HasMaxLength(34);
+        builder.HasMany(o => o.StatusChanges).WithOne().HasForeignKey(c => c.OrderId).OnDelete(DeleteBehavior.Cascade);
+        builder.Navigation(o => o.StatusChanges).UsePropertyAccessMode(PropertyAccessMode.Field);
         builder.Property(o => o.ItemPrice).HasPrecision(10, 2);
         builder.Property(o => o.ShippingCost).HasPrecision(10, 2);
         builder.Property(o => o.SalesTax).HasPrecision(10, 2);
@@ -96,6 +104,23 @@ internal sealed class OrderConfiguration : IEntityTypeConfiguration<Order>
         builder.HasIndex(o => o.ListingId).IsUnique().HasDatabaseName("UX_Orders_ListingId");
         builder.HasIndex(o => new { o.BuyerId, o.PaidAt }).HasDatabaseName("IX_Orders_BuyerId_PaidAt");
         builder.HasIndex(o => new { o.SellerId, o.PaidAt }).HasDatabaseName("IX_Orders_SellerId_PaidAt");
+        builder.HasIndex(o => new { o.Status, o.ShipBy }).HasDatabaseName("IX_Orders_Status_ShipBy");
+        builder.HasIndex(o => new { o.Carrier, o.TrackingNumber }).HasDatabaseName("IX_Orders_Carrier_TrackingNumber");
+    }
+}
+
+/// <summary>The append-only OrderStatusChanges table (L2-032 AC2). Nothing updates or deletes a row.</summary>
+internal sealed class OrderStatusChangeConfiguration : IEntityTypeConfiguration<OrderStatusChange>
+{
+    public void Configure(EntityTypeBuilder<OrderStatusChange> builder)
+    {
+        builder.ToTable("OrderStatusChanges");
+        builder.HasKey(c => c.Id);
+        builder.Property(c => c.Id).ValueGeneratedNever();
+        builder.Property(c => c.From).HasConversion<string>().HasMaxLength(16);
+        builder.Property(c => c.To).HasConversion<string>().HasMaxLength(16);
+        builder.Property(c => c.Actor).HasConversion<string>().HasMaxLength(16);
+        builder.HasIndex(c => new { c.OrderId, c.OccurredAt }).HasDatabaseName("IX_OrderStatusChanges_OrderId_OccurredAt");
     }
 }
 

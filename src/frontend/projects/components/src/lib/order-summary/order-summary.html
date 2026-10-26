@@ -1,5 +1,11 @@
-<aside class="panel stack stack--lg" aria-labelledby="order-summary-title">
-  <h2 id="order-summary-title" class="panel__title">{{ heading() }}</h2>
+<aside
+  class="panel stack stack--lg"
+  [attr.aria-labelledby]="heading() ? 'order-summary-title' : null"
+  [attr.aria-label]="heading() ? null : 'Order summary'"
+>
+  @if (heading()) {
+    <h2 id="order-summary-title" class="panel__title">{{ heading() }}</h2>
+  }
   <tl-item-row [title]="item().title" [meta]="item().meta">
     <div thumb class="thumb">
       <div class="photo photo--6">
@@ -30,4 +36,5 @@
       <dd>{{ total() ?? '—' }}</dd>
     </div>
   </dl>
+  <ng-content />
 </aside>

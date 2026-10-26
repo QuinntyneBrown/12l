@@ -18,15 +18,14 @@ skinparam sequenceMessageAlign left
 skinparam maxMessageSize 260
 actor "Seller" as actor
 box "Frontend — 12L Web application" #E0F2FE
-  participant "SaleDetailPage" as page
-  participant "AddTrackingDialog" as dlg
-  participant "OrdersApiService" as client
+  participant "SaleDetailPage\n(@12l/orders)" as page
+  participant "AddTrackingDialog\n(@12l/orders)" as dlg
+  participant "OrdersApi\n(@12l/api)" as client
 end box
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
   participant "OrdersController" as ctrl
 end box
 box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
-  participant "AddTrackingCommandValidator" as val
   participant "AddTrackingCommandHandler" as h
   participant "Order" as order
 end box
@@ -34,42 +33,43 @@ box "Backend — TwelveL.Infrastructure" #FFF4E5
   database "12L database" as db
 end box
 actor -> page : Choose "Add tracking"
-page -> dlg : Open with order number and buyer handle
-actor -> dlg : Choose carrier "USPS", enter tracking number, "Mark as shipped"
-dlg -> client : addTracking(orderId, carrier, trackingNumber)
-client -> ctrl : POST /api/orders/{id}/shipment
-ctrl -> ctrl : Authenticate, apply MemberPolicy
-ctrl -> val : Validate AddTrackingCommand (L2-033)
-alt empty or malformed tracking number
-  val --> ctrl : Field errors
-  ctrl --> client : 400 ProblemDetails "tracking.invalid"
-  client --> dlg : Field error
-  dlg --> actor : Show "That doesn't look like a USPS tracking number" (invalid state)
-else valid
+page -> dlg : DialogService.open(orderId, buyer display name)
+actor -> dlg : Choose carrier, enter tracking number, "Mark as shipped"
+alt tracking number empty
+  dlg --> actor : "Enter the tracking number." under the field, no request
+else entered
+  dlg -> client : addTracking(orderId, carrier, trackingNumber)
+  client -> ctrl : POST /api/orders/{id}/shipment
+  ctrl -> ctrl : Authenticate, VerifiedMember policy
   ctrl -> h : Send AddTrackingCommand
-  h -> db : Load order where SellerId = caller
+  h -> db : Load order where SellerId = caller, with status changes
   alt not the seller of the order
     db --> h : No row
-    h --> ctrl : NotFound
-    ctrl --> client : 404 ProblemDetails
-  else seller owns the order
-    db --> h : Order (Status Paid, RowVersion)
-    h -> order : MarkShipped(carrier, tracking, Seller, now)
+    ctrl --> client : 404 ORDER_NOT_FOUND
+  else unknown carrier or malformed number (L2-033 AC5)
+    h --> ctrl : TrackingNumbers.Normalise is null
+    ctrl --> client : 422 TRACKING_INVALID with carrier or trackingNumber field error
+    client --> dlg : Field error
+    dlg --> actor : Inline error, input kept and focused (invalid state)
+  else well formed
+    h -> order : MarkShipped(carrier, number, now)
     alt status is not Paid (L2-032)
       order --> h : InvalidOrderTransitionException
-      h --> ctrl : Conflict
-      ctrl --> client : 409 ProblemDetails "order.invalid_transition"
-      client --> dlg : Failure
-      dlg --> actor : Show failed state, inputs kept
+      ctrl --> client : 409 ORDER_INVALID_TRANSITION
+      dlg --> actor : "That didn’t go through", inputs kept, "Try again"
     else Paid
       order -> order : Append OrderStatusChange Paid to Shipped, actor Seller
-      order --> h : OrderShipped event
-      h -> db : Save order, status change and INotificationPublisher.Enqueue(OrderShipped) in one transaction
-      db --> h : Committed (RowVersion checked)
-      h --> ctrl : SaleDetailDto
-      ctrl --> client : 200 OK
-      client --> page : Updated sale
-      page --> actor : Close dialog, show "Shipped" timeline with tracking link
+      h -> db : Save WHERE Status = 'Paid' (concurrency token)
+      alt deadline job cancelled it first
+        db --> h : DbUpdateConcurrencyException
+        ctrl --> client : 409 ORDER_INVALID_TRANSITION
+      else committed
+        h --> ctrl : SaleDto with timeline and tracking link
+        ctrl --> client : 200 OK
+        client --> dlg : Shipped sale
+        dlg --> page : Close with the sale
+        page --> actor : "Shipped", timeline and tracking link
+      end
     end
   end
 end

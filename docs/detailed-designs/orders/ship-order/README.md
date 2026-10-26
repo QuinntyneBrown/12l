@@ -22,101 +22,111 @@ Terms used in this design:
 - **status change** — append-only history row holding the old status, new status, time and actor of one transition
 - **ship-by date** — instant 5 US business days after payment by which the seller shall add tracking
 - **reminder date** — instant 3 US business days after payment at which an unshipped seller is reminded
-- **business day** — Monday to Friday, excluding US holidays listed in `<TO SUPPLY>`
+- **business day** — Monday to Friday; US holidays are not skipped until their list is supplied ([ADR orders/0003](../../../adr/orders/0003-ship-order-status-token-weekday-deadline-and-carrier-port.md))
 - **actor** — party recorded against a transition: buyer, seller, administrator, system (a 12L job) or carrier
 
 A Paid order has a ship-by date. The seller adds tracking before it, the order becomes
-Shipped and the buyer is emailed the tracking link. Without tracking by the reminder
-date, the seller is emailed a reminder; without tracking by the ship-by date, a
-background job cancels the order and refunds the buyer in full. When the carrier
-reports delivery, the order becomes Delivered and the completion clock of
-[complete-order](../complete-order/README.md) starts.
+Shipped and the buyer sees the tracking link on their order page. Without tracking by the
+ship-by date, a background job cancels the order and refunds the buyer in full. When the
+carrier reports delivery, the order becomes Delivered and the completion clock of
+[complete-order](../complete-order/README.md) starts. The tracking, reminder and
+cancellation emails, and the reminder job that only sends email, are built with
+[send-email-notifications](../../notifications/send-email-notifications/README.md).
 
 ## Description
 
 ### Order state machine (shared by every orders feature)
 
-`OrderStateMachine` in `TwelveL.Domain` holds the allowed transitions as a static set
-of `(from, to, actor)` triples. `Order.TransitionTo` is the only code path that
-changes `Order.Status`; it calls `OrderStateMachine.EnsureAllowed`, appends an
-`OrderStatusChange`, sets the timestamp column for the new status and raises a domain
-event. Any other `(from, to)` pair, and any transition out of a terminal status,
-throws `InvalidOrderTransitionException`. The API maps that exception to HTTP 409 with
-error code `order.invalid_transition` (`L2-032` criteria 1 and 3).
+`OrderStateMachine` in `TwelveL.Domain` (`Orders/OrderStateMachine.cs`) holds the allowed
+transitions as a static set of `(from, to, actor)` triples. `Order.TransitionTo` is the only
+code path that changes `Order.Status`; it calls `OrderStateMachine.EnsureAllowed`, appends an
+`OrderStatusChange` and sets `EndedAt` on a terminal status. Any other `(from, to, actor)`
+triple, and any transition out of a terminal status, throws `InvalidOrderTransitionException`.
+The handlers map that exception to HTTP 409 with error code `ORDER_INVALID_TRANSITION`
+(`L2-032` criteria 1 and 3). `Order.CreatePaid` records the creation as a change from nothing to
+`Paid` by the System actor.
 
 | From | To | Allowed actors | Entry point (feature) | Domain method |
 |------|----|----------------|------------------------|---------------|
 | *(none)* | `Paid` | System | Signed payment webhook (checkout-and-pay) | `Order.CreatePaid(...)` factory |
-| `Paid` | `Shipped` | Seller | Add tracking (this feature) | `MarkShipped` |
-| `Paid` | `Cancelled` | Seller, System | Seller cancels or accepts a buyer request (cancel-order); ship deadline job (this feature) | `Cancel` |
-| `Shipped` | `Delivered` | Carrier, Buyer | Carrier delivery event (this feature); buyer confirms receipt (complete-order) | `MarkDelivered` |
-| `Delivered` | `Completed` | Buyer, System, Administrator | Buyer confirms receipt; auto-completion job (complete-order); problem resolved in the seller's favour (resolve-order-problems, `L2-036` criterion 4) | `Complete` |
-| `Shipped`, `Delivered` | `Refunded` | Administrator | Problem resolved in the buyer's favour (resolve-order-problems) | `Refund` |
+| `Paid` | `Shipped` | Seller | Add tracking (this feature) | `MarkShipped(carrier, number, now)` |
+| `Paid` | `Cancelled` | Seller, System | Seller cancels or accepts a buyer request (cancel-order); ship deadline job (this feature) | `Cancel(actor, now)` |
+| `Shipped` | `Delivered` | Carrier, Buyer | Carrier delivery event (this feature); buyer confirms receipt (complete-order) | `MarkDelivered(actor, now)` |
+| `Delivered` | `Completed` | Buyer, System, Administrator | Buyer confirms receipt; auto-completion job (complete-order); problem resolved in the seller's favour (resolve-order-problems, `L2-036` criterion 4) | `TransitionTo(Completed, ...)`; complete-order adds `Complete` |
+| `Shipped`, `Delivered` | `Refunded` | Administrator | Problem resolved in the buyer's favour (resolve-order-problems) | `TransitionTo(Refunded, ...)`; resolve-order-problems adds `Refund` |
 
 The Administrator actor on `Delivered → Completed` comes from `L2-036` criterion 4. Releasing the
 payout on a problem opened while the order is still `Shipped` (for example "not received")
 would need an Administrator `Shipped → Delivered` step that `L2-032` does not list; the design
-refuses that release with `order.invalid_transition` until the rule is `<TO SUPPLY>`.
+refuses that release with `ORDER_INVALID_TRANSITION` until the rule is `<TO SUPPLY>`.
 Each transition into a terminal status also sets
 `Order.EndedAt`, which drives the 30-day address window in
 [order-history](../order-history/README.md).
 
-Domain events raised by `Order`: `OrderPaid`, `OrderShipped`, `OrderDelivered`,
-`OrderCompleted`, `OrderCancelled`, `OrderRefunded`. Handlers in the same unit of work
-turn them into email through `INotificationPublisher.Enqueue(type, recipientMemberId, model)`
-(see [send-email-notifications](../../notifications/send-email-notifications/README.md), which
-writes `EmailNotificationRequested` to `OutboxMessages`), refund outbox messages and payout
-updates. `OrderCompleted` is also consumed by the reviews subsystem to open reviews and update
-the `MemberReputation` projection.
+`Orders.Status` is an EF Core concurrency token: every save of an order runs
+`WHERE Status = @original`, so two transitions from the same status (the seller shipping while
+the deadline job cancels) cannot both commit. No `RowVersion` column is used, because the tests
+run on SQLite in memory ([ADR orders/0003](../../../adr/orders/0003-ship-order-status-token-weekday-deadline-and-carrier-port.md)).
 
-### Frontend (`src/frontend/src/app/orders/`)
+Domain events (`OrderShipped`, `OrderDelivered`, `OrderCancelled` and the others) and their
+email through `INotificationPublisher` arrive with
+[send-email-notifications](../../notifications/send-email-notifications/README.md); until then
+the handlers call the payment provider for refunds directly, as checkout-and-pay does.
 
-- **`SaleDetailPage`** (route `/sales/:id`, mock `docs/mocks/pages/sale-detail/`) — seller view of one order. For a Paid order it shows "You made a sale", "Ship by **Fri 30 Oct**.", the buyer's address under "Ship to" with "Visible until 30 days after the order ends.", and the actions "Add tracking" (primary) and "Cancel order" (ghost). For a Shipped order (state `shipped`) it shows the heading "Shipped", the `OrderTimelineComponent` and the tracking link. States: `loading` (two-column skeleton), `error` ("Couldn't load this sale", reference code, "Try again", "Back to sales").
-- **`AddTrackingDialog`** (mock `docs/mocks/dialogs/add-tracking/`) — title "Add tracking", description "We'll email {buyer} the tracking link.", a "Carrier" select (USPS, UPS, FedEx, DHL; focused on open) and a "Tracking number" input. Primary "Mark as shipped", secondary "Cancel". States: `default`; `invalid` (inline error such as "That doesn't look like a USPS tracking number. It's usually 22 digits.", input kept); `busy` (primary `aria-busy`, Cancel disabled); `failed` ("That didn't go through" alert, inputs kept, primary becomes "Try again").
-- **`OrderTimelineComponent`** — shared `<ol class="timeline">` of Paid, Shipped, Delivered, Completed with the date of each reached step and `aria-current="step"` on the current one; built from `OrderStatusChange` rows. Reused by buyer and seller pages.
-- **`TrackingLinkComponent`** — "{carrier} tracking" label and the tracking number as an external link built by the API.
-- **`OrdersApiService`** — typed client; `addTracking(orderId, { carrier, trackingNumber })` returns `SaleDetail`.
+### Frontend (`@12l/orders`, `@12l/api`, `@12l/components`)
+
+- **`SaleDetailPage`** (`projects/orders/src/lib/sale-detail/`, route `/sales/:id`, mock `pages/sale-detail`) — the seller's view of one order from `GET /api/sales/{id}`. Paid (`default`): eyebrow "Order 12L-48302 · Sat 24 Oct", "You made a sale", "Ship by **Fri 30 Oct**.", the buyer's address under "Ship to" with "Visible until 30 days after the order ends.", and the primary "Add tracking" button. Shipped, Delivered and Completed (`shipped`): the heading of the status, `tl-order-timeline`, `tl-tracking-link` and the address. Cancelled: the info alert "Cancelled · Buyer refunded in full". `loading` (two-column skeleton) and `error` ("Couldn’t load this sale", reference, "Try again", "Back to sales"). "Cancel order" and "Relist item" are added by cancel-order.
+- **`AddTrackingDialog`** (`projects/orders/src/lib/add-tracking/`, mock `dialogs/add-tracking`), opened through `DialogService` — "Add tracking", "We’ll email {buyer} the tracking link.", a "Carrier" select (USPS, UPS, FedEx, DHL; focused on open) and "Tracking number". An empty number shows "Enter the tracking number." without a request. `invalid`: the API's field message under the field, the input kept and focused. `busy`: primary `aria-busy`, Cancel disabled. `failed`: "That didn’t go through" alert, inputs kept, primary "Try again". It closes with the shipped sale, which replaces the page's sale.
+- **`OrderDetailPage`** (`projects/orders/src/lib/order-detail/`, route `/orders/:id`, mock `pages/order-detail`) — the buyer's order from `GET /api/purchases/{id}`: Paid "Waiting to ship" with the timeline and "{seller} ships by {date}. If not, you’re refunded automatically."; Shipped "On its way" with the tracking link; Delivered; Cancelled "Refunded in full" with "$X back to {card}. Allow 5–10 days."; `loading` and `error` ("Couldn’t load this order", "Back to purchases"). The buyer's actions belong to cancel-order, complete-order and resolve-order-problems.
+- **`OrderPartyComponent`** (local, `order-party/`) — avatar, "Buyer" or "Seller" and the profile link, projected into `tl-order-summary` (shown without a visible heading on these pages).
+- **`tl-order-timeline`** and **`tl-tracking-link`** in `@12l/components` (design system: Order timeline, Tracking link). Dates read "Sat 24 Oct" in UTC (`order-dates.ts`).
+- **`OrdersApi`** in `@12l/api` (`lib/orders/orders-api.ts`) — `sale(id)` and `addTracking(id, carrier, trackingNumber)`, both returning `Sale`; `CheckoutApi.purchase(id)` returns the extended `Purchase`.
 
 ### API (`TwelveL.Api`)
 
-- **`OrdersController`**
-  - `POST /api/orders/{id}/shipment` — body `{ carrier, trackingNumber }`. Policy `VerifiedMember`. Responses: `200` with `SaleDetailDto`; `400` `tracking.invalid` with field errors; `401` anonymous; `404` when the caller is not the order's seller (`L2-010`); `409` `order.invalid_transition` when the order is not Paid; `409` `concurrency.conflict` when the row version changed.
-- **`CarrierWebhookController`**
-  - `POST /api/carriers/webhook` — anonymous; verifies the carrier tracking service signature. `200` on accepted or duplicate event; `400` and a security log entry on an invalid signature. Whether delivery arrives by webhook, by polling, or both depends on the carrier tracking service, which is `<TO SUPPLY>`.
+- **`OrdersController`** (policy `VerifiedMember`)
+  - `GET /api/sales/{id}` — `200` `SaleDto`; `404 ORDER_NOT_FOUND` when the caller is not the order's seller (`L2-010`).
+  - `POST /api/orders/{id}/shipment` — body `{ carrier, trackingNumber }`. `200` `SaleDto`; `422 TRACKING_INVALID` with a `carrier` (`CARRIER_REQUIRED`) or `trackingNumber` (`TRACKING_REQUIRED`, `TRACKING_MALFORMED`) field error; `401` anonymous; `404` when not the seller; `409 ORDER_INVALID_TRANSITION` when the order is not Paid or changed status during the request.
+- **`CheckoutsController`** — `GET /api/purchases/{id}` now also returns `itemPrice`, `shippingCost`, `salesTax`, `shipBy`, `timeline` and `tracking`.
+- **`CarrierWebhookController`** — `POST /api/carriers/webhook`, anonymous; the `Carrier-Signature` header is verified by `ICarrierTracking`. `200` for a delivery, a repeat or an unrelated event; `400 WEBHOOK_SIGNATURE_INVALID` and a security log entry on an invalid signature. Polling is not built: the carrier tracking service is still to be chosen.
 
-### Application and domain (`TwelveL.Application`, `TwelveL.Domain`)
+### Application and domain (`TwelveL.Application/Orders`, `TwelveL.Domain/Orders`)
 
-- **`Order`** (aggregate root) — key fields: `Id` (`Guid`), `Number` (`string`, format `12L-NNNNN` from SQL sequence `OrderNumbers`, start value `<TO SUPPLY>`), `ListingId`, `CheckoutId`, `BuyerId`, `SellerId`, `ItemPrice`, `ShippingCost`, `SalesTax`, `Total` (`Money`, `decimal(10,2)` USD, `L2-018`), `FeeRate`, `FeeAmount`, `Status`, `PaidAt`, `ShipBy`, `ShipReminderDue`, `ShipReminderSentAt`, `ShippedAt`, `DeliveredAt`, `CompletedAt`, `EndedAt`, `Carrier`, `TrackingNumber`, `ShippingAddress` (value object persisted as `ShippingAddressCipher`), `PaymentReference`, `CardBrand`, `CardLast4`, `RowVersion`. Methods listed in the state machine table.
-- **`OrderStatusChange`** — `Id`, `OrderId`, `From` (nullable for creation), `To`, `OccurredAt`, `ActorType` (`OrderActorType`: Buyer, Seller, Administrator, System, Carrier), `ActorId` (nullable for System and Carrier), `Note`.
-- **`Carrier`** enumeration — `USPS`, `UPS`, `FedEx`, `DHL` (from the mock's carrier list).
-- **`AddTrackingCommand`** — `OrderId`, `Carrier`, `TrackingNumber`.
-- **`AddTrackingCommandValidator`** (FluentValidation) — carrier required and in the enumeration; tracking number required, whitespace removed, then matched against a per-carrier pattern from configuration `Carriers:{name}:TrackingPattern`. The USPS message reads "That doesn't look like a USPS tracking number. It's usually 22 digits." The exact patterns for each carrier are `<TO SUPPLY>`.
-- **`AddTrackingCommandHandler`** — loads the order filtered by `SellerId = caller` (404 otherwise), calls `Order.MarkShipped`, calls `INotificationPublisher.Enqueue(NotificationType.OrderShipped, buyerId, ...)` with the tracking link from `ICarrierTrackingService.BuildTrackingUrl`, and saves in one transaction (`L2-033` criterion 1, `L2-042`).
-- **`MarkDeliveredCommand`** / **`MarkDeliveredCommandHandler`** — idempotent: an order already Delivered or later is left unchanged. On a Shipped order it calls `MarkDelivered(Carrier, deliveredAt)` and enqueues `NotificationType.OrderDelivered` to the buyer (`L2-033` criterion 4).
-- **`IBusinessCalendar`** — `AddBusinessDays(start, days)`; implementation `UsBusinessCalendar` reads the holiday list from configuration `Orders:Holidays` (`<TO SUPPLY>`). The mocks agree with weekdays only: paid Sat 24 Oct gives ship-by Fri 30 Oct, and paid Thu 22 Oct gives ship-by Thu 29 Oct. `Order.CreatePaid` sets `ShipBy = AddBusinessDays(PaidAt, 5)` and `ShipReminderDue = AddBusinessDays(PaidAt, 3)`; the time-of-day cut-off and the time zone used to count days are `<TO SUPPLY>`.
-- **`ICarrierTrackingService`** — `GetStatusAsync(carrier, trackingNumber)`, `BuildTrackingUrl(carrier, trackingNumber)`, `VerifySignature(payload, headers)`.
+- **`Order`** — adds `ShipBy`, `ShippedAt`, `DeliveredAt`, `EndedAt`, `Carrier`, `TrackingNumber` and the `StatusChanges` history to the checkout-and-pay aggregate; methods as in the state machine table. `ShipBy = BusinessDays.Add(PaidAt, 5)`: the same time of day 5 weekdays later (paid Sat 24 Oct gives Fri 30 Oct; paid Thu 22 Oct gives Thu 29 Oct).
+- **`OrderStatusChange`** — `Id`, `OrderId`, `From` (null at creation), `To`, `OccurredAt`, `Actor` (`OrderActor`: Buyer, Seller, Administrator, System, Carrier). The actor's member is the order's buyer or seller, so no actor ID is stored.
+- **`Carrier`** and **`TrackingNumbers`** — `Usps`, `Ups`, `FedEx`, `Dhl` with their display names; `Normalise` removes spaces and hyphens, upper-cases, and checks the carrier's format (USPS 20 to 22 digits or `AA123456789US`; UPS `1Z` and 16 characters; FedEx 12, 15, 20 or 22 digits; DHL 10 or 11 digits); `InvalidMessage` gives the inline text ("That doesn’t look like a USPS tracking number. It’s usually 22 digits."); `Url` builds the carrier's public tracking page.
+- **`GetSaleQuery`**, **`AddTrackingCommand`** — loaded with `SellerId = caller`; the handler checks the carrier and number, calls `MarkShipped` and saves, returning `SaleDto` (`L2-033` criteria 1 and 5).
+- **`HandleCarrierWebhookCommand`** — reads the event through `ICarrierTracking.ReadWebhook`; a delivery for the Shipped order with that carrier and number calls `MarkDelivered(Carrier, occurredAt)`; anything else changes nothing, which makes repeats harmless (`L2-033` criterion 4).
+- **`CancelUnshippedOrdersCommand`** — selects Paid orders with `ShipBy <= now`; for each it calls `Cancel(System)`, adds `Refund.ForMissedShipDeadline` (full payment amount, reason `ShipDeadlinePassed`) and saves, then refunds through `IPaymentProvider.RefundAsync` with the refund ID as idempotency key. A refund the provider does not accept stays Pending for the outbox; an order shipped meanwhile loses the concurrency check and is skipped. The listing stays Sold (`L2-035`).
+- **`ICarrierTracking`** — `ReadWebhook(body, signature)`; `UnconfiguredCarrierTracking` in Infrastructure accepts nothing until a service is chosen; tests use `FakeCarrierTracking`.
 
 ### Worker jobs (`TwelveL.Worker`)
 
-- **`ShipByReminderJob`** — runs every `Orders:DeadlineJobInterval` (default `<TO SUPPLY>`). Selects Paid orders with `ShipReminderDue <= now` and `ShipReminderSentAt IS NULL`, sets `ShipReminderSentAt` and enqueues `NotificationType.ShipByReminder` to the seller (`L2-033` criterion 3).
-- **`ShipDeadlineJob`** — same interval. Selects Paid orders with `ShipBy <= now` and sends `CancelOrderCommand` with reason `ShipDeadlinePassed` and actor System. The cancel handler from [cancel-order](../cancel-order/README.md) applies `Paid → Cancelled`, creates a full `Refund`, cancels the payout and emails the buyer and the seller (`L2-033` criterion 2). An order shipped between the select and the update fails the transition and is skipped.
-- **`DeliveryPollingJob`** — when the carrier service is polled, selects Shipped orders whose `TrackingLastPolledAt` is older than `Orders:DeliveryPollInterval` and sends `MarkDeliveredCommand` for each delivered result.
-- **`OutboxDispatcher`** — shared dispatcher from the platform baseline; sends the email (designed in send-email-notifications) and refund messages above with retry and back-off for up to 24 hours (`L2-042`).
+- **`ShipDeadlineJob`** — every `Orders:DeadlineJobInterval` (5 minutes) sends `CancelUnshippedOrdersCommand` in its own scope (`L2-033` criterion 2).
+- **Deferred:** `ShipByReminderJob` (`L2-033` criterion 3) only sends email and is built with send-email-notifications, with its `ShipReminderDue` and `ShipReminderSentAt` columns. `DeliveryPollingJob` waits for the carrier tracking service.
 
-### Data (`TwelveL.Infrastructure`, `TwelveLDbContext`)
+### Data (`TwelveL.Infrastructure`, migration `AddShipOrder`)
 
-- **`Orders`** — primary key `Id`; unique index `UX_Orders_Number`; `RowVersion` (`rowversion`) as the EF Core concurrency token; filtered unique index `UX_Orders_ListingId_NotCancelled` on `ListingId` where `Status <> 'Cancelled'` (used by checkout-and-pay); indexes `IX_Orders_Status_ShipBy` (deadline job), `IX_Orders_Status_ShipReminderDue` (reminder job), `IX_Orders_Status_DeliveredAt` (auto-completion), `IX_Orders_BuyerId_PaidAt` and `IX_Orders_SellerId_PaidAt` (history). `Status` is stored as `nvarchar(16)` through a value converter. The shipping address is stored in `ShippingAddressCipher` with its key-id column, encrypted with AES-256-GCM by the `AesGcmFieldEncryptor` value converter defined in [protect-personal-data](../../privacy/protect-personal-data/README.md) (`L2-054`).
-- **Starting point.** [checkout-and-pay](../checkout-and-pay/README.md) creates `Orders` with the `Paid` state only, unique `UX_Orders_CheckoutId` and an unfiltered unique `UX_Orders_ListingId`, and plain `Shipping*` address columns ([ADR orders/0002](../../../adr/orders/0002-reserve-with-a-conditional-update-and-a-filtered-unique-index.md)). This feature adds the later states, `RowVersion`, the deadline columns and indexes, and replaces the listing index with `UX_Orders_ListingId_NotCancelled`.
-- **`OrderStatusChanges`** — append-only; index `IX_OrderStatusChanges_OrderId_OccurredAt`. No update or delete path exists in the application.
-- **`OutboxMessages`** — shared outbox table from the platform baseline.
+- **`Orders`** — adds `ShipBy` (existing rows backfilled to 7 days after payment), `ShippedAt`, `DeliveredAt`, `EndedAt`, `Carrier` (`nvarchar(8)`), `TrackingNumber` (`nvarchar(34)`); `Status` is the concurrency token; indexes `IX_Orders_Status_ShipBy` (deadline job) and `IX_Orders_Carrier_TrackingNumber` (carrier events). `UX_Orders_ListingId` stays unfiltered until cancel-order adds relisting.
+- **`OrderStatusChanges`** — append-only, cascade from `Orders`; index `IX_OrderStatusChanges_OrderId_OccurredAt`. No update or delete path exists.
+- **`Refunds`** — `Reason` gains `ShipDeadlinePassed`.
+- The shipping address stays in plain columns until protect-personal-data encrypts it ([ADR orders/0002](../../../adr/orders/0002-reserve-with-a-conditional-update-and-a-filtered-unique-index.md)).
 
 ### Error codes
 
 | Code | HTTP | Meaning |
 |------|------|---------|
-| `order.invalid_transition` | 409 | The requested transition is not in the state machine table |
-| `tracking.invalid` | 400 | Carrier missing or tracking number empty or malformed |
-| `concurrency.conflict` | 409 | The order changed since it was read |
+| `ORDER_INVALID_TRANSITION` | 409 | The requested transition is not in the state machine table, or the order changed status meanwhile |
+| `TRACKING_INVALID` | 422 | Carrier unknown, or tracking number empty or not in the carrier's format; field errors say which |
+| `ORDER_NOT_FOUND` | 404 | No such order for this caller |
+| `WEBHOOK_SIGNATURE_INVALID` | 400 | The carrier webhook signature is not valid |
+
+### Tests
+
+- `tests/TwelveL.Domain.Tests/OrderTests.cs` — transitions, actors, terminal states, ship-by dates and tracking formats.
+- `tests/TwelveL.Api.Tests/ShipOrderTests.cs` — the endpoints, webhook and deadline command on SQLite in memory with `FakePaymentProvider` and `FakeCarrierTracking`.
+- `tests/TwelveL.Worker.Tests/ShipDeadlineJobTests.cs` — one command per pass.
+- `src/frontend/e2e/tests/ship-order.spec.ts` with `pages/sale-detail.page.ts` and `pages/order-detail.page.ts` — every page and dialog state against `page.route` fixtures.
 
 ## Requirements
 
@@ -136,22 +146,22 @@ accepts; each label names the trigger and the actor recorded in `OrderStatusChan
 
 ### System context
 
-The seller ships through 12L. 12L emails the buyer through the email provider, learns
-of delivery from a carrier tracking service (`<TO SUPPLY>`) and refunds missed
-deadlines through the payment provider.
+The seller ships through 12L. 12L learns of delivery from a carrier tracking service
+(`<TO SUPPLY>`) and refunds missed deadlines through the payment provider; email to the
+buyer arrives with send-email-notifications.
 
 ![C4 system context for shipping an order](diagrams/c4-context.png)
 
 ### Containers
 
-`12L Web` calls `12L API` to add tracking. `12L Worker` runs the reminder, deadline and
-delivery jobs and dispatches outbox email and refunds.
+`12L Web` calls `12L API` to read the sale and add tracking. `12L Worker` runs the ship
+deadline job, which cancels and refunds.
 
 ![C4 container view for shipping an order](diagrams/c4-container.png)
 
 ### Components
 
-`OrdersController` dispatches `AddTrackingCommand`. The worker jobs and the carrier
+`OrdersController` dispatches `AddTrackingCommand`. The deadline job and the carrier
 webhook drive the remaining transitions through the same `Order` aggregate.
 
 ![C4 component view for shipping an order](diagrams/c4-component.png)
@@ -159,29 +169,29 @@ webhook drive the remaining transitions through the same `Order` aggregate.
 ### Class structure
 
 `Order` composes its `OrderStatusChange` history and validates every transition
-through `OrderStateMachine`. The handlers and jobs depend on `IBusinessCalendar` and
-`ICarrierTrackingService`.
+through `OrderStateMachine`. The handlers depend on `TrackingNumbers`, `ICarrierTracking`
+and `IPaymentProvider`.
 
 ![Class diagram for shipping an order](diagrams/class-structure.png)
 
 ### Behaviour — add tracking
 
-The validator rejects a malformed tracking number with HTTP 400. A non-owner gets
+A malformed tracking number gets HTTP 422 with the field message. A non-owner gets
 HTTP 404, and a non-Paid order gets HTTP 409. Otherwise the order becomes Shipped and
-the tracking email is queued in the same transaction.
+the page shows the timeline and tracking link.
 
 ![Sequence diagram for adding tracking](diagrams/sequence-add-tracking.png)
 
-### Behaviour — ship-by reminder and deadline
+### Behaviour — ship deadline
 
-The reminder job emails sellers at 3 business days. The deadline job cancels and
-refunds at 5 business days, skipping any order that was shipped in the meantime.
+The deadline job cancels and refunds at 5 business days, skipping any order that was
+shipped in the meantime.
 
-![Sequence diagram for the ship-by reminder and deadline jobs](diagrams/sequence-ship-deadline.png)
+![Sequence diagram for the ship deadline job](diagrams/sequence-ship-deadline.png)
 
 ### Behaviour — delivery
 
-Delivery arrives either as a signed carrier webhook or through polling. Both paths send
-the same idempotent `MarkDeliveredCommand`.
+Delivery arrives as a signed carrier webhook. Only a Shipped order with that carrier and
+number moves to Delivered, so repeats change nothing.
 
 ![Sequence diagram for carrier delivery](diagrams/sequence-delivery.png)

@@ -6,9 +6,9 @@ title Containers — Ship an order
 Person(seller, "Seller", "Ships the item")
 Person(buyer, "Buyer", "Receives the item")
 System_Boundary(twelvel, "12L") {
-  Container(web, "12L Web", "Angular", "Sale detail page and Add tracking dialog")
+  Container(web, "12L Web", "Angular", "Sale page, Add tracking dialog and the buyer's order page")
   Container(api, "12L API", "ASP.NET Core", "Order endpoints and the order state machine")
-  Container(worker, "12L Worker", ".NET worker service", "Ship-by reminder, ship deadline, delivery polling and outbox dispatch jobs")
+  Container(worker, "12L Worker", ".NET worker service", "Ship deadline job (cancels and refunds Paid orders past their ship-by date)")
   ContainerDb(db, "12L database", "SQL Server", "Orders, status history, outbox")
 }
 System_Ext(email, "Email provider", "Transactional email")
@@ -22,6 +22,5 @@ Rel(api, db, "Reads and writes", "EF Core")
 Rel(worker, db, "Reads due orders, writes transitions and outbox", "EF Core")
 Rel(worker, email, "Dispatches outbox email", "HTTPS")
 Rel(worker, pay, "Issues refunds", "HTTPS")
-Rel(worker, carrier, "Polls tracking status", "HTTPS")
 Rel(carrier, api, "Posts delivery events", "HTTPS webhook")
 @enduml

@@ -1,5 +1,5 @@
 @startuml
-title UML sequence behaviour — Ship-by reminder and ship deadline
+title UML sequence behaviour — Ship deadline job cancels and refunds
 skinparam backgroundColor #FFFFFF
 skinparam shadowing false
 skinparam roundcorner 12
@@ -17,43 +17,37 @@ skinparam package {
 skinparam sequenceMessageAlign left
 skinparam maxMessageSize 260
 box "Backend — 12L Worker application (TwelveL.Worker)" #D1FADF
-  participant "ShipByReminderJob" as rem
   participant "ShipDeadlineJob" as dl
 end box
 box "Backend — TwelveL.Application and TwelveL.Domain" #ECFDF3
-  participant "CancelOrderCommandHandler" as h
+  participant "CancelUnshippedOrdersHandler" as h
   participant "Order" as order
 end box
 box "Backend — TwelveL.Infrastructure" #FFF4E5
   database "12L database" as db
-  participant "OutboxDispatcher" as out
 end box
 participant "Payment provider" as pay
-participant "Email provider" as email
-== Every Orders:DeadlineJobInterval ==
-rem -> db : Select Paid orders where ShipReminderDue <= now and ShipReminderSentAt is null
-db --> rem : Due orders
-loop each due order
-  rem -> db : Set ShipReminderSentAt, enqueue ShipByReminder notification (L2-033)
-end
-dl -> db : Select Paid orders where ShipBy <= now
-db --> dl : Overdue orders
+== Every Orders:DeadlineJobInterval (5 minutes) ==
+dl -> h : Send CancelUnshippedOrdersCommand (own scope)
+h -> db : Select Paid orders where ShipBy <= now (IX_Orders_Status_ShipBy)
+db --> h : Overdue order IDs
 loop each overdue order
-  dl -> h : Send CancelOrderCommand(Reason ShipDeadlinePassed, actor System)
-  h -> db : Load order
-  h -> order : Cancel(ShipDeadlinePassed, System, now)
-  alt tracking added concurrently (status no longer Paid)
-    order --> h : InvalidOrderTransitionException
-    h --> dl : Skip order
-  else still Paid
-    order -> order : Append Paid to Cancelled, actor System (L2-032)
-    h -> db : Save order, Refund(Total), Payout Cancelled, outbox IssueRefund, OrderCancelled notifications to buyer and seller
-    db --> h : Committed
+  h -> db : Load order and payment
+  h -> order : Cancel(System, now)
+  order -> order : Append Paid to Cancelled, actor System (L2-032)
+  h -> db : Save order and Refund(ShipDeadlinePassed, full amount) WHERE Status = 'Paid'
+  alt tracking added concurrently
+    db --> h : DbUpdateConcurrencyException
+    h -> h : Clear the change tracker, skip the order
+  else committed
+    h -> pay : RefundAsync(payment, amount, key = Refund.Id)
+    alt provider answers
+      pay --> h : Refund ID
+      h -> db : Refund Issued
+    else provider unavailable
+      h -> h : Refund stays Pending for the outbox
+    end
   end
 end
-== OutboxDispatcher ==
-out -> pay : Create refund for Total, idempotency key = Refund.Id
-pay --> out : Refund accepted
-out -> email : Send cancellation and refund email to buyer, notice to seller
-email --> out : Accepted
+h --> dl : Number cancelled
 @enduml

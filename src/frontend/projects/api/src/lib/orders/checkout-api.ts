@@ -4,6 +4,7 @@ import { Injectable, inject } from '@angular/core';
 import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
 import { CardPhoto } from '../catalog/catalog-api';
+import type { OrderTimelineStep, Tracking } from './orders-api';
 
 /** A US shipping address. country is the two-letter code; 12L ships within the US only (L2-027). */
 export interface ShippingAddress {
@@ -53,7 +54,10 @@ export interface PaymentAccepted {
   status: string;
 }
 
-/** One order as the buyer's confirmation page shows it. */
+/**
+ * One order as the buyer's confirmation and order pages show it: what was paid, the ship-by
+ * date, the timeline and the tracking once shipped.
+ */
 export interface Purchase {
   id: string;
   reference: string;
@@ -64,6 +68,12 @@ export interface Purchase {
   cardLast4: string | null;
   sellerDisplayName: string;
   paidAt: string;
+  shipBy: string;
+  itemPrice: string;
+  shippingCost: string;
+  salesTax: string;
+  timeline: OrderTimelineStep[];
+  tracking: Tracking | null;
 }
 
 /** Typed client for /api/checkouts and /api/purchases (checkout-and-pay). */
