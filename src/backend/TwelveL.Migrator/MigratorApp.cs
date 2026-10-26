@@ -29,8 +29,14 @@ public static class MigratorApp
             return 2;
         }
 
+        ApplyMigrations(db, output);
+        return 0;
+    }
+
+    /// <summary>Applies every pending migration. TwelveL.Cli reset calls it too, so there is one migration path (ADR platform/0010).</summary>
+    public static void ApplyMigrations(DbContext db, TextWriter output)
+    {
         db.Database.Migrate();
         output.WriteLine("Migrations applied.");
-        return 0;
     }
 }
