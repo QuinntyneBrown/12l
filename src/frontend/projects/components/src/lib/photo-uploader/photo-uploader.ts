@@ -39,7 +39,8 @@ export interface UploaderMove {
  * Listing photos: a tile per photo with the cover badge on the first, rejected and uploading
  * tiles, and the "Add photos" tile with "{n} of {max}" (design system: Photo uploader). Photos
  * reorder by drag and drop, or with the left and right arrow keys on a focused tile, announced
- * in a polite live region. The host uploads files and owns the tiles.
+ * in a polite live region. The host uploads files and owns the tiles. With `cover` false (evidence
+ * photos of an order problem) there is no cover, no reordering and the add tile reads "Add photo".
  */
 @Component({
   selector: 'tl-photo-uploader',
@@ -54,6 +55,8 @@ export class PhotoUploaderComponent {
   readonly error = input<string | null>();
   /** Id of the file input; help is `${inputId}-help` and the error `${inputId}-error`. */
   readonly inputId = input('photos');
+  /** The first photo is the listing cover and photos reorder; false for photos without an order. */
+  readonly cover = input(true);
 
   readonly filesSelected = output<File[]>();
   readonly removed = output<string>();
@@ -82,7 +85,7 @@ export class PhotoUploaderComponent {
 
   onKeydown(event: KeyboardEvent, index: number): void {
     const step = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0;
-    if (!step || event.target !== event.currentTarget) return;
+    if (!step || !this.cover() || event.target !== event.currentTarget) return;
     event.preventDefault();
     const to = index + step;
     if (to < 0 || to >= this.photos().length) return;
@@ -90,6 +93,7 @@ export class PhotoUploaderComponent {
   }
 
   onDragStart(event: DragEvent, index: number): void {
+    if (!this.cover()) return;
     this.dragFrom = index;
     event.dataTransfer?.setData('text/plain', String(index));
     if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move';

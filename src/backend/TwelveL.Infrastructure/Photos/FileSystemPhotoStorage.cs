@@ -21,9 +21,14 @@ internal sealed class FileSystemPhotoStorage(IOptions<PhotoStorageOptions> optio
     public Task SavePublicAsync(string key, byte[] content, string contentType, CancellationToken cancellationToken) =>
         WriteAsync(PathOf("public", key), content, cancellationToken);
 
-    public async Task<StoredObject?> ReadPublicAsync(string key, CancellationToken cancellationToken)
+    public Task<StoredObject?> ReadPublicAsync(string key, CancellationToken cancellationToken) =>
+        ReadAsync(PathOf("public", key), cancellationToken);
+
+    public Task<StoredObject?> ReadOriginalAsync(string key, CancellationToken cancellationToken) =>
+        ReadAsync(PathOf("private", key), cancellationToken);
+
+    private static async Task<StoredObject?> ReadAsync(string path, CancellationToken cancellationToken)
     {
-        var path = PathOf("public", key);
         if (!File.Exists(path))
         {
             return null;

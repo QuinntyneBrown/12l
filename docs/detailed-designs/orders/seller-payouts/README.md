@@ -105,7 +105,7 @@ Migration `AddSellerPayouts`. Configuration: `Selling:PlatformFeePercent` (10) a
 
 - Which payment provider, and its credentials and webhook secret (ADR orders/0001).
 - Re-sending a failed payout once the seller changes bank details.
-- Holding a payout while a problem is open arrives with resolve-order-problems.
+- While a problem is open the payout stays Held with `HoldReason = OpenProblem`; a refund on the problem cancels it (`PayoutStatus.Cancelled`) and release completes the order, which makes it releasable ([resolve-order-problems](../resolve-order-problems/README.md), ADR orders/0007).
 
 ## Requirements
 

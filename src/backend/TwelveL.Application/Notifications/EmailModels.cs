@@ -25,3 +25,12 @@ public sealed record OrderCancelledEmail(Guid OrderId, string OrderReference, st
 public sealed record CancellationRequestedEmail(Guid OrderId, string OrderReference, string ItemTitle, string? Message);
 
 public sealed record OrderRefundedEmail(Guid OrderId, string OrderReference, decimal Amount, string? CardBrand, string? CardLast4);
+
+/// <summary>
+/// The buyer reported a problem (L2-036 AC1). <paramref name="ToAdministrator"/> picks the
+/// operations alert with the link to the problem page instead of the seller's sale link.
+/// </summary>
+public sealed record ProblemReportedEmail(Guid OrderId, string OrderReference, string ProblemReference, string ItemTitle, string Reason, string Description, bool ToAdministrator);
+
+/// <summary>An administrator decided a problem; <paramref name="Decision"/> and <paramref name="Reason"/> go to both members (L2-036).</summary>
+public sealed record ProblemResolvedEmail(Guid OrderId, string OrderReference, string ItemTitle, string Decision, string Reason, bool ToSeller);

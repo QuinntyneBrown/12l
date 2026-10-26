@@ -5,6 +5,7 @@ import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
 import { CheckoutItem, Purchase, ShippingAddress } from './checkout-api';
 import { SalePayout } from './payouts-api';
+import type { OrderProblem } from './problems-api';
 
 export type OrderStatus = 'Paid' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled' | 'Refunded';
 
@@ -66,6 +67,8 @@ export interface Sale {
   cancellation: Cancellation | null;
   cancellationRequest: CancellationRequest | null;
   canRelist: boolean;
+  /** The buyer's problem with the seller's reply (L2-036). */
+  problem: OrderProblem | null;
 }
 
 /** The carriers a seller can choose in Add tracking. */

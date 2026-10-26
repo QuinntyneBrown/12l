@@ -18,6 +18,9 @@ public static class Policies
 
     /// <summary>A verified member may sell; there is no seller application (L2-003).</summary>
     public const string CanSell = "CanSell";
+
+    /// <summary>A member holding the Administrator role (L2-010 AC3); only order problems use it (L2-036).</summary>
+    public const string Administrator = "Administrator";
 }
 
 /// <summary>Requires a verified email, read from 12L database so verification takes effect at once.</summary>
@@ -44,6 +47,30 @@ public sealed class VerifiedEmailHandler(ITwelveLDbContext db) : AuthorizationHa
     }
 }
 
+/// <summary>Requires the Administrator role, read from 12L database so a granted or removed role takes effect at once.</summary>
+public sealed class AdministratorRequirement : IAuthorizationRequirement;
+
+public sealed class AdministratorHandler(ITwelveLDbContext db) : AuthorizationHandler<AdministratorRequirement>
+{
+    protected override async Task HandleRequirementAsync(AuthorizationHandlerContext context, AdministratorRequirement requirement)
+    {
+        if (context.User.Identity?.IsAuthenticated != true)
+        {
+            return;
+        }
+
+        var memberId = context.User.MemberId();
+        if (await db.Members.AnyAsync(m => m.Id == memberId && m.IsAdministrator))
+        {
+            context.Succeed(requirement);
+        }
+        else
+        {
+            context.Fail(new AuthorizationFailureReason(this, "ADMINISTRATOR_REQUIRED"));
+        }
+    }
+}
+
 /// <summary>Answers 401 and 403 as problem details; 403 for an unverified member carries EMAIL_NOT_VERIFIED.</summary>
 public sealed class ProblemAuthorizationResultHandler : IAuthorizationMiddlewareResultHandler
 {
@@ -58,10 +85,12 @@ public sealed class ProblemAuthorizationResultHandler : IAuthorizationMiddleware
 
         if (result.Forbidden)
         {
-            var unverified = result.AuthorizationFailure?.FailureReasons.Any(r => r.Message == "EMAIL_NOT_VERIFIED") == true;
-            return ProblemResults.WriteAsync(context, unverified
+            var reasons = result.AuthorizationFailure?.FailureReasons.Select(r => r.Message).ToList() ?? [];
+            return ProblemResults.WriteAsync(context, reasons.Contains("EMAIL_NOT_VERIFIED")
                 ? new Error(403, "EMAIL_NOT_VERIFIED", "Verify your email to sell")
-                : new Error(403, "FORBIDDEN", "You can't do that"));
+                : reasons.Contains("ADMINISTRATOR_REQUIRED")
+                    ? new Error(403, "ADMINISTRATOR_REQUIRED", "Only 12L administrators can do that")
+                    : new Error(403, "FORBIDDEN", "You can't do that"));
         }
 
         return _default.HandleAsync(next, context, policy, result);
@@ -75,6 +104,7 @@ public static class AuthSetup
         services.Configure<AuthOptions>(configuration.GetSection("Auth"));
         services.AddSingleton<SessionCookies>();
         services.AddScoped<IAuthorizationHandler, VerifiedEmailHandler>();
+        services.AddScoped<IAuthorizationHandler, AdministratorHandler>();
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, ProblemAuthorizationResultHandler>();
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
@@ -106,7 +136,8 @@ public static class AuthSetup
 
         services.AddAuthorizationBuilder()
             .AddPolicy(Policies.VerifiedMember, p => p.RequireAuthenticatedUser().AddRequirements(new VerifiedEmailRequirement()))
-            .AddPolicy(Policies.CanSell, p => p.RequireAuthenticatedUser().AddRequirements(new VerifiedEmailRequirement()));
+            .AddPolicy(Policies.CanSell, p => p.RequireAuthenticatedUser().AddRequirements(new VerifiedEmailRequirement()))
+            .AddPolicy(Policies.Administrator, p => p.RequireAuthenticatedUser().AddRequirements(new AdministratorRequirement()));
         return services;
     }
 }

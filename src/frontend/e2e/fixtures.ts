@@ -468,6 +468,7 @@ export function sale(fields: Record<string, unknown> = {}): Record<string, unkno
     cancellation: null,
     cancellationRequest: null,
     canRelist: false,
+    problem: null,
     ...fields,
   };
 }
@@ -486,6 +487,53 @@ export function buyerOrder(fields: Record<string, unknown> = {}): Record<string,
     autoCompletesAt: null,
     cancellation: null,
     cancellationRequest: null,
+    canReportProblem: false,
+    problemDeadline: null,
+    problem: null,
+    ...fields,
+  };
+}
+
+/** A buyer's open problem as the order, sale and admin endpoints return it (mocks order-detail/problem). */
+export function orderProblem(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    reference: 'P-1001',
+    reason: 'WrongSize',
+    reasonLabel: 'Wrong size',
+    description: 'Label inside says 11.5, not 12.',
+    photos: [{ id: 'ph-1', url: '/api/orders/o-1/problem/photos/ph-1' }],
+    status: 'Open',
+    openedAt: '2026-10-24T18:00:00Z',
+    sellerResponse: null,
+    sellerRespondedAt: null,
+    outcome: null,
+    resolutionReason: null,
+    resolvedAt: null,
+    ...fields,
+  };
+}
+
+/** GET /api/admin/problems/P-1001: the problem on the Delivered order 12L-48140 (mocks pages/problem-detail). */
+export function problemDetail(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    problem: orderProblem({
+      reason: 'NotAsDescribed',
+      reasonLabel: 'Not as described',
+      description: 'Pilling all over the front and a small hole by the left cuff.',
+      sellerResponse: 'It left here without the hole. Happy to take it back.',
+      sellerRespondedAt: '2026-10-25T10:00:00Z',
+    }),
+    buyerDisplayName: 'marcus_12',
+    sellerDisplayName: 'vintage_lou',
+    order: {
+      id: 'o-1',
+      reference: '12L-48140',
+      status: 'Delivered',
+      total: '59.88',
+      deliveredAt: '2026-10-24T15:00:00Z',
+      item: { ...(sale()['item'] as object), title: 'Better Sweater fleece', brand: 'Patagonia' },
+    },
+    payout: 'Held',
     ...fields,
   };
 }

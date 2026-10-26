@@ -40,6 +40,8 @@ public interface ITwelveLDbContext
 
     DbSet<OutboxMessage> OutboxMessages { get; }
 
+    DbSet<OrderProblem> OrderProblems { get; }
+
     /// <summary>Transactions, for the steps of checkout that must commit together.</summary>
     DatabaseFacade Database { get; }
 
@@ -121,6 +123,9 @@ public interface IPhotoStorage
     Task SavePublicAsync(string key, byte[] content, string contentType, CancellationToken cancellationToken);
 
     Task<StoredObject?> ReadPublicAsync(string key, CancellationToken cancellationToken);
+
+    /// <summary>A private object, such as a problem photo (L2-036), which is never published to the CDN.</summary>
+    Task<StoredObject?> ReadOriginalAsync(string key, CancellationToken cancellationToken);
 }
 
 /// <summary>A payment to create at the provider. The key makes a repeated request charge once (L2-030 AC6).</summary>

@@ -260,6 +260,9 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.Property<DateTime?>("EmailVerifiedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<bool>("IsAdministrator")
+                        .HasColumnType("bit");
+
                     b.Property<string>("NormalizedDisplayName")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -610,6 +613,90 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.ToTable("Orders", (string)null);
                 });
 
+            modelBuilder.Entity("TwelveL.Domain.Orders.OrderProblem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<long>("Number")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("OrderId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Outcome")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<string>("Reference")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<decimal?>("RefundAmount")
+                        .HasPrecision(10, 2)
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<string>("ResolutionReason")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid?>("ResolvedBy")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("SellerRespondedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("SellerResponse")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Status")
+                        .IsConcurrencyToken()
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Number")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OrderProblems_Number");
+
+                    b.HasIndex("OrderId")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OrderProblems_OrderId");
+
+                    b.HasIndex("Reference")
+                        .IsUnique()
+                        .HasDatabaseName("UX_OrderProblems_Reference");
+
+                    b.HasIndex("ResolvedBy");
+
+                    b.HasIndex("Status", "OpenedAt")
+                        .HasDatabaseName("IX_OrderProblems_Open_OpenedAt")
+                        .HasFilter("Status = 'Open'");
+
+                    b.ToTable("OrderProblems", (string)null);
+                });
+
             modelBuilder.Entity("TwelveL.Domain.Orders.OrderStatusChange", b =>
                 {
                     b.Property<Guid>("Id")
@@ -716,6 +803,34 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.HasKey("ProviderEventId");
 
                     b.ToTable("PaymentWebhookEvents", (string)null);
+                });
+
+            modelBuilder.Entity("TwelveL.Domain.Orders.ProblemPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<int>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("ProblemId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StorageKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProblemId");
+
+                    b.ToTable("ProblemPhotos", (string)null);
                 });
 
             modelBuilder.Entity("TwelveL.Domain.Orders.Refund", b =>
@@ -1119,6 +1234,20 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("TwelveL.Domain.Orders.OrderProblem", b =>
+                {
+                    b.HasOne("TwelveL.Domain.Orders.Order", null)
+                        .WithMany()
+                        .HasForeignKey("OrderId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("TwelveL.Domain.Members.Member", null)
+                        .WithMany()
+                        .HasForeignKey("ResolvedBy")
+                        .OnDelete(DeleteBehavior.Restrict);
+                });
+
             modelBuilder.Entity("TwelveL.Domain.Orders.OrderStatusChange", b =>
                 {
                     b.HasOne("TwelveL.Domain.Orders.Order", null)
@@ -1134,6 +1263,15 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("CheckoutId")
                         .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TwelveL.Domain.Orders.ProblemPhoto", b =>
+                {
+                    b.HasOne("TwelveL.Domain.Orders.OrderProblem", null)
+                        .WithMany("Photos")
+                        .HasForeignKey("ProblemId")
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
@@ -1239,6 +1377,11 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
             modelBuilder.Entity("TwelveL.Domain.Orders.Order", b =>
                 {
                     b.Navigation("StatusChanges");
+                });
+
+            modelBuilder.Entity("TwelveL.Domain.Orders.OrderProblem", b =>
+                {
+                    b.Navigation("Photos");
                 });
 #pragma warning restore 612, 618
         }

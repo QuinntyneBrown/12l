@@ -64,6 +64,9 @@ public sealed class Order
     /// <summary>How long after delivery a Delivered order completes by itself (L2-034 AC2).</summary>
     public static readonly TimeSpan AutoCompleteAfter = TimeSpan.FromDays(3);
 
+    /// <summary>How long after delivery the buyer may still report a problem (L2-036).</summary>
+    public static readonly TimeSpan ProblemWindow = TimeSpan.FromDays(3);
+
     /// <summary>The longest seller note or buyer message on a cancellation (L2-035).</summary>
     public const int MaxCancellationText = 500;
 
@@ -241,6 +244,19 @@ public sealed class Order
 
     /// <summary>Whether the completion job should complete this order at <paramref name="now"/> (L2-034 AC2).</summary>
     public bool IsDueForAutoCompletion(DateTime now) => AutoCompletesAt <= now;
+
+    /// <summary>
+    /// When a Delivered order stops accepting problem reports: 3 days after delivery (L2-036 AC2);
+    /// null in any other status, because a Shipped order has no deadline yet.
+    /// </summary>
+    public DateTime? ProblemDeadline => Status == OrderStatus.Delivered ? DeliveredAt + ProblemWindow : null;
+
+    /// <summary>Whether the buyer may report a problem at <paramref name="now"/>: Shipped, or Delivered and within 3 days (L2-036).</summary>
+    public bool CanReportProblem(DateTime now) =>
+        Status == OrderStatus.Shipped || (Status == OrderStatus.Delivered && now < ProblemDeadline);
+
+    /// <summary>An administrator refunds the buyer in full on a problem: Shipped or Delivered to Refunded (L2-036 AC3).</summary>
+    public void RefundForProblem(DateTime now) => TransitionTo(OrderStatus.Refunded, OrderActor.Administrator, now);
 
     /// <summary>
     /// The seller cancelled, or the ship deadline passed: Paid to Cancelled (L2-035, L2-033 AC2).

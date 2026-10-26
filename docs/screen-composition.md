@@ -25,7 +25,7 @@ implemented, and the catalogue grows in the same change.
 |---|---|---|
 | App shell (`shell: 'app'`) | `tl-skip-link`, `tl-top-bar` (guest, member), `tl-footer`, `tl-toast-region` | `<main id="main" tabindex="-1">` with the router outlet, in `projects/twelvel` |
 | Auth shell (`shell: 'auth'`) | `tl-skip-link`, `tl-logo` (lg), `tl-toast-region` | `.auth-layout` with `<main id="main" class="auth-card" tabindex="-1">` and the router outlet, in `projects/twelvel`; chosen by route `data.shell = 'auth'` |
-| Admin shell (`shell: 'admin'`) | `tl-skip-link`, `tl-top-bar` (admin variant), `tl-toast-region` | Not yet composed |
+| Admin shell (`shell: 'admin'`) | `tl-skip-link`, `tl-top-bar` (`variant="admin"`: logo, "Admin" label, the member's initials), `tl-toast-region` | `<main id="main" class="container page" tabindex="-1">` with the router outlet and no footer, in `projects/twelvel`; chosen by route `data.shell = 'admin'` |
 | Bare shell (`shell: 'bare'`) | `tl-skip-link`, `tl-top-bar` (bare variant), `tl-toast-region` | Not yet composed |
 | Nav-menu sheet (`dialogs/nav-menu`: default, guest) | `tl-sheet`, `tl-button`, `tl-link` | Not yet composed |
 | Toast region (`notifications/toast`: info, success, warning, danger, with-action, stacked) | `tl-toast-region`, `tl-toast`, `ToastService` | None |
@@ -185,8 +185,9 @@ Built by ship-order in `@12l/orders` (`src/lib/order-detail/`) for paid ("Waitin
 default ("On its way"), delivered, cancelled, loading and error. complete-order adds "I received
 it" (default and delivered), the automatic completion note (delivered) and the completed state.
 cancel-order adds "Ask to cancel" (paid), cancel-requested, cancel-declined and the seller's note
-on cancelled. "Report a problem", the expected delivery date and the refunded and problem states
-are composed by resolve-order-problems.
+on cancelled. resolve-order-problems adds "Report a problem" (default and delivered, while
+`canReportProblem`), the problem state and the refunded state. The expected delivery date is not
+built: the API has no expected date.
 
 - Library: `tl-order-timeline`, `tl-tracking-link` (once shipped), `tl-alert` (info "Refunded in
   full" with the amount and card when cancelled), `tl-quote` (the seller's note, cited with the
@@ -194,7 +195,12 @@ are composed by resolve-order-problems.
   summary"), `tl-center-state` (error, with `tl-button` "Try again" and "Back to purchases"),
   `tl-button` (primary "I received it" when Shipped or Delivered, opening Confirm receipt through
   `DialogService`; secondary "Ask to cancel" when Paid and never asked, opening Ask to cancel;
-  primary link "Shop similar items" to the catalog when cancelled)
+  ghost "Report a problem" beside "I received it", opening Report a problem; primary link "Shop
+  similar items" to the catalog when cancelled; "Back to purchases" when refunded on a problem),
+  `tl-alert` (warning, icon `flag`, "Problem open · {reason}" when a problem is open; success
+  "Refunded in full" / "Our team reviewed the problem. {total} is on its way back to {card}." when
+  refunded on a problem), `tl-thread` (the claim with photos, captioned "You", and the seller's
+  reply)
 - Local: the breadcrumb, eyebrow and heading block, the ship-by note ("{seller} ships by {date}.
   If not, you’re refunded automatically."), the request note (`.order__request`: "You asked
   {seller} to cancel. They haven’t answered yet." or "{seller} declined to cancel. They still ship
@@ -212,8 +218,8 @@ are composed by resolve-order-problems.
 
 Built by ship-order in `@12l/orders` (`src/lib/sale-detail/`) for default (Paid), shipped,
 cancelled, loading and error. cancel-order adds "Cancel order", cancel-requested and "Relist
-item"; seller-payouts adds completed. problem and address-hidden are composed by
-resolve-order-problems and protect-personal-data.
+item"; seller-payouts adds completed; resolve-order-problems adds problem. address-hidden is
+composed by protect-personal-data.
 
 - Library: `tl-button` (primary "Add tracking" with icon `truck`, opening the Add tracking
   dialog through `DialogService`; ghost "Cancel order" beside it, opening Cancel order; primary
@@ -223,7 +229,10 @@ resolve-order-problems and protect-personal-data.
   `tl-tracking-link` (once shipped), `tl-alert` (info "Cancelled · Buyer refunded in full" with
   "The listing stays off the catalog until you relist it.", or "The listing is back in the
   catalog." once relisted), `tl-order-summary` (no visible heading), `tl-center-state` (error,
-  with "Try again" and "Back to sales")
+  with "Try again" and "Back to sales"), and for problem `tl-alert` (warning, icon `flag`,
+  "Problem reported · {reason}" / "Your payout is on hold while our team reviews this."),
+  `tl-thread`, `tl-form-field` (textarea "Your reply", help "Visible to the buyer and to 12L.") and
+  `tl-button` ("Send reply" with busy, "Try again" after a failure) until the seller has replied
 - Local: the breadcrumb, eyebrow and heading block, "Ship by {date}." lead, the "Ship to"
   address block with its caption, `OrderPartyComponent` ("Buyer") projected into the summary, the
   loading skeleton, and (completed, by seller-payouts) the sunken "Payout" panel with its
@@ -294,8 +303,17 @@ uploads at once and a save sends the photo IDs in order. The footer stays visibl
 
 ### Problem detail — `/admin/problems/{id}` (`pages/problem-detail`: default, resolved, loading, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by resolve-order-problems in `@12l/orders` (`src/lib/problem-detail/`), in the admin shell.
+
+- Library: `tl-thread` (claim with photos captioned "{buyer} · buyer · {day}", reply captioned
+  "{seller} · seller · {day}"), `tl-item-row` (the item in the side panel), `tl-facts` (Status as
+  `tl-status`, Total, Delivered, Payout "Held", "Not paid" or "Released"), `tl-button` (primary
+  "Resolve", opening Resolve problem through `DialogService`, while open), `tl-alert` (success
+  "Refunded in full" / "{total} back to the buyer. No payout." or "Released to the seller" when
+  resolved), `tl-empty-state` (error "Couldn’t load this problem" with the reference and "Try again")
+- Local: the `.page-header` with the reason as heading and "Order problem {reference} · opened
+  {day}", the sunken `aside` panel with its eyebrow, the resolution reason line, and the
+  two-column loading skeleton
 
 ### Marketplace rules — `/rules` (`pages/rules`: default)
 
@@ -327,12 +345,12 @@ uploads at once and a save sends the photo IDs in order. The footer stays visibl
 | Cancel order (`dialogs/cancel-order`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (icon `alert`, `tone="danger"`, description "{buyer} is refunded {total} in full. The listing stays off the catalog until you relist."), `tl-radio-group` (legend "Reason", error "Choose a reason") with four `tl-choice` radios (first focused on open), `tl-form-field` (textarea "Note to buyer", optional), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Keep sale", disabled while busy; danger "Cancel sale" with busy, "Try again" after a failure) | `CancelOrderDialog` in `@12l/orders` |
 | Confirm receipt (`dialogs/confirm-receipt`: default, busy, failed) | `DialogService` | `tl-dialog` (`size="sm"`, description "This completes the order and pays {seller}. You can’t report a problem afterwards."), `tl-item-row` (item thumbnail, title, brand and size), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Not yet", disabled while busy; primary "Yes, complete order" with busy, "Try again" after a failure) | `ConfirmReceiptDialog` in `@12l/orders` |
 | Relist item (`dialogs/relist`: default, busy) | `DialogService` | `tl-dialog` (`size="sm"`, description "It goes back in the catalog with its original photos, price and description."), `tl-item-row` (thumbnail, title, "{price} · {shipping} shipping"), `tl-alert` (danger "That didn’t go through" in the top slot after a failure), `tl-button` ("Not now"; primary "Relist", focused, with busy) | `RelistDialog` in `@12l/orders`. "Edit first" waits for edit-and-withdraw-listing, which builds the edit page |
-| Report a problem (`dialogs/report-problem`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Report a problem (`dialogs/report-problem`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (description "Open until {deadline}. We hold the seller’s payout while our team looks into it."), `tl-error-summary` (invalid, in the top slot), `tl-segmented` (legend "What’s wrong?": Not received, Not as described, Wrong size, Counterfeit), `tl-form-field` (textarea "Describe it"), `tl-photo-uploader` (`[cover]="false"`, max 4, "Add photo"), `tl-alert` (danger "That didn’t go through" / "Your photos and description are saved here. Try again."), `tl-button` (Cancel, disabled while busy; primary "Send to 12L" with busy, "Try again" after a failure) | `ReportProblemDialog` in `@12l/orders`; the "Photos (up to 4)" field label |
 | Ask to cancel (`dialogs/request-cancellation`: default, busy, failed) | `DialogService` | `tl-dialog` (description "If {seller} accepts, you’re refunded in full. Until then the order stays as is."), `tl-form-field` (textarea "Message to {seller}", optional, focused on open), `tl-alert` (danger "That didn’t go through" in the top slot; the message is kept), `tl-button` ("Keep order", disabled while busy; primary "Send request" with busy, "Try again" after a failure) | `RequestCancellationDialog` in `@12l/orders` |
 | Respond to cancellation (`dialogs/respond-cancellation`: default, busy, failed) | `DialogService` | `tl-dialog` (heading "{buyer} asked to cancel", description "Accepting refunds {total} in full. Declining keeps the order — you still ship by {date}."), `tl-quote` (the buyer's message), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Decline"; primary "Accept and refund", focused; the chosen one shows busy and the other is disabled) | `RespondCancellationDialog` in `@12l/orders` |
 | Withdraw listing (`dialogs/withdraw-listing`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
 | Cookie settings (`dialogs/cookie-settings`: default, analytics-on) | `DialogService` | not yet composed | not yet composed |
-| Resolve problem (`dialogs/resolve-problem`: default, invalid, busy) | `DialogService` | not yet composed | not yet composed |
+| Resolve problem (`dialogs/resolve-problem`: default, invalid, busy) | `DialogService` | `tl-dialog` (heading "Resolve problem {reference}"), `tl-radio-group` (legend "Decision") with `tl-choice` "Refund buyer in full" ("{total} to {buyer} · no payout") and "Release payout to seller" ("Order completes · {seller} is paid"), `tl-form-field` (textarea "Reason", help "Sent to both members.", error "Add a reason. Both members see it."), `tl-alert` (danger after a failure), `tl-button` (Cancel, disabled while busy; primary "Refund buyer" or "Release payout", busy "Refunding" or "Releasing") | `ResolveProblemDialog` in `@12l/orders` |
 
 ## Notifications
 

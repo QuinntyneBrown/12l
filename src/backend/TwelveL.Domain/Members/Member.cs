@@ -27,6 +27,12 @@ public sealed class Member
 
     public bool IsEmailVerified => EmailVerifiedAt is not null;
 
+    /// <summary>
+    /// Holds the Administrator role of L2-010, which only resolves order problems (L2-036). It is
+    /// granted in the database by operations; there is no screen for it (ADR orders/0007).
+    /// </summary>
+    public bool IsAdministrator { get; private set; }
+
     public static Member Register(string displayName, string email, string passwordHash, DateTime now) => new()
     {
         Id = Guid.NewGuid(),
@@ -43,5 +49,10 @@ public sealed class Member
     public void MarkEmailVerified(DateTime now)
     {
         EmailVerifiedAt ??= now;
+    }
+
+    public void GrantAdministrator()
+    {
+        IsAdministrator = true;
     }
 }

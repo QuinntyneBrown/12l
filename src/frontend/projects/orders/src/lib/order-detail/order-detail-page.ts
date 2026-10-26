@@ -11,6 +11,7 @@ import {
   OrderSummaryItem,
   OrderTimelineComponent,
   QuoteComponent,
+  ThreadComponent,
   TrackingLinkComponent,
 } from '@12l/components';
 
@@ -18,6 +19,8 @@ import { formatMoney } from '../money';
 import { formatDay, timelineSteps } from '../order-dates';
 import { ConfirmReceiptData, ConfirmReceiptDialog } from '../confirm-receipt/confirm-receipt-dialog';
 import { OrderPartyComponent } from '../order-party/order-party';
+import { problemThread } from '../problem-thread';
+import { ReportProblemData, ReportProblemDialog } from '../report-problem/report-problem-dialog';
 import {
   RequestCancellationData,
   RequestCancellationDialog,
@@ -36,7 +39,9 @@ const HEADINGS: Record<string, string> = {
  * The buyer's order at /orders/{id} (mocks pages/order-detail, L2-032, L2-033): waiting to ship
  * with the ship-by date, on its way with the tracking link, delivered with the automatic completion
  * date, completed, or cancelled and refunded with the seller's note. A Shipped or Delivered order
- * offers "I received it" (L2-034); a Paid order offers "Ask to cancel" once (L2-035).
+ * offers "I received it" (L2-034) and "Report a problem" within its window; an open problem shows
+ * the thread and holds the order, and a problem decided for the buyer shows the refund (L2-036). A
+ * Paid order offers "Ask to cancel" once (L2-035).
  */
 @Component({
   selector: 'tl-order-detail-page',
@@ -50,6 +55,7 @@ const HEADINGS: Record<string, string> = {
     OrderSummaryComponent,
     OrderTimelineComponent,
     QuoteComponent,
+    ThreadComponent,
     TrackingLinkComponent,
   ],
   templateUrl: './order-detail-page.html',
@@ -67,8 +73,20 @@ export class OrderDetailPage {
   readonly view = signal<'loading' | 'loaded' | 'error'>('loading');
   readonly errorRef = signal('');
 
-  readonly heading = computed(() => HEADINGS[this.order()?.status ?? 'Paid']);
-  readonly canConfirm = computed(() => ['Shipped', 'Delivered'].includes(this.order()?.status ?? ''));
+  /** A problem waiting for 12L (mocks order-detail/problem). */
+  readonly problemOpen = computed(() => this.order()?.problem?.status === 'Open');
+  /** Refunded because 12L decided the problem for the buyer (mocks order-detail/refunded). */
+  readonly refundedOnProblem = computed(
+    () => this.order()?.status === 'Refunded' && this.order()?.problem?.outcome === 'FullRefund',
+  );
+  readonly heading = computed(() => (this.problemOpen() ? 'We’re on it' : HEADINGS[this.order()?.status ?? 'Paid']));
+  readonly canConfirm = computed(
+    () => ['Shipped', 'Delivered'].includes(this.order()?.status ?? '') && !this.problemOpen(),
+  );
+  readonly thread = computed(() => {
+    const order = this.order();
+    return order?.problem ? problemThread(order.problem, 'You', order.sellerDisplayName) : [];
+  });
   readonly ended = computed(() => ['Cancelled', 'Refunded'].includes(this.order()?.status ?? ''));
   readonly canAskToCancel = computed(() => this.order()?.status === 'Paid' && !this.order()?.cancellationRequest);
   /** Where the buyer's request to cancel a Paid order stands (mocks order-detail/cancel-requested). */
@@ -85,6 +103,12 @@ export class OrderDetailPage {
     if (!order) return '';
     const card = order.cardBrand && order.cardLast4 ? ` to ${order.cardBrand} ending ${order.cardLast4}` : '';
     return `${formatMoney(order.total)} back${card}. Allow 5–10 days.`;
+  });
+  readonly problemRefund = computed(() => {
+    const order = this.order();
+    if (!order) return '';
+    const card = order.cardBrand && order.cardLast4 ? `${order.cardBrand} ending ${order.cardLast4}` : 'your card';
+    return `Our team reviewed the problem. ${formatMoney(order.total)} is on its way back to ${card}.`;
   });
   readonly summaryItem = computed<OrderSummaryItem | null>(() => {
     const item = this.order()?.item;
@@ -115,6 +139,16 @@ export class OrderDetailPage {
     });
     const completed = await ref.closed;
     if (completed) this.order.set(completed);
+  }
+
+  async reportProblem(): Promise<void> {
+    const order = this.order();
+    if (!order) return;
+    const ref = this.dialogs.open<ReportProblemDialog, ReportProblemData, unknown>(ReportProblemDialog, {
+      orderId: order.id,
+      deadline: order.problemDeadline ? formatDay(order.problemDeadline) : null,
+    });
+    if (await ref.closed) await this.load(order.id);
   }
 
   async askToCancel(): Promise<void> {

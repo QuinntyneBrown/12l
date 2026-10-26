@@ -52,4 +52,14 @@ export {
   type PaymentFields,
   type TokenizeResult,
 } from './lib/orders/payment-fields';
+export {
+  AdminProblemsApi,
+  PROBLEM_REASONS,
+  ProblemsApi,
+  type OrderProblem,
+  type ProblemDetail,
+  type ProblemOutcome,
+  type ProblemPhoto,
+  type ProblemReason,
+} from './lib/orders/problems-api';
 export { provideApi } from './lib/provide-api';
