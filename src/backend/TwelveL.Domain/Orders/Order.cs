@@ -13,6 +13,40 @@ public enum OrderStatus
     Refunded,
 }
 
+/// <summary>Why an order was cancelled (L2-035). Sellers choose one of the first four; the ship deadline job uses the last.</summary>
+public enum CancellationReason
+{
+    ItemDamaged,
+    NoLongerHave,
+    ListedByMistake,
+    BuyerAskedToCancel,
+    ShipDeadlinePassed,
+}
+
+/// <summary>Where a buyer's request to cancel is. An order holds at most one request (L2-035 AC2).</summary>
+public enum CancellationRequestStatus
+{
+    Pending,
+    Accepted,
+    Declined,
+}
+
+public static class CancellationReasons
+{
+    /// <summary>The reasons a seller may give, in the order the Cancel order dialog lists them.</summary>
+    public static readonly CancellationReason[] SellerReasons =
+        [CancellationReason.ItemDamaged, CancellationReason.NoLongerHave, CancellationReason.ListedByMistake, CancellationReason.BuyerAskedToCancel];
+
+    public static string ToLabel(this CancellationReason reason) => reason switch
+    {
+        CancellationReason.ItemDamaged => "Item damaged",
+        CancellationReason.NoLongerHave => "No longer have it",
+        CancellationReason.ListedByMistake => "Listed by mistake",
+        CancellationReason.BuyerAskedToCancel => "Buyer asked me to cancel",
+        _ => "Not shipped in time",
+    };
+}
+
 /// <summary>
 /// One sale of one listing to one buyer, created from the provider's signed webhook (L2-030 AC2).
 /// The database allows one order per listing and per checkout (L2-029). Every status change goes
@@ -29,6 +63,9 @@ public sealed class Order
 
     /// <summary>How long after delivery a Delivered order completes by itself (L2-034 AC2).</summary>
     public static readonly TimeSpan AutoCompleteAfter = TimeSpan.FromDays(3);
+
+    /// <summary>The longest seller note or buyer message on a cancellation (L2-035).</summary>
+    public const int MaxCancellationText = 500;
 
     private readonly List<OrderStatusChange> _statusChanges = [];
 
@@ -98,6 +135,21 @@ public sealed class Order
     public Carrier? Carrier { get; private set; }
 
     public string? TrackingNumber { get; private set; }
+
+    /// <summary>Why the order was cancelled; null unless Cancelled.</summary>
+    public CancellationReason? CancellationReason { get; private set; }
+
+    /// <summary>The seller's optional note to the buyer on cancelling.</summary>
+    public string? CancellationNote { get; private set; }
+
+    /// <summary>The buyer's request to cancel, if they made one; one per order (L2-035 AC2).</summary>
+    public CancellationRequestStatus? CancellationRequestStatus { get; private set; }
+
+    public string? CancellationRequestMessage { get; private set; }
+
+    public DateTime? CancellationRequestedAt { get; private set; }
+
+    public DateTime? CancellationRespondedAt { get; private set; }
 
     /// <summary>The append-only history of transitions, oldest first.</summary>
     public IReadOnlyList<OrderStatusChange> StatusChanges => _statusChanges;
@@ -190,8 +242,51 @@ public sealed class Order
     /// <summary>Whether the completion job should complete this order at <paramref name="now"/> (L2-034 AC2).</summary>
     public bool IsDueForAutoCompletion(DateTime now) => AutoCompletesAt <= now;
 
-    /// <summary>The seller cancelled, or the ship deadline passed: Paid to Cancelled.</summary>
-    public void Cancel(OrderActor actor, DateTime now) => TransitionTo(OrderStatus.Cancelled, actor, now);
+    /// <summary>
+    /// The seller cancelled, or the ship deadline passed: Paid to Cancelled (L2-035, L2-033 AC2).
+    /// A pending buyer request is accepted with it.
+    /// </summary>
+    public void Cancel(CancellationReason reason, string? note, OrderActor actor, DateTime now)
+    {
+        TransitionTo(OrderStatus.Cancelled, actor, now);
+        CancellationReason = reason;
+        CancellationNote = note;
+        if (CancellationRequestStatus == Orders.CancellationRequestStatus.Pending)
+        {
+            CancellationRequestStatus = Orders.CancellationRequestStatus.Accepted;
+            CancellationRespondedAt = now;
+        }
+    }
+
+    /// <summary>The buyer asks the seller to cancel a Paid order (L2-035 AC2); it stays Paid. One request per order.</summary>
+    public void RequestCancellation(string? message, DateTime now)
+    {
+        if (Status != OrderStatus.Paid)
+        {
+            throw new InvalidOrderTransitionException(Status, OrderStatus.Cancelled, OrderActor.Buyer);
+        }
+
+        if (CancellationRequestStatus is not null)
+        {
+            throw new InvalidOperationException("The buyer already asked to cancel this order.");
+        }
+
+        CancellationRequestStatus = Orders.CancellationRequestStatus.Pending;
+        CancellationRequestMessage = message;
+        CancellationRequestedAt = now;
+    }
+
+    /// <summary>The seller declines a pending request; the order stays Paid and must still ship.</summary>
+    public void DeclineCancellation(DateTime now)
+    {
+        if (CancellationRequestStatus != Orders.CancellationRequestStatus.Pending)
+        {
+            throw new InvalidOperationException("There is no pending request to cancel this order.");
+        }
+
+        CancellationRequestStatus = Orders.CancellationRequestStatus.Declined;
+        CancellationRespondedAt = now;
+    }
 
     /// <summary>The only path that changes <see cref="Status"/>; throws <see cref="InvalidOrderTransitionException"/> for any move L2-032 does not list.</summary>
     public void TransitionTo(OrderStatus to, OrderActor actor, DateTime now)

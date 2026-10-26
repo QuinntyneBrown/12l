@@ -4,6 +4,7 @@ public enum RefundReason
 {
     DuplicatePayment,
     ShipDeadlinePassed,
+    OrderCancelled,
 }
 
 public enum RefundStatus
@@ -14,7 +15,7 @@ public enum RefundStatus
 
 /// <summary>
 /// Money returned to a buyer. A payment for a listing that already has an order (L2-029 AC2) and
-/// an order cancelled because the ship deadline passed (L2-033 AC2) are refunded in full.
+/// a cancelled order (L2-035, L2-033 AC2) are refunded in full.
 /// </summary>
 public sealed class Refund
 {
@@ -46,12 +47,13 @@ public sealed class Refund
         CreatedAt = now,
     };
 
-    public static Refund ForMissedShipDeadline(Payment payment, DateTime now) => new()
+    /// <summary>The full refund of a cancelled order: the seller cancelled, or the ship deadline passed.</summary>
+    public static Refund ForCancellation(Payment payment, CancellationReason reason, DateTime now) => new()
     {
         Id = Guid.NewGuid(),
         PaymentId = payment.Id,
         Amount = payment.Amount,
-        Reason = RefundReason.ShipDeadlinePassed,
+        Reason = reason == CancellationReason.ShipDeadlinePassed ? RefundReason.ShipDeadlinePassed : RefundReason.OrderCancelled,
         Status = RefundStatus.Pending,
         CreatedAt = now,
     };

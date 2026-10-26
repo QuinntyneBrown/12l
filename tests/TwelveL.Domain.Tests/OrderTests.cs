@@ -79,11 +79,43 @@ public sealed class OrderTests
     {
         var order = PaidOrder(PaidSaturday);
 
-        order.Cancel(OrderActor.System, order.ShipBy);
+        order.Cancel(CancellationReason.ShipDeadlinePassed, null, OrderActor.System, order.ShipBy);
 
         Assert.Equal(OrderStatus.Cancelled, order.Status);
         Assert.Equal(order.ShipBy, order.EndedAt);
         Assert.Equal(OrderActor.System, order.StatusChanges.Last().Actor);
+    }
+
+    [Fact]
+    public void A_seller_cancellation_keeps_the_reason_and_note_and_accepts_a_pending_request()
+    {
+        var order = PaidOrder(PaidSaturday);
+        order.RequestCancellation("Wrong colour", PaidSaturday.AddHours(1));
+
+        order.Cancel(CancellationReason.BuyerAskedToCancel, "Sorry", OrderActor.Seller, PaidSaturday.AddHours(2));
+
+        Assert.Equal(OrderStatus.Cancelled, order.Status);
+        Assert.Equal(CancellationReason.BuyerAskedToCancel, order.CancellationReason);
+        Assert.Equal("Sorry", order.CancellationNote);
+        Assert.Equal(CancellationRequestStatus.Accepted, order.CancellationRequestStatus);
+        Assert.Equal(PaidSaturday.AddHours(2), order.CancellationRespondedAt);
+    }
+
+    [Fact]
+    public void A_buyer_asks_once_and_only_while_paid()
+    {
+        var order = PaidOrder(PaidSaturday);
+        order.RequestCancellation(null, PaidSaturday);
+        order.DeclineCancellation(PaidSaturday.AddHours(1));
+
+        Assert.Equal(OrderStatus.Paid, order.Status);
+        Assert.Equal(CancellationRequestStatus.Declined, order.CancellationRequestStatus);
+        Assert.Throws<InvalidOperationException>(() => order.RequestCancellation("again", PaidSaturday));
+        Assert.Throws<InvalidOperationException>(() => order.DeclineCancellation(PaidSaturday));
+
+        var shipped = PaidOrder(PaidSaturday);
+        shipped.MarkShipped(Carrier.Usps, "9400111899223456120477", PaidSaturday.AddDays(1));
+        Assert.Throws<InvalidOrderTransitionException>(() => shipped.RequestCancellation(null, PaidSaturday.AddDays(2)));
     }
 
     [Fact]
@@ -100,7 +132,7 @@ public sealed class OrderTests
     public void A_cancelled_order_accepts_no_transition()
     {
         var order = PaidOrder(PaidSaturday);
-        order.Cancel(OrderActor.System, order.ShipBy);
+        order.Cancel(CancellationReason.ShipDeadlinePassed, null, OrderActor.System, order.ShipBy);
 
         foreach (var to in Enum.GetValues<OrderStatus>())
         {

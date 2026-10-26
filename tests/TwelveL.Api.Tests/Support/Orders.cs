@@ -32,6 +32,18 @@ public static class Orders
     public static Task<HttpResponseMessage> AddTrackingAsync(this HttpClient client, Guid orderId, string carrier = "USPS", string trackingNumber = UspsNumber) =>
         client.PostAsJsonAsync($"/api/orders/{orderId}/shipment", new { carrier, trackingNumber });
 
+    public static Task<HttpResponseMessage> CancelOrderAsync(this HttpClient client, Guid orderId, string? reason, string? note = null) =>
+        client.PostAsJsonAsync($"/api/orders/{orderId}/cancellation", new { reason, note });
+
+    public static Task<HttpResponseMessage> RequestCancellationAsync(this HttpClient client, Guid orderId, string? message) =>
+        client.PostAsJsonAsync($"/api/orders/{orderId}/cancellation-request", new { message });
+
+    public static Task<HttpResponseMessage> RespondToCancellationAsync(this HttpClient client, Guid orderId, string? decision) =>
+        client.PostAsJsonAsync($"/api/orders/{orderId}/cancellation-request/response", new { decision });
+
+    public static Task<HttpResponseMessage> RelistAsync(this HttpClient client, string reference) =>
+        client.PostAsync($"/api/listings/{reference}/relist", null);
+
     public static Task<HttpResponseMessage> ConfirmReceiptAsync(this HttpClient client, Guid orderId) =>
         client.PostAsync($"/api/orders/{orderId}/receipt", null);
 
@@ -72,3 +84,11 @@ public sealed record SaleView(
     TrackingView? Tracking);
 
 public sealed record OrderView(Guid Id, string Reference, string Status, DateTime ShipBy, IReadOnlyList<TimelineStepView> Timeline, TrackingView? Tracking, DateTime? AutoCompletesAt = null);
+
+public sealed record CancellationView(string Reason, string ReasonLabel, string? Note);
+
+public sealed record CancellationRequestView(string? Message, string Status, DateTime RequestedAt);
+
+public sealed record CancelledSaleView(Guid Id, string Status, CancellationView? Cancellation, CancellationRequestView? CancellationRequest, bool CanRelist);
+
+public sealed record CancelledPurchaseView(Guid Id, string Status, CancellationView? Cancellation, CancellationRequestView? CancellationRequest);

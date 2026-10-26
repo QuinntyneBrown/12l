@@ -70,7 +70,7 @@ public sealed class PaymentWebhookHandler(
 
         payment.Succeed(paymentEvent.ProviderPaymentId, paymentEvent.CardBrand, paymentEvent.CardLast4, now);
         var listing = await db.Listings.SingleAsync(l => l.Id == checkout.ListingId, cancellationToken);
-        var sold = await db.Orders.AnyAsync(o => o.ListingId == listing.Id, cancellationToken);
+        var sold = await db.Orders.AnyAsync(o => o.ListingId == listing.Id && o.Status != OrderStatus.Cancelled, cancellationToken);
         var stillOurs = (listing.Status == ListingStatus.Reserved && listing.ReservedByCheckoutId == checkout.Id) || listing.Status == ListingStatus.Active;
         Refund? refund = null;
         if (!sold && stillOurs)

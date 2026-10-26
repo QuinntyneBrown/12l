@@ -141,11 +141,12 @@ public sealed class CarrierWebhookHandler(ITwelveLDbContext db, ICarrierTracking
 
 /// <summary>
 /// The ship deadline job's pass: every Paid order whose ship-by date has passed is cancelled by
-/// the system and its payment refunded in full (L2-033 AC2). Returns how many were cancelled.
+/// the system and its payment refunded in full (L2-033 AC2), through the same path as a seller
+/// cancellation. Returns how many were cancelled.
 /// </summary>
 public sealed record CancelUnshippedOrdersCommand : IRequest<int>;
 
-public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, IPaymentProvider provider, IEmailOutbox notifications, TimeProvider clock) :
+public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, OrderCancellation cancellation, TimeProvider clock) :
     IRequestHandler<CancelUnshippedOrdersCommand, int>
 {
     public async Task<int> Handle(CancelUnshippedOrdersCommand command, CancellationToken cancellationToken)
@@ -156,17 +157,11 @@ public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, IPaymentP
         foreach (var id in ids)
         {
             var order = await db.Orders.Include(o => o.StatusChanges).SingleAsync(o => o.Id == id, cancellationToken);
-            var payment = await db.Payments.SingleAsync(p => p.Id == order.PaymentId, cancellationToken);
             Refund refund;
+            Payment payment;
             try
             {
-                order.Cancel(OrderActor.System, now);
-                refund = Refund.ForMissedShipDeadline(payment, now);
-                db.Refunds.Add(refund);
-                var title = await OrderEmails.ItemTitleAsync(db, order, cancellationToken);
-                notifications.Enqueue(NotificationType.OrderCancelled, order.BuyerId, new OrderCancelledEmail(order.Id, order.Reference, title, ToSeller: false));
-                notifications.Enqueue(NotificationType.OrderCancelled, order.SellerId, new OrderCancelledEmail(order.Id, order.Reference, title, ToSeller: true));
-                await db.SaveChangesAsync(cancellationToken);
+                (refund, payment) = await cancellation.CancelAsync(order, CancellationReason.ShipDeadlinePassed, null, OrderActor.System, cancellationToken);
             }
             catch (Exception exception) when (exception is InvalidOrderTransitionException or DbUpdateConcurrencyException)
             {
@@ -176,30 +171,9 @@ public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, IPaymentP
             }
 
             cancelled++;
-            await IssueAsync(order, refund, payment, cancellationToken);
+            await cancellation.IssueRefundAsync(order, refund, payment, cancellationToken);
         }
 
         return cancelled;
-    }
-
-    /// <summary>
-    /// Refunds through the provider with the refund ID as key and emails the buyer the refund; a
-    /// failure leaves it Pending for a retry.
-    /// </summary>
-    private async Task IssueAsync(Order order, Refund refund, Payment payment, CancellationToken cancellationToken)
-    {
-        try
-        {
-            refund.Issued(await provider.RefundAsync(payment.ProviderPaymentId!, refund.Amount, refund.Id, cancellationToken));
-            notifications.Enqueue(
-                NotificationType.OrderRefunded,
-                order.BuyerId,
-                new OrderRefundedEmail(order.Id, order.Reference, refund.Amount, payment.CardBrand, payment.CardLast4));
-            await db.SaveChangesAsync(cancellationToken);
-        }
-        catch (HttpRequestException)
-        {
-            // Stays Pending; dispatching pending refunds belongs to the outbox (see the design).
-        }
     }
 }

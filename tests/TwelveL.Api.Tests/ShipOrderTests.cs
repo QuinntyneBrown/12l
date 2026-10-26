@@ -207,7 +207,8 @@ public sealed class ShipOrderTests : IDisposable
             Assert.Equal(RefundReason.ShipDeadlinePassed, stored.Reason);
             Assert.Equal(RefundStatus.Issued, stored.Status);
             Assert.Equal(OrderActor.System, db.Set<OrderStatusChange>().Single(c => c.To == OrderStatus.Cancelled).Actor);
-            Assert.Equal(ListingStatus.Sold, db.Listings.Single().Status);
+            Assert.Equal(ListingStatus.Removed, db.Listings.Single().Status);
+            Assert.Equal(CancellationReason.ShipDeadlinePassed, db.Orders.Single().CancellationReason);
         });
     }
 
@@ -219,7 +220,7 @@ public sealed class ShipOrderTests : IDisposable
         _factory.InDatabase(db =>
         {
             var order = db.Orders.Single();
-            order.Cancel(OrderActor.System, order.ShipBy);
+            order.Cancel(CancellationReason.ShipDeadlinePassed, null, OrderActor.System, order.ShipBy);
             db.SaveChanges();
         });
 

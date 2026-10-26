@@ -14,7 +14,14 @@ public sealed record OrderDeliveredEmail(Guid OrderId, string OrderReference, st
 
 public sealed record ShipByReminderEmail(Guid OrderId, string OrderReference, string ItemTitle, DateTime ShipBy);
 
-/// <summary><paramref name="ToSeller"/> picks the seller's wording and the sale link instead of the buyer's order link.</summary>
-public sealed record OrderCancelledEmail(Guid OrderId, string OrderReference, string ItemTitle, bool ToSeller);
+/// <summary>
+/// <paramref name="ToSeller"/> picks the seller's wording and the sale link instead of the buyer's
+/// order link. <paramref name="Reason"/> and <paramref name="Note"/> are the seller's when the
+/// seller cancelled (L2-035 AC1); both are null when the ship deadline passed.
+/// </summary>
+public sealed record OrderCancelledEmail(Guid OrderId, string OrderReference, string ItemTitle, bool ToSeller, string? Reason = null, string? Note = null);
+
+/// <summary>The buyer asked the seller to cancel, with their optional message (L2-035 AC2).</summary>
+public sealed record CancellationRequestedEmail(Guid OrderId, string OrderReference, string ItemTitle, string? Message);
 
 public sealed record OrderRefundedEmail(Guid OrderId, string OrderReference, decimal Amount, string? CardBrand, string? CardLast4);

@@ -10,6 +10,12 @@ public enum ListingStatus
     Removed,
 }
 
+/// <summary>Why a listing was taken off the catalog. A cancelled order's listing waits for the seller to relist it (L2-035).</summary>
+public enum ListingRemovalReason
+{
+    OrderCancelled,
+}
+
 /// <summary>The editable fields of a listing as a client sends them. Every field but the category may be missing in a draft.</summary>
 public sealed record ListingDetails(
     string? Category,
@@ -93,6 +99,38 @@ public sealed class Listing
     public Guid? ReservedByCheckoutId { get; private set; }
 
     public DateTime? ReservedUntil { get; private set; }
+
+    /// <summary>Why the listing is Removed; null in any other status.</summary>
+    public ListingRemovalReason? RemovalReason { get; private set; }
+
+    /// <summary>Whether the seller can relist it: removed because its order was cancelled (L2-035 AC4).</summary>
+    public bool CanRelist => Status == ListingStatus.Removed && RemovalReason == ListingRemovalReason.OrderCancelled;
+
+    /// <summary>Sold → Removed when its order is cancelled, so it stays off the catalog until relisted (L2-035).</summary>
+    public void RemoveAfterCancellation(DateTime now)
+    {
+        if (Status != ListingStatus.Sold)
+        {
+            throw new InvalidOperationException("Only a sold listing is removed when its order is cancelled.");
+        }
+
+        Status = ListingStatus.Removed;
+        RemovalReason = ListingRemovalReason.OrderCancelled;
+        UpdatedAt = now;
+    }
+
+    /// <summary>Removed → Active with its original details (L2-035 AC4).</summary>
+    public void Relist(DateTime now)
+    {
+        if (!CanRelist)
+        {
+            throw new InvalidOperationException("Only the listing of a cancelled order can be relisted.");
+        }
+
+        Status = ListingStatus.Active;
+        RemovalReason = null;
+        UpdatedAt = now;
+    }
 
     /// <summary>A seller may not buy their own listing (L2-026 AC2).</summary>
     public bool CanBePurchasedBy(Guid buyerId) => buyerId != SellerId;

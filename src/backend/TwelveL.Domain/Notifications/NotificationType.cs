@@ -14,4 +14,5 @@ public enum NotificationType
     ShipByReminder,
     OrderCancelled,
     OrderRefunded,
+    CancellationRequested,
 }
