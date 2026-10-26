@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\TwelveL.Application\TwelveL.Application.csproj" />
+    <ProjectReference Include="..\TwelveL.Infrastructure\TwelveL.Infrastructure.csproj" />
+    <ProjectReference Include="..\TwelveL.Migrator\TwelveL.Migrator.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.13" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="10.0.13" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="SeedPhotos\**\*.jpg" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+</Project>
