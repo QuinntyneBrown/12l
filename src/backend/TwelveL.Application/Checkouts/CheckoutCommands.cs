@@ -93,7 +93,8 @@ public sealed class CheckoutCommandHandlers(
                 .ExecuteUpdateAsync(
                     s => s.SetProperty(l => l.Status, ListingStatus.Reserved)
                         .SetProperty(l => l.ReservedByCheckoutId, checkout.Id)
-                        .SetProperty(l => l.ReservedUntil, checkout.ExpiresAt),
+                        .SetProperty(l => l.ReservedUntil, checkout.ExpiresAt)
+                        .SetProperty(l => l.Version, l => l.Version + 1),
                     cancellationToken);
             if (reserved == 0)
             {
