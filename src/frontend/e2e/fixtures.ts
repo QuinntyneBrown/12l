@@ -605,3 +605,34 @@ export function orderList(
 ): Record<string, unknown> {
   return { items, counts: { onTheWay: 0, toConfirm: 0, toShip: 0, ...counts } };
 }
+
+/** One row of GET /api/me/listings: the Active sandals with a cover photo, first saved Wed 21 Oct. */
+export function myListingRow(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  const hash = 'a'.repeat(64);
+  return {
+    reference: 'L-10021',
+    status: 'Active',
+    title: 'Arizona sandals',
+    category: 'Shoes',
+    price: 45,
+    photo: {
+      width: 1200,
+      height: 1200,
+      alt: '',
+      src: `/photos/${hash}/400.jpg`,
+      webp: `/photos/${hash}/400.webp 400w`,
+      jpeg: `/photos/${hash}/400.jpg 400w`,
+    },
+    createdAt: '2026-10-21T15:00:00Z',
+    saleOrderId: null,
+    ...fields,
+  };
+}
+
+/** GET /api/me/listings: the rows newest first and the count in each status. */
+export function myListings(
+  items: Record<string, unknown>[],
+  counts: Record<string, number> = {},
+): Record<string, unknown> {
+  return { items, counts: { all: 0, draft: 0, active: 0, reserved: 0, sold: 0, removed: 0, ...counts } };
+}

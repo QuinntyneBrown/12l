@@ -44,6 +44,26 @@ export interface MyListing {
   photos: Photo[];
 }
 
+export type ListingStatus = MyListing['status'];
+
+/** One row of "My listings" (L2-021); `title` is null for an untitled draft, `saleOrderId` set for a Sold listing. */
+export interface MyListingRow {
+  reference: string;
+  status: ListingStatus;
+  title: string | null;
+  category: string;
+  price: number | null;
+  photo: { width: number; height: number; src: string; webp: string; jpeg: string } | null;
+  createdAt: string;
+  saleOrderId: string | null;
+}
+
+/** GET /api/me/listings: the rows newest first and how many listings are in each status. */
+export interface MyListings {
+  items: MyListingRow[];
+  counts: { all: number; draft: number; active: number; reserved: number; sold: number; removed: number };
+}
+
 /** POST /api/listings/{reference}/publish: whether to prompt for payout onboarding (L2-031). */
 export interface PublishResult {
   reference: string;
@@ -71,6 +91,12 @@ export class ListingsApi {
         sizeConfirmed,
       }),
     );
+  }
+
+  /** The seller's listings in every status, or in `status` only, newest first (L2-021). */
+  mine(status?: ListingStatus): Promise<ApiResult<MyListings>> {
+    const params: Record<string, string> = status ? { status } : {};
+    return toResult(this.http.get<MyListings>(`${this.baseUrl}/me/listings`, { params }));
   }
 
   getMine(reference: string): Promise<ApiResult<MyListing>> {

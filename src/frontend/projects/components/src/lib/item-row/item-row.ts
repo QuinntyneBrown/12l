@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /**
  * One item on one line: optional projected thumbnail, title and a muted meta line (design
- * system: Item row). Project the thumbnail with the `thumb` attribute.
+ * system: Item row). Project the thumbnail with the `thumb` attribute;
+ * other content, such as a `tl-status`, goes under the title.
  */
 @Component({
   selector: 'tl-item-row',
