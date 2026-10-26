@@ -257,3 +257,125 @@ export async function serveListing(page: Page, body: Record<string, unknown>): P
   await page.route('**/api/catalog/listings/L-10001', (route) => route.fulfill({ json: body }));
   await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
 }
+
+/** The saved address of marcus_12 as 12L API returns it. */
+export const brooklyn = {
+  fullName: 'Marcus Bell',
+  line1: '214 Kent Ave',
+  line2: 'Apt 3R',
+  city: 'Brooklyn',
+  state: 'NY',
+  zip: '11249',
+  country: 'US',
+};
+
+/** When the fixtures' checkouts start; tests install the page clock at this time. */
+export const checkoutStart = new Date('2026-10-25T12:00:00Z');
+
+/** A checkout of L-10001 as /api/checkouts returns it: 9:41 left, priced for the saved address. */
+export function checkout(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  const hash = '1'.padStart(64, 'd');
+  return {
+    id: 'c-1',
+    status: 'Open',
+    expiresAt: new Date(checkoutStart.getTime() + (9 * 60 + 41) * 1000).toISOString(),
+    item: {
+      reference: 'L-10001',
+      title: 'Air Max 90, white',
+      brand: 'Nike',
+      size: "Men's US 12",
+      condition: 'Used - Excellent',
+      photo: {
+        width: 1200,
+        height: 1600,
+        alt: '',
+        src: `/photos/${hash}/400.jpg`,
+        webp: `/photos/${hash}/400.webp 400w`,
+        jpeg: `/photos/${hash}/400.jpg 400w`,
+      },
+    },
+    itemPrice: '85.00',
+    shippingCost: '9.00',
+    salesTax: null,
+    total: null,
+    address: null,
+    savedAddress: brooklyn,
+    lastDeclineReason: null,
+    orderId: null,
+    ...fields,
+  };
+}
+
+/** The checkout once an address is set: $8.34 tax, $102.34 total. */
+export function pricedCheckout(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return checkout({ address: brooklyn, salesTax: '8.34', total: '102.34', ...fields });
+}
+
+/** GET /api/purchases/o-1. */
+export const purchase = {
+  id: 'o-1',
+  reference: '12L-48377',
+  status: 'Paid',
+  item: checkout()['item'],
+  total: '102.34',
+  cardBrand: 'Visa',
+  cardLast4: '4242',
+  sellerDisplayName: 'kicks_12',
+  paidAt: '2026-10-25T12:01:00Z',
+};
+
+/** One request the checkout page sent, with its body and headers. */
+export interface SentRequest {
+  method: string;
+  url: string;
+  body: unknown;
+  headers: Record<string, string>;
+}
+
+/**
+ * Answers the checkout endpoints for c-1 and serves the photos. start answers POST /api/checkouts;
+ * the PUT address answers the priced checkout unless `address` is given; payments answer 202; each
+ * GET of the checkout answers the next of `polls` (the last repeats). Returns every request sent.
+ */
+export async function serveCheckout(
+  page: Page,
+  options: {
+    start?: { status: number; contentType?: string; body: string } | Record<string, unknown>;
+    address?: { status: number; contentType: string; body: string };
+    pay?: { status: number; contentType: string; body: string };
+    polls?: Record<string, unknown>[];
+  } = {},
+): Promise<SentRequest[]> {
+  const sent: SentRequest[] = [];
+  const record = (route: Route) => {
+    const request = route.request();
+    sent.push({
+      method: request.method(),
+      url: request.url(),
+      body: request.postDataJSON(),
+      headers: request.headers(),
+    });
+  };
+  const polls = [...(options.polls ?? [pricedCheckout({ status: 'Paid', orderId: 'o-1' })])];
+  await page.route('**/api/checkouts', (route) => {
+    record(route);
+    const start = options.start ?? checkout();
+    return route.fulfill('status' in start && 'body' in start ? (start as never) : { status: 201, json: start });
+  });
+  await page.route('**/api/checkouts/c-1/address', (route) => {
+    record(route);
+    return route.fulfill(options.address ?? { json: pricedCheckout() });
+  });
+  await page.route('**/api/checkouts/c-1/payments', (route) => {
+    record(route);
+    return route.fulfill(options.pay ?? { status: 202, json: { id: 'p-1', status: 'Pending' } });
+  });
+  await page.route('**/api/checkouts/c-1', (route) => {
+    record(route);
+    if (route.request().method() === 'DELETE') return route.fulfill({ status: 204 });
+    const next = polls.length > 1 ? polls.shift()! : polls[0];
+    return route.fulfill({ json: next });
+  });
+  await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
+  return sent;
+}
