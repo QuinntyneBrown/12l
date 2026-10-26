@@ -1,4 +1,5 @@
 using TwelveL.Api.Auth;
+using TwelveL.Api.Privacy;
 using TwelveL.Application;
 using TwelveL.Infrastructure;
 
@@ -8,8 +9,11 @@ builder.Services.AddControllers();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddTwelveLAuth(builder.Configuration);
+builder.Services.Configure<StrictlyNecessaryCookieOptions>(builder.Configuration.GetSection(StrictlyNecessaryCookieOptions.Section));
 
 var app = builder.Build();
+
+app.UseMiddleware<CookieAllowListMiddleware>();
 
 app.UseAuthentication();
 app.UseAuthorization();
