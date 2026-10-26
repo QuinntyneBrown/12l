@@ -23,20 +23,24 @@ public sealed record MyListingDto(
     decimal? ShippingCost,
     DateTime CreatedAt,
     DateTime UpdatedAt,
-    DateTime? PublishedAt)
+    DateTime? PublishedAt,
+    IReadOnlyList<PhotoDto> Photos)
 {
-    public static MyListingDto From(Listing l) => new(
+    /// <summary>The listing with its photos, cover first.</summary>
+    public static MyListingDto From(Listing l, IEnumerable<ListingPhoto> photos, PhotoOptions options) => new(
         l.Reference, l.Status.ToString(), l.Category, l.Subcategory, l.Size, l.Title, l.Description, l.Brand,
-        l.Condition?.ToLabel(), l.Flaws, l.Price, l.ShippingCost, l.CreatedAt, l.UpdatedAt, l.PublishedAt);
+        l.Condition?.ToLabel(), l.Flaws, l.Price, l.ShippingCost, l.CreatedAt, l.UpdatedAt, l.PublishedAt,
+        photos.Select(p => PhotoDto.From(p, options)).ToList());
 }
 
 public sealed record PublishListingResult(string Reference, string Status, bool PayoutOnboardingRequired);
 
 /// <summary>Creates a draft; only an accepted category is required (L2-019). The size comes from the category (L2-013).</summary>
-public sealed record CreateListingDraftCommand(Guid SellerId, ListingDetails Details) : IRequest<Result<MyListingDto>>;
+/// <remarks>PhotoIds sets the photos in display order (L2-017); null leaves them unchanged.</remarks>
+public sealed record CreateListingDraftCommand(Guid SellerId, ListingDetails Details, IReadOnlyList<Guid>? PhotoIds = null) : IRequest<Result<MyListingDto>>;
 
 /// <summary>Replaces the fields of the caller's draft. Editing an active listing belongs to edit-and-withdraw-listing.</summary>
-public sealed record UpdateListingDraftCommand(Guid SellerId, string Reference, ListingDetails Details) : IRequest<Result<MyListingDto>>;
+public sealed record UpdateListingDraftCommand(Guid SellerId, string Reference, ListingDetails Details, IReadOnlyList<Guid>? PhotoIds = null) : IRequest<Result<MyListingDto>>;
 
 /// <summary>Publishes the caller's draft under the L2-014 to L2-018 rules and the daily limit of L2-051.</summary>
 public sealed record PublishListingCommand(Guid SellerId, string Reference, bool SizeConfirmed) : IRequest<Result<PublishListingResult>>;
@@ -46,7 +50,9 @@ public sealed record GetMyListingQuery(Guid SellerId, string Reference) : IReque
 public sealed class ListingCommandHandlers(
     ITwelveLDbContext db,
     ISellerPayoutAccountReader payouts,
+    ListingPhotoAttacher photos,
     IOptions<SellingOptions> options,
+    IOptions<PhotoOptions> photoOptions,
     TimeProvider clock) :
     IRequestHandler<CreateListingDraftCommand, Result<MyListingDto>>,
     IRequestHandler<UpdateListingDraftCommand, Result<MyListingDto>>,
@@ -66,9 +72,14 @@ public sealed class ListingCommandHandlers(
         var now = clock.GetUtcNow().UtcDateTime;
         var last = await db.Listings.MaxAsync(l => (long?)l.Number, cancellationToken);
         var listing = Listing.CreateDraft(command.SellerId, (last ?? FirstNumber - 1) + 1, command.Details, now);
+        if (await photos.AttachAsync(command.SellerId, listing.Id, command.PhotoIds, cancellationToken) is { } photoError)
+        {
+            return photoError;
+        }
+
         db.Listings.Add(listing);
         await db.SaveChangesAsync(cancellationToken);
-        return MyListingDto.From(listing);
+        return await ToDtoAsync(listing, cancellationToken);
     }
 
     public async Task<Result<MyListingDto>> Handle(UpdateListingDraftCommand command, CancellationToken cancellationToken)
@@ -89,9 +100,14 @@ public sealed class ListingCommandHandlers(
             return error;
         }
 
+        if (await photos.AttachAsync(command.SellerId, listing.Id, command.PhotoIds, cancellationToken) is { } photoError)
+        {
+            return photoError;
+        }
+
         listing.UpdateDetails(command.Details, clock.GetUtcNow().UtcDateTime);
         await db.SaveChangesAsync(cancellationToken);
-        return MyListingDto.From(listing);
+        return await ToDtoAsync(listing, cancellationToken);
     }
 
     public async Task<Result<PublishListingResult>> Handle(PublishListingCommand command, CancellationToken cancellationToken)
@@ -116,7 +132,8 @@ public sealed class ListingCommandHandlers(
             return Error.TooManyRequests(dayStart.AddDays(1) - now, $"That's {options.Value.PublishesPerDay} listings today");
         }
 
-        if (ToError(listing.Publish(command.SizeConfirmed, now)) is { } error)
+        var photoCount = await db.ListingPhotos.CountAsync(p => p.ListingId == listing.Id, cancellationToken);
+        if (ToError(listing.Publish(command.SizeConfirmed, now, photoCount)) is { } error)
         {
             return error;
         }
@@ -129,8 +146,11 @@ public sealed class ListingCommandHandlers(
     public async Task<Result<MyListingDto>> Handle(GetMyListingQuery query, CancellationToken cancellationToken)
     {
         var listing = await FindOwnAsync(query.SellerId, query.Reference, cancellationToken);
-        return listing is null ? Error.NotFound("LISTING_NOT_FOUND") : MyListingDto.From(listing);
+        return listing is null ? Error.NotFound("LISTING_NOT_FOUND") : await ToDtoAsync(listing, cancellationToken);
     }
+
+    private async Task<MyListingDto> ToDtoAsync(Listing listing, CancellationToken cancellationToken) =>
+        MyListingDto.From(listing, await photos.PhotosOfAsync(listing.Id, cancellationToken), photoOptions.Value);
 
     private static readonly Error NotDraft = new(409, "LISTING_NOT_DRAFT", "This listing is not a draft");
 

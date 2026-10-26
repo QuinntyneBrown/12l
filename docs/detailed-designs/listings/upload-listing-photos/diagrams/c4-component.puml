@@ -3,31 +3,28 @@
 LAYOUT_WITH_LEGEND()
 title Components — Upload listing photos
 
-Container(web, "12L Web", "Angular", "PhotoUploaderComponent, PhotoUploadService")
+Container(web, "12L Web", "Angular", "SellPage, tl-photo-uploader, PhotosApi, ListingsApi")
 Container_Boundary(api, "12L API") {
   Component(ctrl, "PhotoUploadsController", "ASP.NET Core controller", "POST /api/photo-uploads, GET /api/photo-uploads/{id}")
-  Component(handler, "UploadListingPhotoCommandHandler", "MediatR handler", "Checks size, type and dimensions; stores original")
-  Component(sniffer, "ImageInspector", "Infrastructure service", "Detects type from magic bytes, reads dimensions")
+  Component(photos, "PhotosController", "ASP.NET Core controller", "GET /photos/{hash}/{file}, one-year immutable cache")
+  Component(listings, "ListingsController", "ASP.NET Core controller", "POST and PUT /api/listings with photoIds")
+  Component(handler, "ListingPhotoHandlers", "MediatR handlers", "Checks size, type, shortest side, pixels; processes and stores")
   Component(attach, "ListingPhotoAttacher", "Application service", "Attaches up to 8 owned photos in order on listing save")
+  Component(inspector, "SkiaImageInspector", "IImageInspector", "Magic bytes and header dimensions")
+  Component(proc, "SkiaPhotoProcessor", "IListingPhotoProcessor", "Orients, strips metadata, re-encodes 400, 800, 1600 px in WebP and JPEG")
+  Component(store, "FileSystemPhotoStorage", "IPhotoStorage", "private/ originals, public/ versions")
 }
-Container_Boundary(worker, "12L Worker") {
-  Component(job, "PhotoProcessingJob", "Hosted service", "Dispatches ProcessListingPhoto outbox messages")
-  Component(proc, "ListingPhotoProcessor", "Infrastructure service", "Strips metadata, re-encodes 400, 800, 1600 px in WebP and JPEG")
-  Component(cleanup, "PhotoCleanupJob", "Hosted service", "Deletes unattached uploads and unreferenced versions")
-}
-ComponentDb(db, "12L database", "SQL Server", "ListingPhotos, ListingPhotoVersions, OutboxMessages")
-ComponentDb(storage, "Photo storage", "Object storage", "originals/ (private), {hash}/{width}.{ext} (public)")
+ComponentDb(db, "12L database", "SQL Server", "ListingPhotos, ListingPhotoVersions")
 
 Rel(web, ctrl, "Uploads one file per request", "multipart/form-data")
+Rel(web, listings, "Saves photoIds in display order", "JSON")
+Rel(web, photos, "Loads thumbnails")
 Rel(ctrl, handler, "Sends UploadListingPhotoCommand")
-Rel(handler, sniffer, "Inspects stream")
-Rel(handler, storage, "Writes original")
-Rel(handler, db, "Inserts photo row and outbox message")
-Rel(job, db, "Claims outbox messages")
-Rel(job, proc, "Processes photo")
-Rel(proc, storage, "Reads original, writes versions")
-Rel(proc, db, "Marks Ready or Failed")
-Rel(cleanup, db, "Finds orphans")
-Rel(cleanup, storage, "Deletes objects")
+Rel(handler, inspector, "Inspects bytes")
+Rel(handler, proc, "Processes original")
+Rel(handler, store, "Writes versions and original")
+Rel(handler, db, "Inserts photo row")
+Rel(listings, attach, "Via the listing command handlers")
 Rel(attach, db, "Sets ListingId and Position")
+Rel(photos, store, "Reads version")
 @enduml

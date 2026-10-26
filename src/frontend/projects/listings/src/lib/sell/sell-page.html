@@ -18,6 +18,18 @@
           </tl-alert>
         }
 
+        <section class="form-section" aria-labelledby="s-photos">
+          <h2 id="s-photos">Photos</h2>
+          <tl-photo-uploader
+            [tiles]="photos()"
+            [max]="maxPhotos()"
+            [error]="photoError()"
+            (filesSelected)="addPhotos($event)"
+            (removed)="removePhoto($event)"
+            (moved)="movePhoto($event)"
+          />
+        </section>
+
         <section class="form-section" aria-labelledby="s-item">
           <h2 id="s-item">Item</h2>
           <div class="form-row">

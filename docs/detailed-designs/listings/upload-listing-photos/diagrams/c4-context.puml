@@ -5,8 +5,8 @@ title System Context — Upload listing photos
 
 Person(seller, "Seller", "Adds, removes and reorders photos of an item")
 Person(buyer, "Visitor or buyer", "Views listing photos in the catalog")
-System(twelvel, "12L", "Marketplace for men's US 12 shoes and men's L clothing; photos served through its CDN")
+System(twelvel, "12L", "Marketplace for men's US 12 shoes and men's L clothing; serves content-addressed photo versions")
 
 Rel(seller, twelvel, "Uploads and orders photos using", "HTTPS multipart")
-Rel(buyer, twelvel, "Loads content-addressed photo versions from", "HTTPS via CDN")
+Rel(buyer, twelvel, "Loads photo versions cached for one year from", "HTTPS (a CDN later)")
 @enduml

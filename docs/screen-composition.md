@@ -158,11 +158,11 @@ Auth shell. `@12l/accounts` `VerifyEmailPage` reads `token` from the query strin
 ### Sell an item — `/sell` (`pages/sell`: default, filled, invalid, submitting, draft-saved, success, unverified, limited, error)
 
 App shell. `@12l/listings` `SellPage` at `/sell` and `/sell/{reference}` (continue a draft).
-Visitors are sent to `/sign-in?returnUrl=/sell`. The Photos section and its uploader arrive with
-upload-listing-photos; the footer stays visible under the form.
+Visitors are sent to `/sign-in?returnUrl=/sell`. The Photos section comes first; each chosen file
+uploads at once and a save sends the photo IDs in order. The footer stays visible under the form.
 
-- Library: `tl-error-summary` (invalid), `tl-alert` (draft-saved success, save or publish failure), `tl-form-field` (category, type, title with counter, brand, flaws, description with counter, price, shipping), `tl-input-group` (`$` addon), `tl-fixed-size` with `tl-size-tag` (after a category is chosen), `tl-segmented` (condition), `tl-earnings`, `tl-choice` (size confirmation), `tl-button` (Save draft, Publish with busy), `tl-center-state` (success, unverified, limited, error) with `tl-item-row` (success panel) and `tl-icon`, `DialogService` (opens the verify-email prompt)
-- Local: `.page-header` with the h1, `.sell-form` sections (`.form-section`, `.form-row`), the brand `<datalist>`, the sticky `.form-actions` bar, the success panel wrapper and the payouts line
+- Library: `tl-photo-uploader` (photos with cover, uploading and rejected tiles, add tile, help and error), `tl-error-summary` (invalid), `tl-alert` (draft-saved success, save or publish failure), `tl-form-field` (category, type, title with counter, brand, flaws, description with counter, price, shipping), `tl-input-group` (`$` addon), `tl-fixed-size` with `tl-size-tag` (after a category is chosen), `tl-segmented` (condition), `tl-earnings`, `tl-choice` (size confirmation), `tl-button` (Save draft, Publish with busy), `tl-center-state` (success, unverified, limited, error) with `tl-item-row` (success panel) and `tl-icon`, `DialogService` (opens the verify-email prompt)
+- Local: `.page-header` with the h1, `.sell-form` sections (Photos, Item, Price, confirmation: `.form-section`, `.form-row`), the upload state of each tile and its client size check, the brand `<datalist>`, the sticky `.form-actions` bar, the success panel wrapper and the payouts line
 
 ### Forbidden — `/403` (`pages/forbidden`: default)
 

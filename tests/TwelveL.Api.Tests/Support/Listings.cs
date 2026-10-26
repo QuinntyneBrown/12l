@@ -31,6 +31,13 @@ public static class Listings
         return created!.Reference;
     }
 
+    /// <summary>Uploads a photo and creates a draft that carries it, so the draft can be published.</summary>
+    public static async Task<string> CreateDraftWithPhotoAsync(this HttpClient client, Dictionary<string, object?> body)
+    {
+        var photoId = await client.UploadValidPhotoAsync();
+        return await client.CreateDraftAsync(body.With("photoIds", new[] { photoId }));
+    }
+
     public static Task<HttpResponseMessage> PublishAsync(this HttpClient client, string reference, bool sizeConfirmed = true) =>
         client.PostAsJsonAsync($"/api/listings/{reference}/publish", new { sizeConfirmed });
 }
@@ -48,6 +55,7 @@ public sealed record MyListing(
     string? Flaws,
     decimal? Price,
     decimal? ShippingCost,
-    DateTime? PublishedAt);
+    DateTime? PublishedAt,
+    IReadOnlyList<PhotoUpload> Photos);
 
 public sealed record PublishResult(string Reference, string Status, bool PayoutOnboardingRequired);

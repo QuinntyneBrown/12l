@@ -16,6 +16,8 @@ public sealed class TwelveLDbContext(DbContextOptions<TwelveLDbContext> options)
 
     public DbSet<Listing> Listings => Set<Listing>();
 
+    public DbSet<ListingPhoto> ListingPhotos => Set<ListingPhoto>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TwelveLDbContext).Assembly);
 }

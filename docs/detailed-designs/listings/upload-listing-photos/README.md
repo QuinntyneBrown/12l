@@ -20,63 +20,60 @@ Photos upload independently of the listing. The seller can therefore add photos 
 
 ## Description
 
-Screens, states and copy come from `docs/mocks/pages/sell/` (`default`, `filled`, `invalid`) and `docs/mocks/pages/edit-listing/`.
+Screens, states and copy come from `docs/mocks/pages/sell/` (`default`, `filled`, `invalid`) and `docs/mocks/pages/edit-listing/`. Photos are processed in the upload request ([ADR listings/0001](../../../adr/listings/0001-process-photos-in-the-upload-request.md)) with SkiaSharp ([ADR platform/0009](../../../adr/platform/0009-skiasharp-for-photo-processing.md)), so a stored photo is always ready and there is no status to poll.
 
-### Frontend (`12L Web`, `src/frontend/src/app/listings/photos/`)
+### Frontend (`12L Web`)
 
-- **`PhotoUploaderComponent`** — standalone component inside the Photos section of `ListingFormComponent`. It exposes a `ControlValueAccessor` whose value is the ordered `photoIds` array. It renders:
-  - a tile per photo with the image (400 px WebP version), alt text "Photo {n}", and a remove button labelled "Remove photo {n}";
+- **`tl-photo-uploader`** (`@12l/components`, `src/lib/photo-uploader/`) — presentational. Inputs `tiles` (`key`, `state` uploading, ready or rejected, `src`, `name`, `size`), `max` (8), `error`, `inputId` (`photos`); outputs `filesSelected`, `removed`, `moved { from, to }`. It renders:
+  - a tile per photo with the 400 px WebP thumbnail, alt text "Photo {n}", and a remove button "Remove photo {n}";
   - the "Cover" badge on the first tile;
-  - a rejected tile for a refused file showing the file name, its size (for example "IMG_4471.jpg", "11.4 MB") and a remove button "Remove {file name}";
-  - a processing tile with a spinner while the photo status is `Processing`;
-  - the add tile "Add photos" with the caption "{n} of 8", backed by `<input type="file" accept="image/jpeg,image/png,image/webp" multiple>`. The add tile is disabled at 8 photos (`L2-017`);
-  - the help text "JPEG, PNG or WebP up to 10 MB. Drag to reorder; the first is the cover." and, when invalid, an inline error linked by `aria-describedby` (for example "Add at least one photo. Photos must be 10 MB or smaller.").
-- **Reordering** — tiles reorder by drag and drop through the Angular CDK `DragDropModule`. A keyboard alternative moves a focused tile one position at a time, and a polite live region announces the new position (`L2-065`). The mocks show drag only; the exact keyboard affordance is `<TO SUPPLY>`.
-- **Client checks** — before sending, the component rejects files over 10 MB with "Photos must be 10 MB or smaller" and limits a multi-file selection to the remaining slots. The server repeats every check.
-- **`PhotoUploadService`** — typed client. `upload(file)` posts one file per request with progress events, at most 3 in parallel (`<TO SUPPLY>`: confirm the concurrency). It then polls `GET /api/photo-uploads/{id}` every 1 s until the status is `Ready` or `Failed`, for at most 60 s (`<TO SUPPLY>`: confirm the timeout). It maps `413`, `415` and `422` problem details to tile errors.
+  - a spinner tile, announced as "Uploading {file name}", while a file uploads; it counts towards the limit;
+  - a rejected tile showing the file name and size (for example "IMG_4471.jpg", "11.4 MB") with a remove button "Remove {file name}";
+  - the add tile "Add photos" with "{n} of 8", backed by `<input type="file" accept="image/jpeg,image/png,image/webp" multiple>`, disabled at 8 photos (`L2-017`);
+  - the help text "JPEG, PNG or WebP up to 10 MB. Drag to reorder; the first is the cover." and, when invalid, an inline error linked by `aria-describedby`.
+- **Reordering** — tiles reorder by native HTML drag and drop. On a focused photo tile the Left and Right arrow keys move it one place; focus follows the tile and a polite live region announces "Photo moved to position {n} of {m}.", adding "It is now the cover." at position 1 (`L2-065`).
+- **`SellPage`** (`@12l/listings`, `src/lib/sell/`) — owns the tiles. Chosen files fill only the free slots; a file over 10 MB becomes a rejected tile with "Photos must be 10 MB or smaller" and is not sent. Each other file uploads at once, one request per file. A `413`, `415` or `422` shows the problem title for a rejected tile; other failures show "Couldn’t upload {file name}. Try again.". Saves send `photoIds` of ready photos in display order; while a file is uploading, saving shows "Wait for your photos to finish uploading". Publishing with no photo shows "Add at least one photo" in the summary and inline; the inline error appends the last rejection reason ("Add at least one photo. Photos must be 10 MB or smaller."). A draft opened at `/sell/{reference}` shows its photos.
+- **`PhotosApi`** (`@12l/api`, `src/lib/listings/photos-api.ts`) — `upload(file)` posts `multipart/form-data` and returns `ApiResult<Photo>`. `ListingDetails` carries `photoIds`; `MyListing` carries `photos`, cover first.
 
 ### API (`TwelveL.Api`)
 
-- **`PhotoUploadsController`** — requires an authenticated member and the `CanSell` policy (`L2-010`); state-changing requests require the anti-forgery token (`L2-050`).
-  - `POST /api/photo-uploads` — `multipart/form-data` with one `file` part. `[RequestSizeLimit]` is `Photos:MaxBytes` plus 64 KB for multipart overhead; this endpoint is the exception to the 1 MB JSON body limit of `L2-049`. Returns `201 Created` with `PhotoUploadDto { id, status: "Processing" }` and `Location: /api/photo-uploads/{id}`; `413` `PHOTO_TOO_LARGE`; `415` `PHOTO_TYPE_UNSUPPORTED`; `422` `PHOTO_TOO_SMALL`; `401`; `403`.
-  - `GET /api/photo-uploads/{id}` — returns `200` with `PhotoUploadDto { id, status, thumbnailUrl?, errorCode? }`; `404` when the photo belongs to another member (`L2-010`).
-- **Attaching** happens in the listing endpoints of [create-listing](../create-listing/README.md) and [edit-and-withdraw-listing](../edit-and-withdraw-listing/README.md): `POST /api/listings` and `PUT /api/listings/{reference}` carry `photoIds` in display order.
+- **`PhotoUploadsController`** — requires the `CanSell` policy (`L2-010`).
+  - `POST /api/photo-uploads` — one `file` part. The body limit is 16 MB, above the 10 MB photo limit, so an oversized photo reaches the handler and gets a problem body; this endpoint is the exception to the 1 MB JSON body limit of `L2-049`. Returns `201 Created` with `PhotoDto { id, url, width, height, versions[] }` and `Location: /api/photo-uploads/{id}`; `413` `PHOTO_TOO_LARGE`; `415` `PHOTO_TYPE_UNSUPPORTED` (also when no file is sent); `422` `PHOTO_TOO_SMALL` or `PHOTO_TOO_MANY_PIXELS`; `401`; `403`.
+  - `GET /api/photo-uploads/{id}` — `200` with `PhotoDto`; `404` when the photo belongs to another member (`L2-010`).
+- **`PhotosController`** — anonymous `GET /photos/{hash}/{size}.{ext}`; the key must be 64 hex characters, a size and `webp` or `jpg`. Served from `IPhotoStorage` with `Cache-Control: public, max-age=31536000, immutable` and the format's content type (`L2-059`). A CDN can front this origin later without change.
+- **Attaching** — `POST /api/listings` and `PUT /api/listings/{reference}` accept `photoIds` in display order; leaving it out keeps the current photos. `MyListingDto` returns `photos`, cover first.
 
 ### Application and domain (`TwelveL.Application`, `TwelveL.Domain`)
 
-- **`UploadListingPhotoCommand`** / **`UploadListingPhotoCommandHandler`** — in order:
-  1. rejects content longer than `Photos:MaxBytes` with `PHOTO_TOO_LARGE`, message "Photos must be 10 MB or smaller";
-  2. calls `IImageInspector.InspectAsync`, which reads magic bytes and the image header only. A file that is not JPEG, PNG or WebP by content is rejected with `PHOTO_TYPE_UNSUPPORTED` and HTTP 415, whatever its name (for example a text file named `photo.jpg`);
-  3. rejects an image whose shortest side is under `Photos:MinShortSidePx` (800) with `PHOTO_TOO_SMALL`, message "Photos must be at least 800 pixels on the shortest side";
-  4. writes the original to `originals/{photoId}` in private storage;
-  5. inserts the `ListingPhoto` row in status `Processing` with `OwnerId`, dimensions, size and the SHA-256 `OriginalHash` of the bytes, plus a `ProcessListingPhoto { photoId }` outbox message, in one transaction.
-- **`ListingPhotoAttacher`** — application service called by the create and update handlers. It loads the referenced photos and enforces these rules:
-  - at most 8 IDs (`PHOTO_LIMIT`, `422`), so a ninth photo is refused by the API even when the client control is bypassed (`L2-017`);
-  - every photo is owned by the caller and is unattached or already on this listing (`PHOTO_NOT_FOUND`, `422`);
-  - no `Failed` photo is attached (`PHOTO_PROCESSING_FAILED`, `422`).
-  It then sets `ListingId` and `Position` (0 to n − 1) in the given order and detaches photos the request omits. Detached photos become unattached and are deleted by `PhotoCleanupJob`.
-- **Publish rule** — publishing requires 1 to 8 attached photos, all `Ready` (`PHOTOS_REQUIRED` "Add at least one photo", `PHOTOS_PROCESSING`), enforced in [create-listing](../create-listing/README.md).
-- **`ListingPhoto`** entity — `Id`, `OwnerId`, `ListingId?`, `Position?`, `Status` (`Processing → Ready` or `Processing → Failed`), `OriginalKey`, `OriginalContentType` (sniffed), `OriginalBytes`, `OriginalHash`, `Width`, `Height`, `FailureCode?`, `CreatedAt`, `ProcessedAt?`, and the owned `Versions` collection.
-- **`ListingPhotoVersion`** value object — `Width`, `Height`, `Format` (`WebP`, `Jpeg`), `ContentHash` (lower-case hex SHA-256 of the uploaded original, the same for all 6 versions of a photo), `Key` (`{hash}/{width}.webp` or `{hash}/{width}.jpg`), `Bytes`.
-- **Ports** — `IImageInspector`, `IListingPhotoProcessor`, `IPhotoStorage`.
+- **`UploadListingPhotoCommand`** / **`ListingPhotoHandlers`** — in order:
+  1. rejects content longer than `Photos:MaxBytes` with `PHOTO_TOO_LARGE`;
+  2. calls `IImageInspector.Inspect`, which reads magic bytes and the header only. Content that is not JPEG, PNG or WebP gets `PHOTO_TYPE_UNSUPPORTED` and HTTP 415, whatever its name;
+  3. rejects a shortest side under `Photos:MinShortSidePx` (800) with `PHOTO_TOO_SMALL`, and more than `Photos:MaxPixels` with `PHOTO_TOO_MANY_PIXELS` (decompression-bomb guard);
+  4. computes the SHA-256 of the bytes, calls `IListingPhotoProcessor.Process` and saves the 6 versions to public storage under `{hash}/{size}.{ext}`;
+  5. saves the original to private storage under `originals/{photoId}` and inserts the `ListingPhoto` row with its versions.
+- **`ListingPhotoAttacher`** — called by the create and update draft handlers:
+  - more than 8 IDs gives `PHOTO_LIMIT` (`422`, field `photos`), so a ninth photo is refused even when the client control is bypassed (`L2-017`);
+  - every photo must be owned by the caller and unattached or already on this listing, without repeats (`PHOTO_NOT_FOUND`, `422`, field `photos`);
+  - it then sets `ListingId` and `Position` (0 to n − 1) in the given order and detaches photos the request omits.
+- **Publish rule** — `Listing.Publish(sizeConfirmed, now, photoCount)` adds `PHOTOS_REQUIRED` "Add at least one photo" on field `photos` when no photo is attached. The maximum is enforced on attach.
+- **`ListingPhoto`** entity — `Id`, `OwnerId`, `ListingId?`, `Position?`, `OriginalKey`, `OriginalContentType` (sniffed), `OriginalBytes`, `OriginalHash`, `Width`, `Height` (as displayed, after orientation), `CreatedAt` and the owned `Versions`.
+- **`ListingPhotoVersion`** value — `Size` (target width 400, 800 or 1600), `Format` (`WebP`, `Jpeg`), `Width`, `Height` (actual, never upscaled), `Key`, `Bytes`.
+- **Ports** — `IImageInspector`, `IListingPhotoProcessor`, `IPhotoStorage` (`SaveOriginalAsync`, `SavePublicAsync`, `ReadPublicAsync`).
 
-### Worker and infrastructure (`TwelveL.Worker`, `TwelveL.Infrastructure`)
+### Infrastructure (`TwelveL.Infrastructure`)
 
-- **`PhotoProcessingJob`** — hosted service that claims `ProcessListingPhoto` outbox messages and calls `ListingPhotoProcessor`. It retries with back-off up to `Outbox:MaxAttempts` and then marks the photo `Failed` with `PHOTO_PROCESSING_FAILED`.
-- **`ListingPhotoProcessor`** (`ImageSharpPhotoProcessor`) — implementation on SixLabors ImageSharp (`<TO SUPPLY>`: confirm the library and its licence). Steps:
-  1. decode the original;
-  2. apply the EXIF orientation to the pixels;
-  3. remove all EXIF, XMP, IPTC and GPS metadata, and embedded ICC profiles after conversion to sRGB (`L2-017`);
-  4. resize to widths 400, 800 and 1600 px, preserving aspect ratio and never upscaling. An original narrower than a target width yields that version at the original width. Width rather than longest edge is the resize basis because `srcset` selects by width (`L2-059`);
-  5. encode each width as WebP and as JPEG (quality `<TO SUPPLY>`), giving 6 versions;
-  6. key each version as `{hash}/{width}.{ext}`, where `hash` is the SHA-256 of the original computed at upload. Encoder settings are fixed, so the same original always yields the same bytes under the same key.
-- **`ObjectStoragePhotoStorage`** (`IPhotoStorage`) — writes originals under `originals/` in a private container and versions under `{hash}/` in the public container behind the CDN. Versions carry `Cache-Control: public, max-age=31536000, immutable` and the content type of their format (`L2-059`). An identical original produces the same keys, so a re-upload of the same image reuses the existing objects.
-- **`ImageSharpInspector`** (`IImageInspector`) — identifies the format from magic bytes (`FF D8 FF` JPEG, `89 50 4E 47` PNG, `RIFF....WEBP` WebP) and reads dimensions without decoding the full image. It also rejects images whose pixel count exceeds `Photos:MaxPixels` (`<TO SUPPLY>`) as a decompression-bomb guard.
-- **`PhotoCleanupJob`** — hosted service run on `Photos:CleanupSchedule`. It deletes photos that are unattached and older than `Photos:UnattachedRetentionHours`, with their originals. It also deletes public objects whose hash no longer appears in any `ListingPhotoVersions` row. Photos of drafts deleted by the draft clean-up job of [manage-my-listings](../manage-my-listings/README.md) reach this job as unattached photos.
-- **Tables**:
-  - `ListingPhotos` — `Id uniqueidentifier` PK, `OwnerId` FK to `Members`, `ListingId` FK to `Listings` (nullable, `ON DELETE SET NULL`), `Position tinyint null`, `Status nvarchar(16)`, `OriginalKey nvarchar(200)`, `OriginalContentType nvarchar(32)`, `OriginalBytes bigint`, `OriginalHash char(64)`, `Width int`, `Height int`, `FailureCode nvarchar(40) null`, `CreatedAt`, `ProcessedAt`. Unique filtered index `UX_ListingPhotos_ListingId_Position` (`WHERE ListingId IS NOT NULL`), check `CK_ListingPhotos_Position` (`Position BETWEEN 0 AND 7`), index `IX_ListingPhotos_ListingId_CreatedAt` for clean-up.
-  - `ListingPhotoVersions` — `PhotoId` FK (cascade delete), `Width`, `Format`, `Height`, `ContentHash char(64)`, `Key nvarchar(80)`, `Bytes`; PK (`PhotoId`, `Width`, `Format`); index `IX_ListingPhotoVersions_ContentHash`.
-- **Delivery URL** — `{Photos:CdnBaseUrl}/{hash}/{width}.{ext}`. DTOs return URLs built from this base; `thumbnailUrl` is the 400 px WebP version.
+- **`SkiaImageInspector`** — magic bytes (`FF D8 FF` JPEG, `89 50 4E 47 0D 0A 1A 0A` PNG, `RIFF....WEBP` WebP), then `SKCodec` for the header dimensions; axes swap for rotated EXIF orientations.
+- **`SkiaPhotoProcessor`** — decodes to sRGB, applies the EXIF orientation to the pixels, and for each size scales (never upscaling) onto an opaque white bitmap without a colour space, encoding WebP at quality 80 and JPEG at quality 82. Only pixels are encoded, so no EXIF, XMP, IPTC, GPS or ICC block survives (`L2-017`). Settings are fixed, so the same original always gives the same bytes under the same key.
+- **`FileSystemPhotoStorage`** — development adapter: `private/` for originals and `public/` for versions under `PhotoStorage:RootPath`; keys cannot leave the root. Real object storage and the CDN replace it behind `IPhotoStorage` (deferred).
+- **Tables** (migration `AddListingPhotos`):
+  - `ListingPhotos` — `Id` PK, `OwnerId` FK to `Members` (restrict), `ListingId` FK to `Listings` (nullable, `ON DELETE SET NULL`), `Position int null` with check `CK_ListingPhotos_Position` (`Position IS NULL OR Position BETWEEN 0 AND 7`), `OriginalKey nvarchar(200)`, `OriginalContentType nvarchar(32)`, `OriginalBytes`, `OriginalHash nchar(64)`, `Width`, `Height`, `CreatedAt`. Indexes `IX_ListingPhotos_ListingId_Position` and `IX_ListingPhotos_OwnerId_CreatedAt`. Position is not unique in the database because a reorder updates several rows in one save; the attacher keeps positions 0 to n − 1.
+  - `ListingPhotoVersions` — owned by `ListingPhotos` (`PhotoId` FK, cascade delete); PK (`PhotoId`, `Size`, `Format`); `Format nvarchar(8)`, `Width`, `Height`, `Key nvarchar(80)`, `Bytes`.
+- **Delivery URL** — `{Photos:PublicBaseUrl}/{hash}/{size}.{ext}`; the DTO `url` is the 400 px WebP version.
+
+### Testing
+
+- xUnit (`tests/TwelveL.Api.Tests/PhotoUploadTests.cs`, `ListingPhotoAttachTests.cs`) hosts the API with SQLite in-memory and `FakePhotoStorage` in place of `IPhotoStorage`; test images are made in memory, including a JPEG carrying Exif GPS and XMP blocks.
+- Playwright (`src/frontend/e2e/tests/upload-listing-photos.spec.ts`) serves `POST /api/photo-uploads` and `/photos/**` through `page.route` fixtures.
 
 ### Error codes
 
@@ -85,25 +82,27 @@ Screens, states and copy come from `docs/mocks/pages/sell/` (`default`, `filled`
 | `PHOTO_TOO_LARGE` | 413 | "Photos must be 10 MB or smaller" |
 | `PHOTO_TYPE_UNSUPPORTED` | 415 | "Use a JPEG, PNG or WebP photo" |
 | `PHOTO_TOO_SMALL` | 422 | "Photos must be at least 800 pixels on the shortest side" |
+| `PHOTO_TOO_MANY_PIXELS` | 422 | "Photos must be 50 megapixels or fewer" |
 | `PHOTO_LIMIT` | 422 | "A listing can have up to 8 photos" |
 | `PHOTO_NOT_FOUND` | 422 | "That photo is no longer available. Upload it again." |
-| `PHOTO_PROCESSING_FAILED` | 422 | "That photo couldn't be processed. Try another." |
 | `PHOTOS_REQUIRED` | 422 | "Add at least one photo" |
-
-Messages not present in the mocks ("Use a JPEG, PNG or WebP photo", "Photos must be at least 800 pixels on the shortest side", "A listing can have up to 8 photos", "That photo is no longer available. Upload it again.", "That photo couldn't be processed. Try another.") are proposed copy, `<TO SUPPLY>` for confirmation.
 
 ### Configuration
 
 | Key | Value | Notes |
 |-----|-------|-------|
-| `Photos:MaxBytes` | 10485760 | 10 MB read as 10 MiB; `<TO SUPPLY>`: confirm against 10,000,000 |
+| `Photos:MaxBytes` | 10485760 | 10 MB read as 10 MiB |
 | `Photos:MinShortSidePx` | 800 | `L2-017` |
-| `Photos:VersionWidths` | 400, 800, 1600 | `L2-017` |
-| `Photos:MaxPixels` | `<TO SUPPLY>` | Decompression-bomb guard |
-| `Photos:UnattachedRetentionHours` | `<TO SUPPLY>` | Age after which an unattached upload is deleted |
-| `Photos:CleanupSchedule` | `<TO SUPPLY>` | Cron expression for `PhotoCleanupJob` |
-| `PhotoStorage:OriginalsContainer`, `PhotoStorage:PublicContainer` | `<TO SUPPLY>` | Depend on the hosting platform |
-| `Photos:CdnBaseUrl` | `<TO SUPPLY>` | Public photo origin |
+| `Photos:MaxPixels` | 50000000 | Decompression-bomb guard |
+| `Photos:VersionSizes` | 400, 800, 1600 | `L2-017` |
+| `Photos:PublicBaseUrl` | `/photos` | Becomes the CDN origin when one exists |
+| `PhotoStorage:RootPath` | system temp `twelvel-photos` | Development adapter only |
+
+### Deferred
+
+- The outbox, `PhotoProcessingJob` and the `PhotoCleanupJob` that deletes unattached photos and unreferenced versions (ADR listings/0001).
+- Real object storage, its credentials (`PhotoStorage:ConnectionString`) and the CDN.
+- Editing an active listing's photos belongs to edit-and-withdraw-listing; it reuses `tl-photo-uploader` and `ListingPhotoAttacher`.
 
 ## Requirements
 
@@ -120,48 +119,36 @@ The feature realises the following level-2 (L2) requirements. Each refines the l
 
 ### System context
 
-Sellers upload photos to 12L. Visitors load the processed versions through 12L's CDN.
+Sellers upload photos to 12L. Visitors load the processed versions, cached for one year.
 
 ![C4 system context for uploading listing photos](diagrams/c4-context.png)
 
 ### Containers
 
-`12L API` validates each upload and stores the original. `12L Worker` produces the versions. `Photo storage` keeps originals private and serves versions publicly through the CDN.
+`12L API` validates each upload, produces the versions and stores them with the original behind `IPhotoStorage`; it also serves the versions.
 
 ![C4 container view for uploading listing photos](diagrams/c4-container.png)
 
 ### Components
 
-`PhotoUploadsController` hands each file to `UploadListingPhotoCommandHandler`, which inspects it with `ImageInspector`. In the worker, `PhotoProcessingJob` drives `ListingPhotoProcessor`, and `PhotoCleanupJob` removes orphans. `ListingPhotoAttacher` links photos to a listing when the listing is saved.
+`PhotoUploadsController` hands each file to `ListingPhotoHandlers`, which inspects it with `SkiaImageInspector`, processes it with `SkiaPhotoProcessor` and stores it. `ListingPhotoAttacher` links photos to a listing when the listing is saved. `PhotosController` serves versions.
 
 ![C4 component view for uploading listing photos](diagrams/c4-component.png)
 
 ### Class structure
 
-A `ListingPhoto` owns up to 6 `ListingPhotoVersion` values and belongs to at most one `Listing`, which holds up to 8 ordered photos. Infrastructure classes implement the `IImageInspector`, `IListingPhotoProcessor` and `IPhotoStorage` ports.
+A `ListingPhoto` owns 6 `ListingPhotoVersion` values and belongs to at most one `Listing`, which holds up to 8 ordered photos. SkiaSharp and file-system classes implement the `IImageInspector`, `IListingPhotoProcessor` and `IPhotoStorage` ports.
 
 ![Class diagram for uploading listing photos](diagrams/class-structure.png)
 
 ### Behaviour — upload a photo
 
-The handler checks size, sniffed type and dimensions in that order and returns `413`, `415` or `422` on the first failure. A valid file is stored privately, recorded as `Processing` and queued through the outbox.
+The handler checks size, sniffed type and dimensions in that order and returns `413`, `415` or `422` on the first failure. A valid file is stripped and re-encoded in the request; the versions, the original and the row are stored before `201`.
 
 ![Sequence diagram for uploading a listing photo](diagrams/sequence-upload-photo.png)
-
-### Behaviour — process a photo
-
-The worker strips metadata, re-encodes 3 widths in 2 formats, and stores each version under the content hash of its original with a one-year cache header. Failures retry with back-off before the photo is marked `Failed`.
-
-![Sequence diagram for processing an uploaded photo](diagrams/sequence-process-photo.png)
 
 ### Behaviour — reorder and attach photos
 
 The order of `photoIds` in a listing save sets each photo's `Position`; position 0 becomes the cover. More than 8 IDs, or an ID the caller does not own, returns `422`.
 
 ![Sequence diagram for reordering and attaching photos](diagrams/sequence-reorder-photos.png)
-
-### Behaviour — clean up orphaned photos
-
-`PhotoCleanupJob` deletes stale unattached uploads and any public version no longer referenced by a photo.
-
-![Sequence diagram for cleaning up orphaned photos](diagrams/sequence-cleanup-photos.png)

@@ -15,6 +15,8 @@ public interface ITwelveLDbContext
 
     DbSet<Listing> Listings { get; }
 
+    DbSet<ListingPhoto> ListingPhotos { get; }
+
     Task<int> SaveChangesAsync(CancellationToken cancellationToken);
 }
 
@@ -44,6 +46,44 @@ public sealed record EmailMessage(string To, string Subject, string Body);
 public interface ISellerPayoutAccountReader
 {
     Task<bool> IsOnboardedAsync(Guid sellerId, CancellationToken cancellationToken);
+}
+
+/// <summary>An image identified from its content (magic bytes and header), not its name (L2-017).</summary>
+public sealed record ImageInfo(string ContentType, int Width, int Height);
+
+/// <summary>Reads the type and the displayed dimensions of an image without decoding all of it.</summary>
+public interface IImageInspector
+{
+    /// <summary>The image, or null when the content is not JPEG, PNG or WebP.</summary>
+    ImageInfo? Inspect(byte[] content);
+}
+
+/// <summary>One re-encoded photo version before it is stored.</summary>
+public sealed record ProcessedPhotoVersion(int Size, PhotoFormat Format, int Width, int Height, byte[] Content);
+
+/// <summary>
+/// Applies the orientation, drops every metadata block (EXIF, XMP, IPTC, GPS, ICC) and re-encodes
+/// the photo at each target width as WebP and JPEG, never upscaling (L2-017, L2-059).
+/// </summary>
+public interface IListingPhotoProcessor
+{
+    IReadOnlyList<ProcessedPhotoVersion> Process(byte[] original, IReadOnlyList<int> sizes);
+}
+
+/// <summary>A stored object and its content type.</summary>
+public sealed record StoredObject(byte[] Content, string ContentType);
+
+/// <summary>
+/// Photo object storage. Originals are private; versions are public and immutable under their
+/// content-addressed key. Real object storage and the CDN stay behind this port.
+/// </summary>
+public interface IPhotoStorage
+{
+    Task SaveOriginalAsync(string key, byte[] content, string contentType, CancellationToken cancellationToken);
+
+    Task SavePublicAsync(string key, byte[] content, string contentType, CancellationToken cancellationToken);
+
+    Task<StoredObject?> ReadPublicAsync(string key, CancellationToken cancellationToken);
 }
 
 /// <summary>Public settings of the application.</summary>

@@ -14,6 +14,7 @@ export { IconComponent, type IconName } from './lib/icon/icon';
 export { InputGroupComponent } from './lib/input-group/input-group';
 export { ItemRowComponent } from './lib/item-row/item-row';
 export { LogoComponent } from './lib/logo/logo';
+export { PhotoUploaderComponent, type UploaderMove, type UploaderTile } from './lib/photo-uploader/photo-uploader';
 export { SegmentedComponent } from './lib/segmented/segmented';
 export { SizeTagComponent } from './lib/size-tag/size-tag';
 export { SkipLinkComponent } from './lib/skip-link/skip-link';

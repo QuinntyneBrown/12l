@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 
 import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
+import { Photo } from './photos-api';
 
 /**
  * The editable fields of a listing. There is no size: 12L API sets it from the category
@@ -18,6 +19,8 @@ export interface ListingDetails {
   description?: string;
   price?: number;
   shippingCost?: number;
+  /** Uploaded photo IDs in display order; the first is the cover (L2-017). */
+  photoIds?: string[];
 }
 
 /** A listing as its seller sees it. */
@@ -37,6 +40,8 @@ export interface MyListing {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  /** Cover first. */
+  photos: Photo[];
 }
 
 /** POST /api/listings/{reference}/publish: whether to prompt for payout onboarding (L2-031). */
