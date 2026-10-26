@@ -75,6 +75,12 @@ consent banner, the visible label and hint of the switch and the footer's Cookie
 | [Stat](components/stat.html) | in a `.stats` row | static, loading skeleton | payouts/default, payouts/loading |
 | [Switch](components/switch.html) | on, off, locked on; hidden label or label with hint | off, on, focus, disabled | notification-settings/default, notification-settings/submitting |
 | [Quote](components/quote.html) | one | static | order-detail/cancelled, sale-detail/cancel-requested, respond-cancellation |
+| [Marketing hero](components/marketing-hero.html) | hero, closing | static | welcome, pitch-video |
+| [Shapes](components/shapes.html) | full, quiet | drifting, reduced motion | welcome, pitch-video |
+| [Feature band](components/feature-band.html) | default, surface, stacked | static | welcome, pitch-video |
+| [Steps](components/steps.html) | one | static | welcome, pitch-video |
+| [Video poster](components/video-poster.html) | one | default, hover, focus | welcome, pitch-video |
+| [Video player](components/video-player.html) | one | loading, playing, paused, captions, error | welcome, pitch-video |
 | [Radio group](components/radio-group.html) | one | nothing chosen, chosen, invalid | cancel-order/default, cancel-order/invalid |
 | [Thread](components/thread.html) | one | static, with photos | order-detail/problem, sale-detail/problem, problem-detail/default |
 | [Facts](components/facts.html) | one | static | problem-detail/default, problem-detail/resolved |

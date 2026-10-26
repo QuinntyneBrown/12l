@@ -146,6 +146,17 @@
   --color-fg-accent: var(--palette-ink-950);
 
   --color-brand: var(--palette-signal-500);          /* the red L: logo, current-page bar, size tag flag */
+  /* Showcase: the marketing hero, closing band and video frame. Ink in both themes, like the logo. */
+  --color-showcase-start: var(--palette-ink-950);
+  --color-showcase-end: var(--palette-ink-700);
+  --color-showcase-subtle: var(--palette-ink-700);
+  --color-fg-showcase: var(--palette-paper-100);        /* 17.4:1 on start, 12.0:1 on end */
+  --color-fg-showcase-muted: var(--palette-paper-300);  /* 15.1:1 on start, 10.4:1 on end */
+  --color-fg-showcase-accent: var(--palette-signal-300);/* 7.0:1 on start, 4.9:1 on end; headline emphasis */
+  --color-shape-brand: var(--palette-signal-500);       /* decorative shapes only, never behind text at full strength */
+  --color-shape-tone: var(--palette-ink-600);
+  --color-shape-light: var(--palette-paper-300);
+  --gradient-showcase: linear-gradient(135deg, var(--color-showcase-start) 0%, var(--palette-ink-900) 55%, var(--color-showcase-end) 100%);
   --color-inverse-info: var(--palette-blue-300);     /* status icons on inverse surfaces (toasts) */
   --color-inverse-success: var(--palette-green-300);
   --color-inverse-warning: var(--palette-amber-300);
@@ -250,6 +261,7 @@
   --duration-base: 200ms;     /* reveal, menus, tooltips */
   --duration-slow: 320ms;     /* dialogs, sheets, page transitions */
   --duration-deliberate: 500ms;/* progress, skeleton shimmer cycles */
+  --duration-drift: 24s;      /* decorative shape drift; stopped under prefers-reduced-motion */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --ease-enter: cubic-bezier(0, 0, 0, 1);
   --ease-exit: cubic-bezier(0.3, 0, 1, 1);
