@@ -43,7 +43,7 @@ Screens, states and copy come from `docs/mocks/pages/my-listings/` and `docs/moc
 - **`ListingsController`** — requires a verified member (`CanSell`), like every listings endpoint; anonymous calls return `401`.
   - `GET /api/me/listings?status={Draft|Active|Reserved|Sold|Removed}` — returns `200` with `MyListingsDto { items, counts }`. The status is case-insensitive. Errors: `400 VALIDATION_FAILED` for an unknown status; `401`.
   - Every listing of the seller is returned; paging waits for a supplied page size and copy (ADR listings/0002).
-  - `GET /api/me/listings/{reference}` serves the edit form and is described in [edit-and-withdraw-listing](../edit-and-withdraw-listing/README.md).
+  - `GET /api/me/listings/{reference}` serves the edit form with its ETag and is described in [edit-and-withdraw-listing](../edit-and-withdraw-listing/README.md).
 
 ### Application and domain (`TwelveL.Application`, `TwelveL.Domain`)
 

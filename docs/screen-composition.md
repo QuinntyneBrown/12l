@@ -132,13 +132,14 @@ toggle, the chips and the sort select). The URL holds the result set (`q`, `cate
 
 ### Listing detail — `/items/{id}` (`pages/listing-detail`: default, guest, new-seller, reserved, sold, own, loading, error, unavailable)
 
-Built by view-listing-detail in `@12l/catalog` (`src/lib/listing-detail/`) for every state. The
-own state shows "Edit listing" only; "Withdraw" and its dialog arrive with
-edit-and-withdraw-listing. Sellers show no city until member profiles record one.
+Built by view-listing-detail in `@12l/catalog` (`src/lib/listing-detail/`) for every state. In
+the own state edit-and-withdraw-listing adds "Withdraw", which opens the Withdraw listing dialog
+(`src/lib/withdraw-listing/`, ADR listings/0003). Sellers show no city until member profiles
+record one.
 
 - Library: `tl-gallery` (main photo track, dots, thumbnails), `tl-size-tag` (lg), `tl-buy-bar`
   (default and guest: "Buy now" as `tlButton="primary"` lg; own: "Edit listing" with icon
-  `edit`; absent for Reserved and Sold), `tl-alert` (reserved: warning, icon `clock`, "In
+  `edit` and secondary lg "Withdraw" through `DialogService`; absent for Reserved and Sold), `tl-alert` (reserved: warning, icon `clock`, "In
   someone’s checkout"), `tl-seller-summary` (rating or "New seller"), `tl-listing-grid` (sold:
   "More in size 12" or "More in size L"), `tl-center-state` (unavailable: code "404" and "Shop
   similar items"; error: reference, "Try again" with icon `refresh` and "Back to shop"),
@@ -256,10 +257,26 @@ App shell. The same `OrderHistoryPage` with route data `list: 'sales'`, built by
 - Local: the page header with "{n} to ship", the `.order-list` rows linking to `/sales/{id}`, and
   the skeleton rows
 
-### Edit listing — `/items/{id}/edit` (`pages/edit-listing`: default, loading, error, invalid, submitting, success, locked)
+### Edit listing — `/items/{id}/edit` (`pages/edit-listing`: default, loading, error, invalid, submitting, success, locked, changed, sold, withdrawn)
 
-- Library: not yet composed
-- Local: not yet composed
+App shell. `@12l/listings` `EditListingPage` (`src/lib/edit-listing/`), built by
+edit-and-withdraw-listing. The fields are the sell form's, shared through the local
+`ListingFormComponent` (`src/lib/listing-form/`) (ADR listings/0003). A draft opens the sell form
+at `/sell/{reference}` instead.
+
+- Library: `tl-status` (the listing status beside the heading), `tl-error-summary`,
+  `tl-photo-uploader`, `tl-form-field`, `tl-fixed-size`, `tl-segmented`, `tl-input-group`,
+  `tl-earnings`, `tl-choice` (the ticked size confirmation), `tl-alert` (success "Changes saved"
+  with "View listing"; warning "This listing changed since you opened it" with sm "Reload" and icon
+  `refresh`; danger "Couldn’t save your changes" with the reference), `tlButton` (ghost "Cancel"
+  link, primary "Save changes" with busy), `tl-center-state` (error: icon `refresh`, "Couldn’t
+  load this listing", reference, "Try again" and "Your listings"; locked: icon `clock`, "This item
+  is in someone’s checkout", "Back to listing"; sold: icon `check`, "This item has sold", "Your
+  sales" and "Your listings"; withdrawn: icon `trash`, "This listing was withdrawn", "Your
+  listings"), `tl-icon`
+- Local: the page header (listing title link, heading, status), `ListingFormComponent` (the
+  photos, item, price and confirmation sections), the sticky split actions row and the loading
+  skeleton (3 photo tiles, 4 fields)
 
 ### Your listings — `/account/listings` (`pages/my-listings`: default, filtered, loading, empty, error)
 
@@ -369,11 +386,11 @@ Built by resolve-order-problems in `@12l/orders` (`src/lib/problem-detail/`), in
 | Add tracking (`dialogs/add-tracking`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (description "We’ll email {buyer} the tracking link."), `tl-form-field` (Carrier select, focused on open; Tracking number with the inline error), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` (Cancel, disabled while busy; primary "Mark as shipped" with busy, "Try again" after a failure) | `AddTrackingDialog` in `@12l/orders` |
 | Cancel order (`dialogs/cancel-order`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (icon `alert`, `tone="danger"`, description "{buyer} is refunded {total} in full. The listing stays off the catalog until you relist."), `tl-radio-group` (legend "Reason", error "Choose a reason") with four `tl-choice` radios (first focused on open), `tl-form-field` (textarea "Note to buyer", optional), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Keep sale", disabled while busy; danger "Cancel sale" with busy, "Try again" after a failure) | `CancelOrderDialog` in `@12l/orders` |
 | Confirm receipt (`dialogs/confirm-receipt`: default, busy, failed) | `DialogService` | `tl-dialog` (`size="sm"`, description "This completes the order and pays {seller}. You can’t report a problem afterwards."), `tl-item-row` (item thumbnail, title, brand and size), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Not yet", disabled while busy; primary "Yes, complete order" with busy, "Try again" after a failure) | `ConfirmReceiptDialog` in `@12l/orders` |
-| Relist item (`dialogs/relist`: default, busy) | `DialogService` | `tl-dialog` (`size="sm"`, description "It goes back in the catalog with its original photos, price and description."), `tl-item-row` (thumbnail, title, "{price} · {shipping} shipping"), `tl-alert` (danger "That didn’t go through" in the top slot after a failure), `tl-button` ("Not now"; primary "Relist", focused, with busy) | `RelistDialog` in `@12l/orders`. "Edit first" waits for edit-and-withdraw-listing, which builds the edit page |
+| Relist item (`dialogs/relist`: default, busy) | `DialogService` | `tl-dialog` (`size="sm"`, description "It goes back in the catalog with its original photos, price and description."), `tl-item-row` (thumbnail, title, "{price} · {shipping} shipping"), `tl-alert` (danger "That didn’t go through" in the top slot after a failure), `tl-button` ("Not now"; primary "Relist", focused, with busy) | `RelistDialog` in `@12l/orders`, with "Edit first" (`tlButton` link to `/items/{id}/edit`, closing the dialog) added by edit-and-withdraw-listing |
 | Report a problem (`dialogs/report-problem`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (description "Open until {deadline}. We hold the seller’s payout while our team looks into it."), `tl-error-summary` (invalid, in the top slot), `tl-segmented` (legend "What’s wrong?": Not received, Not as described, Wrong size, Counterfeit), `tl-form-field` (textarea "Describe it"), `tl-photo-uploader` (`[cover]="false"`, max 4, "Add photo"), `tl-alert` (danger "That didn’t go through" / "Your photos and description are saved here. Try again."), `tl-button` (Cancel, disabled while busy; primary "Send to 12L" with busy, "Try again" after a failure) | `ReportProblemDialog` in `@12l/orders`; the "Photos (up to 4)" field label |
 | Ask to cancel (`dialogs/request-cancellation`: default, busy, failed) | `DialogService` | `tl-dialog` (description "If {seller} accepts, you’re refunded in full. Until then the order stays as is."), `tl-form-field` (textarea "Message to {seller}", optional, focused on open), `tl-alert` (danger "That didn’t go through" in the top slot; the message is kept), `tl-button` ("Keep order", disabled while busy; primary "Send request" with busy, "Try again" after a failure) | `RequestCancellationDialog` in `@12l/orders` |
 | Respond to cancellation (`dialogs/respond-cancellation`: default, busy, failed) | `DialogService` | `tl-dialog` (heading "{buyer} asked to cancel", description "Accepting refunds {total} in full. Declining keeps the order — you still ship by {date}."), `tl-quote` (the buyer's message), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Decline"; primary "Accept and refund", focused; the chosen one shows busy and the other is disabled) | `RespondCancellationDialog` in `@12l/orders` |
-| Withdraw listing (`dialogs/withdraw-listing`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
+| Withdraw listing (`dialogs/withdraw-listing`: default, busy, failed) | `DialogService` | `tl-dialog` (`size="sm"`, icon `trash`, tone danger, title "Withdraw “{title}”?", description "It leaves the shop right away. This can’t be undone."), `tl-alert` (danger "Couldn’t withdraw" / "Your listing is still live." in the top slot after a failure), `tl-button` ("Keep listing", focused, disabled while busy; danger "Withdraw" with busy, "Try again" after a failure) | `WithdrawListingDialog` in `@12l/catalog` (ADR listings/0003); on success the page goes to `/account/listings` |
 | Cookie settings (`dialogs/cookie-settings`: default, analytics-on) | `DialogService` | not yet composed | not yet composed |
 | Resolve problem (`dialogs/resolve-problem`: default, invalid, busy) | `DialogService` | `tl-dialog` (heading "Resolve problem {reference}"), `tl-radio-group` (legend "Decision") with `tl-choice` "Refund buyer in full" ("{total} to {buyer} · no payout") and "Release payout to seller" ("Order completes · {seller} is paid"), `tl-form-field` (textarea "Reason", help "Sent to both members.", error "Add a reason. Both members see it."), `tl-alert` (danger after a failure), `tl-button` (Cancel, disabled while busy; primary "Refund buyer" or "Release payout", busy "Refunding" or "Releasing") | `ResolveProblemDialog` in `@12l/orders` |
 

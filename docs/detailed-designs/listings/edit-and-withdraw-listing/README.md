@@ -13,85 +13,81 @@ Terms used in this design:
 - **withdraw** — seller action that moves an `Active` listing to `Removed` and takes it out of the catalog and search; it cannot be undone
 - **removal reason** — recorded cause of a `Removed` status: `Withdrawn` or `OrderCancelled`
 - **relist** — seller action that returns a listing removed after a cancelled order to `Active` with its original details (`L2-035`)
-- **ETag** — opaque version of a listing, derived from its `RowVersion`, that the client sends back in `If-Match` so a stale form cannot overwrite newer data
+- **ETag** — opaque version of a listing, the value of its `Version` counter as a strong tag such as `"7"`, that the client sends back in `If-Match` so a stale form cannot overwrite newer data
 
 ## Description
 
-Screens, states and copy come from `docs/mocks/pages/edit-listing/`, `docs/mocks/dialogs/withdraw-listing/`, `docs/mocks/dialogs/relist/`, `docs/mocks/notifications/toast/` (`with-action`, `success`) and the `own` state of `docs/mocks/pages/listing-detail/`.
+Screens, states and copy come from `docs/mocks/pages/edit-listing/` (default, loading, error, invalid, submitting, success, locked, changed, sold, withdrawn), `docs/mocks/dialogs/withdraw-listing/`, `docs/mocks/dialogs/relist/` and the `own` state of `docs/mocks/pages/listing-detail/`. Decisions are recorded in [ADR listings/0003](../../../adr/listings/0003-edit-with-a-version-etag-and-withdraw-from-the-detail-page.md).
 
-### Frontend (`12L Web`, `src/frontend/src/app/listings/`)
+### Frontend (`12L Web`, `@12l/listings`, `@12l/catalog`, `@12l/orders`, `@12l/api`)
 
-- **`EditListingPage`** — routed standalone component at `/items/:reference/edit`. Its header shows the listing title as a link back to the listing, the heading "Edit listing" and a `ListingStatusBadge`. It hosts `ListingFormComponent` in `edit` mode, with actions "Cancel" (back to the listing) and "Save changes". States:
-  - `loading` — skeleton for 3 photo tiles and 4 fields, `aria-busy="true"`, no layout shift.
+- **`EditListingPage`** — `@12l/listings` `src/lib/edit-listing/`, routed at `/items/:reference/edit`. Its header shows the listing title as a link back to the listing, the heading "Edit listing" and `tl-status`. It hosts the local `ListingFormComponent` with actions "Cancel" (back to the listing) and "Save changes". A `Draft` opens the sell form at `/sell/{reference}` instead. States:
+  - `loading` — skeleton for 3 photo tiles and 4 fields, `aria-busy="true"`.
   - `error` — "Couldn't load this listing", "Your listing is safe. Try again in a moment.", the correlation reference, "Try again" and "Your listings" (`L2-068`).
   - `default` — every field prefilled, including flaws for `Used - Fair`, photos and the ticked size confirmation.
-  - `invalid` — error summary plus inline errors, for example "Describe the item's flaws" and "Enter a price from $1.00 to $5,000.00".
+  - `invalid` — error summary plus inline errors, for example "Describe the item's flaws" and "Enter a price from $1.00 to $5,000.00"; client checks stop the request, and a `422` lands on the same fields.
   - `submitting` — "Save changes" shows `aria-busy="true"`.
-  - `success` — success alert "Changes saved" with a "View listing" link.
-  - `locked` — shown when the listing is `Reserved` on load or on save: "This item is in someone's checkout", "You can edit it again if they don't finish within 10 minutes.", action "Back to listing" (`L2-020`).
-  - A `Sold` listing on this route shows a not-editable state that links to the sale; its copy is `<TO SUPPLY>` because no mock exists.
-- **Undo toast** — when a save changes only the price, `ToastService` also raises "Price updated to $40" with the listing title and an "Undo" action. Undo sends a second `PUT /api/listings/{reference}` with the previous price and the new ETag.
-- **`WithdrawListingDialog`** — opened by "Withdraw" on the seller's own listing detail page (catalog subsystem, `listing-detail` state `own`). Title "Withdraw “{title}”?", description "It leaves the shop right away. This can't be undone.", buttons "Keep listing" (autofocus) and "Withdraw" (danger). States:
+  - `success` — success alert "Changes saved" with a "View listing" link; the new ETag replaces the old one.
+  - `changed` — after `412`: warning alert "This listing changed since you opened it", "Reload to see the latest version, then make your changes again." and "Reload", which reads the listing again.
+  - `locked` — the listing is `Reserved` on load or on save: "This item is in someone's checkout", "You can edit it again if they don't finish within 10 minutes.", action "Back to listing" (`L2-020`).
+  - `sold` — "This item has sold", "Sold listings can't be edited.", "Your sales" and "Your listings".
+  - `withdrawn` — "This listing was withdrawn", "Withdrawn listings can't be edited or relisted.", "Your listings".
+- **`ListingFormComponent`** and **`ListingFormModel`** — `@12l/listings` `src/lib/listing-form/`, shared by the sell page and the edit page: the photos, item, price and confirmation sections, the photo tiles, client checks (`listing-rules.ts`) and server field errors.
+- **`WithdrawListingDialog`** — `@12l/catalog` `src/lib/withdraw-listing/`, opened through `DialogService` by "Withdraw" on the seller's own Active listing detail page. Title "Withdraw “{title}”?", icon `trash` in the danger tone, description "It leaves the shop right away. This can't be undone.", buttons "Keep listing" (focused) and "Withdraw" (danger). States:
   - `busy` — "Withdraw" shows `aria-busy="true"`, "Keep listing" is disabled.
-  - `failed` — danger alert "Couldn't withdraw", "Your listing is still live.", primary button "Try again".
+  - `failed` — danger alert "Couldn't withdraw", "Your listing is still live.", the danger button reads "Try again".
   On success the dialog closes and the app navigates to `/account/listings`.
-- **`RelistDialog`** — opened by "Relist item" on a cancelled sale (orders subsystem, `sale-detail` state `cancelled`). Title "Relist this item?", the listing row with price and shipping, description "It goes back in the catalog with its original photos, price and description.", buttons "Not now", "Edit first" (navigates to `/items/:reference/edit`) and "Relist" (autofocus). The `busy` state shows "Relist" busy and "Not now" disabled. On success it closes and raises the toast "Listing published" with "View listing".
-- **`ListingsApiService`** — adds `getMyListing(id)`, `updateListing(id, body, etag)`, `withdraw(id)` and `relist(id)`. It stores the `ETag` response header and sends it as `If-Match`.
+- **`RelistDialog`** — `@12l/orders`, built by cancel-order. This feature adds "Edit first", a link that closes the dialog and opens `/items/:reference/edit`.
+- **`ListingsApi`** (`@12l/api`) — adds `getForEdit(reference)` and `updateListing(reference, details, etag)`, which return the listing with the `ETag` response header and send it as `If-Match`, and `withdraw(reference)`. `MyListing` gains `removalReason`.
 
 ### API (`TwelveL.Api`)
 
-Every action requires an authenticated member and the anti-forgery token on state changes (`L2-050`). A listing owned by another member returns `404` (`L2-010`).
+Every action is on `ListingsController` under the `CanSell` policy (`L2-003`, `L2-010`). A listing owned by another member returns `404`.
 
-- **`MyListingsController`**
-  - `GET /api/me/listings/{reference}` — returns `200` with `MyListingDetailDto` and an `ETag` header for any status, including `Draft`; `404` otherwise.
-- **`ListingsController`**
-  - `PUT /api/listings/{reference}` — body `UpdateListingRequest`, header `If-Match`. Returns `200` with `MyListingDetailDto` and a new `ETag`. Error responses: `404`; `409` `LISTING_RESERVED` ("This item is in someone's checkout"), `LISTING_SOLD` or `LISTING_NOT_EDITABLE`, with the listing unchanged; `412` `LISTING_CHANGED` when `If-Match` is stale; `422` with field errors, `CATEGORY_INVALID` or `SIZE_NOT_ACCEPTED`; `428` when `If-Match` is missing.
-  - `POST /api/listings/{reference}/withdraw` — returns `200` with status `Removed`. Error responses: `404`; `409` `LISTING_RESERVED` or `LISTING_SOLD`. A repeat call on a listing already withdrawn returns `200`.
-  - `POST /api/listings/{reference}/relist` — returns `200` with status `Active`, `404`, or `409` `LISTING_NOT_RELISTABLE`.
-  - `PUT /api/listings/{reference}` is the same endpoint [create-listing](../create-listing/README.md) uses for drafts; this feature adds the `Active` and relist rules.
-- **Mass assignment** (`L2-049`) — `UpdateListingRequest` holds only editable fields (`category`, `subcategory`, `size`, `title`, `description`, `brand`, `condition`, `flaws`, `price`, `shippingCost`, `photoIds`, `sizeConfirmed`). Unknown members such as `"sellerId"` or `"status": "Sold"` are ignored by `System.Text.Json` and cannot reach the entity.
+- `GET /api/me/listings/{reference}` — `200` with `MyListingDto` and an `ETag` header for any status; `404` otherwise.
+- `PUT /api/listings/{reference}` — body `ListingDetailsRequest`, header `If-Match` for a published listing. Returns `200` with `MyListingDto` and a new `ETag`. A `Draft` keeps the draft rules and needs no `If-Match`. Errors are checked in this order: `404`; `409` `LISTING_RESERVED` ("This item is in someone's checkout"), `LISTING_SOLD` or `LISTING_NOT_EDITABLE`, with the listing unchanged; `428` `PRECONDITION_REQUIRED` when `If-Match` is missing; `412` `LISTING_CHANGED` when it is stale; `422` with field errors, `CATEGORY_INVALID` or `SIZE_NOT_ACCEPTED`.
+- `POST /api/listings/{reference}/withdraw` — `200` with `{ reference, status: "Removed" }`. A repeat call on a withdrawn listing returns `200`. Errors: `404`; `409` `LISTING_RESERVED`, `LISTING_SOLD`, or `LISTING_NOT_EDITABLE` for a draft or a listing removed after a cancelled order.
+- `POST /api/listings/{reference}/relist` — unchanged from cancel-order: `204`, `404`, or `409` `LISTING_NOT_RELISTABLE`, which now includes a withdrawn listing.
+- **Mass assignment** (`L2-049`) — `ListingDetailsRequest` holds only editable fields (`category`, `subcategory`, `size`, `title`, `description`, `brand`, `condition`, `flaws`, `price`, `shippingCost`, `photoIds`, `sizeConfirmed`). Unknown members such as `"sellerId"` or `"status": "Sold"` are ignored by `System.Text.Json` and cannot reach the entity.
 
 ### Application and domain (`TwelveL.Application`, `TwelveL.Domain`)
 
-- **`GetMyListingQuery`** / **`GetMyListingQueryHandler`** — loads the listing with photos and versions where `SellerId` equals the caller and returns `MyListingDetailDto { id, status, details, photos, sizeConfirmedAt, etag }`.
-- **`UpdateListingCommand`** / **`UpdateListingCommandHandler`** — loads the caller's listing and compares `If-Match` with `RowVersion`. It then calls `ListingPhotoAttacher` and `Listing.UpdateDetails`, and saves with the original `RowVersion` as the concurrency token.
-  - On `DbUpdateConcurrencyException` it reloads the status. It returns `LISTING_RESERVED` when a checkout reserved the listing meanwhile, otherwise `LISTING_CHANGED`.
-- **`UpdateListingValidator`** — applies draft rules to a `Draft` and the full publish rules of [create-listing](../create-listing/README.md) (`L2-014` to `L2-018`) to an `Active` listing or a relistable `Removed` listing.
-- **`Listing.UpdateDetails(details, sizeConfirmed, catalog, clock)`**:
-  - throws `ListingNotEditableException` with `LISTING_RESERVED` for `Reserved`, `LISTING_SOLD` for `Sold`, and `LISTING_NOT_EDITABLE` for `Removed` unless the removal reason is `OrderCancelled` (`L2-020`);
-  - rejects a supplied size that differs from the accepted size (`SIZE_NOT_ACCEPTED`) and always resets `Size` from the category, so changing a Tops listing to Shoes stores `Men's US 12` (`L2-013`);
-  - for a non-draft listing, requires `sizeConfirmed` to be `true` and refreshes `SizeConfirmedAt` when the category changes (`L2-014`);
-  - trims text and sets `UpdatedAt`.
-- **`WithdrawListingCommand`** / **`WithdrawListingCommandHandler`** — calls `Listing.Withdraw(clock)`, which allows only `Active → Removed`, sets `RemovalReason = Withdrawn` and `RemovedAt`, and saves with the `RowVersion` check. A `Draft` cannot be withdrawn (`409` `LISTING_NOT_EDITABLE`); draft deletion is not in the specs and is `<TO SUPPLY>`.
-- **`RelistListingCommand`** / **`RelistListingCommandHandler`** — calls `Listing.Relist(clock)`, which allows `Removed → Active` only when `RemovalReason = OrderCancelled` (`L2-035`). It keeps the original photos, price and description, clears `RemovalReason` and `RemovedAt`, and sets `PublishedAt`. A withdrawn listing is not relistable, matching the dialog copy "This can't be undone."
-- **`Listing.RemoveAfterCancellation(now)`** — domain method `Sold → Removed` with `RemovalReason = OrderCancelled`, called by `OrderCancellation` in the orders subsystem whenever an order is cancelled before shipping ([cancel-order](../../orders/cancel-order/README.md)). cancel-order built it with `Listing.Relist`, `POST /api/listings/{reference}/relist` (`204`) and a `RelistDialog` in `@12l/orders` without "Edit first"; this feature adds the edit page, "Edit first", the toast and the `Withdrawn` reason.
+- **`GetMyListingQuery`** — returns `MyListingDto` (with `removalReason`) and its `Version`, which the controller writes as the ETag and leaves out of the body.
+- **`UpdateListingCommand`** (`ListingCommandHandlers`) — loads the caller's listing. A draft takes the draft path of create-listing. Otherwise it refuses through `ListingRefusals` (`409`), compares `ExpectedVersion` with `Version` (`428`, `412`), attaches photos with `ListingPhotoAttacher`, calls `Listing.Edit` and saves with `Version` as the concurrency token.
+  - On `DbUpdateConcurrencyException` it reloads the status and returns `LISTING_RESERVED` (or `LISTING_SOLD`) when a checkout won, otherwise `LISTING_CHANGED`.
+- **`Listing.Edit(details, sizeConfirmed, photoCount, now)`**:
+  - only for `Active`, or `Removed` with reason `OrderCancelled`; `EditRefusal` names `LISTING_RESERVED`, `LISTING_SOLD` or `LISTING_NOT_EDITABLE` otherwise (`L2-020`);
+  - applies `CheckPublish`, the publish rules of `L2-014` to `L2-018` plus the draft rules, including `SIZE_NOT_ACCEPTED` for a size other than the category's (`L2-013`) and `SIZE_CONFIRMATION_REQUIRED` when the confirmation is not ticked;
+  - on success sets the size from the category, refreshes `SizeConfirmedAt` when the category changed, trims text and bumps `Version`.
+- **`WithdrawListingCommand`** / **`WithdrawListingCommandHandler`** — calls `Listing.Withdraw(now)`, which allows only `Active → Removed`, sets `RemovalReason = Withdrawn` and bumps `Version`, and saves with the version check.
+- **`Listing.RemoveAfterCancellation`** and **`Listing.Relist`** — built by cancel-order. `CanRelist` stays limited to reason `OrderCancelled`, so a withdrawn listing cannot come back, matching "This can't be undone."
 - **Status transitions owned or guarded here**:
 
 | From | To | Trigger | Guard |
 |------|----|---------|-------|
-| `Active` | `Active` | Update | Publish rules pass |
+| `Active` | `Active` | Update | Current `If-Match`, publish rules pass |
+| `Removed` (`OrderCancelled`) | `Removed` | Update | Current `If-Match`, publish rules pass |
 | `Draft` | `Draft` | Update | Draft rules pass |
-| `Active` | `Removed` | Withdraw | None beyond status |
-| `Removed` (`OrderCancelled`) | `Active` | Relist | None beyond status and reason |
-| `Reserved`, `Sold` | — | Update or withdraw | Refused with `409` |
+| `Active` | `Removed` (`Withdrawn`) | Withdraw | None beyond status |
+| `Reserved`, `Sold`, `Removed` (`Withdrawn`) | — | Update or withdraw | Refused with `409` (a repeat withdraw answers `200`) |
 
 ### Infrastructure and data (`TwelveL.Infrastructure`)
 
-- **`Listings` table** — adds `RemovalReason nvarchar(16) null` to the columns of [create-listing](../create-listing/README.md). The `RowVersion rowversion` column is the concurrency token for edit, withdraw, relist and reservation. A checkout and an edit racing on the same listing therefore cannot both succeed (`L2-029`).
-- **ETag format** — `W/"{base64(RowVersion)}"`.
-- **Catalog freshness** — the catalog and search read `Listings` filtered to `Active` and `Reserved`. A price change appears in the catalog and on the detail page, and a withdrawn listing leaves search, as soon as any catalog cache expires. The cache lifetime belongs to the catalog subsystem.
+- **`Listings` table** — migration `EditAndWithdrawListing` adds `Version int not null default 0`, the EF Core concurrency token for edit and withdraw. `RemovalReason` (`nvarchar(24)`) gains the value `Withdrawn`.
+- **Reservation** — the checkout's conditional `ExecuteUpdate` that reserves a listing also sets `Version = Version + 1`, so a checkout and an edit racing on the same listing cannot both succeed (`L2-029`).
+- **Catalog freshness** — the catalog and search read `Listings` filtered to `Active` and `Reserved`, and the detail page hides `Removed` from everyone but the seller, so a price change shows at once and a withdrawn listing leaves search.
 
 ### Error codes
 
 | Code | HTTP | Raised when |
 |------|-----:|-------------|
-| `LISTING_RESERVED` | 409 | Update or withdraw of a `Reserved` listing; message "This item is in someone's checkout" |
-| `LISTING_SOLD` | 409 | Update or withdraw of a `Sold` listing |
-| `LISTING_NOT_EDITABLE` | 409 | Update of a withdrawn listing, or withdraw of a draft |
+| `LISTING_RESERVED` | 409 | Update or withdraw of a `Reserved` listing; title "This item is in someone's checkout" |
+| `LISTING_SOLD` | 409 | Update or withdraw of a `Sold` listing; title "This item has sold" |
+| `LISTING_NOT_EDITABLE` | 409 | Update of a withdrawn listing, or withdraw of a draft or of a listing removed after a cancelled order |
 | `LISTING_NOT_RELISTABLE` | 409 | Relist of a listing that was not removed after a cancelled order |
 | `LISTING_CHANGED` | 412 | `If-Match` does not match the current version |
-| `PRECONDITION_REQUIRED` | 428 | `PUT` without `If-Match` |
-| `CATEGORY_INVALID`, `SIZE_NOT_ACCEPTED`, `LISTING_INVALID` | 422 | As in [create-listing](../create-listing/README.md) |
+| `PRECONDITION_REQUIRED` | 428 | `PUT` of a published listing without `If-Match` |
+| `CATEGORY_INVALID`, `SIZE_NOT_ACCEPTED`, `SIZE_CONFIRMATION_REQUIRED`, `LISTING_INVALID` | 422 | As in [create-listing](../create-listing/README.md) |
 
 ## Requirements
 
@@ -122,19 +118,19 @@ The seller edits, withdraws and relists listings in 12L. A buyer in checkout can
 
 ### Components
 
-`MyListingsController` loads the listing for the form. `ListingsController` sends the update, withdraw and relist commands. Each handler mutates the `Listing` aggregate and saves with a `RowVersion` check.
+`ListingsController` loads the listing for the form with its ETag and sends the update, withdraw and relist commands. Each handler mutates the `Listing` aggregate and saves with a `Version` check.
 
 ![C4 component view for editing and withdrawing a listing](diagrams/c4-component.png)
 
 ### Class structure
 
-`Listing` holds `ListingStatus` and `RemovalReason` and guards every transition. The API binds `UpdateListingRequest`, which has no owner or status members, and the handlers translate it into commands.
+`Listing` holds `ListingStatus`, `ListingRemovalReason` and `Version` and guards every transition. The API binds `ListingDetailsRequest`, which has no owner or status members, and the handlers translate it into commands.
 
 ![Class diagram for editing and withdrawing a listing](diagrams/class-structure.png)
 
 ### Behaviour — edit a listing
 
-The page loads the listing with its ETag and shows the locked state for a reserved listing. The handler refuses `Reserved` and `Sold` listings with `409`, applies the size and publish rules, and turns a concurrent checkout into `409` rather than a lost update.
+The page loads the listing with its ETag and shows the locked state for a reserved listing. The handler refuses `Reserved`, `Sold` and withdrawn listings with `409` and a stale ETag with `412`, applies the size and publish rules, and turns a concurrent checkout into `409` rather than a lost update.
 
 ![Sequence diagram for editing a listing](diagrams/sequence-edit-listing.png)
 
@@ -149,3 +145,16 @@ The dialog confirms with the safe action focused. The handler allows only `Activ
 From a cancelled sale, the seller either edits first or relists at once. Only a listing removed because its order was cancelled returns to `Active`, with its original details.
 
 ![Sequence diagram for relisting after a cancelled sale](diagrams/sequence-relist-listing.png)
+
+## Testing
+
+- `tests/TwelveL.Api.Tests/EditListingTests.cs` — xUnit acceptance tests through `TwelveLApiFactory` with the SQLite in-memory database and fakes: the ETag on read, a save with the current ETag reaching the catalog, `412` for a stale ETag, `428` without `If-Match`, `409` for a reserved and a sold listing, the publish rules, the size confirmation, `SIZE_NOT_ACCEPTED`, the size set from a new category, ignored protected fields and `404` for another member.
+- `tests/TwelveL.Api.Tests/WithdrawListingTests.cs` — withdraw removes the listing from the catalog and the detail page, a repeat answers `200`, a withdrawn listing cannot be edited or relisted, and reserved, sold, draft and foreign listings are refused.
+- `tests/TwelveL.Domain.Tests/EditAndWithdrawListingTests.cs` — `Listing.Edit`, `Withdraw`, `EditRefusal` and the `Version` bump.
+- `src/frontend/e2e/tests/edit-and-withdraw-listing.spec.ts` with `e2e/pages/edit-listing.page.ts` — Playwright (Chromium) with every `12L API` call served by `page.route` fixtures: the prefilled form, saving with `If-Match`, the stale save and Reload, client checks, the locked, sold, withdrawn and error states, the Withdraw dialog with its busy and failed states, and "Edit first" in the Relist dialog.
+
+## Open questions
+
+- The price-only "Undo" toast is deferred until `ToastService` exists (ADR listings/0003).
+- Edit history is deferred.
+- Deleting a draft is not in the specs; a draft cannot be withdrawn.
