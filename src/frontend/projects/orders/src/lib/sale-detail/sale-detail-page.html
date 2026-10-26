@@ -43,6 +43,40 @@
                 <button tlButton="primary" type="button" (click)="relist()">Relist item</button>
               </div>
             }
+          } @else if (problemOpen() && sale.problem; as problem) {
+            <tl-alert tone="warning" icon="flag" [heading]="'Problem reported · ' + problem.reasonLabel"
+              >Your payout is on hold while our team reviews this.</tl-alert
+            >
+            <tl-thread [entries]="thread()" />
+            @if (!problem.sellerResponse) {
+              @if (replyState() === 'failed') {
+                <tl-alert tone="danger" heading="That didn’t go through"
+                  >Your reply is kept here. Check your connection and try again.</tl-alert
+                >
+              }
+              <tl-form-field
+                #rf
+                fieldId="problem-reply"
+                label="Your reply"
+                help="Visible to the buyer and to 12L."
+                [error]="replyError()"
+              >
+                <textarea
+                  class="textarea"
+                  id="problem-reply"
+                  rows="3"
+                  [value]="reply()"
+                  [attr.aria-describedby]="rf.describedBy()"
+                  [attr.aria-invalid]="rf.invalid()"
+                  (input)="reply.set($any($event.target).value)"
+                ></textarea>
+              </tl-form-field>
+              <div class="cluster">
+                <button tlButton="primary" type="button" [busy]="replyState() === 'busy'" (click)="sendReply()">
+                  {{ replyState() === 'failed' ? 'Try again' : 'Send reply' }}
+                </button>
+              </div>
+            }
           } @else {
             @if (requested() && sale.cancellationRequest; as request) {
               @if (request.message) {

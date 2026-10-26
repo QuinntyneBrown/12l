@@ -1,6 +1,7 @@
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 
+import type { OrderProblem } from './problems-api';
 import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
 import { CardPhoto } from '../catalog/catalog-api';
@@ -80,6 +81,11 @@ export interface Purchase {
   cancellation: Cancellation | null;
   /** The buyer's request to cancel, if they made one. */
   cancellationRequest: CancellationRequest | null;
+  /** Whether the buyer may report a problem now: Shipped, or Delivered within 3 days (L2-036). */
+  canReportProblem: boolean;
+  /** When a Delivered order stops taking problem reports; null otherwise. */
+  problemDeadline: string | null;
+  problem: OrderProblem | null;
 }
 
 /** Typed client for /api/checkouts and /api/purchases (checkout-and-pay). */

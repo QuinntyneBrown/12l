@@ -14,7 +14,8 @@ export interface TopBarMember {
  * App-shell top bar in its guest and member states (design system: Top bar). The application
  * passes the member from AuthState and the current keyword, and navigates on (searched); the menu
  * button opens the navigation sheet once responsive-accessible-shell builds it. Under 992px the
- * search button reveals the search form.
+ * search button reveals the search form. The admin variant (admin shell) shows only the logo, the
+ * "Admin" label and the signed-in member's initials.
  */
 @Component({
   selector: 'tl-top-bar',
@@ -28,6 +29,7 @@ export class TopBarComponent {
   static readonly maxSearchLength = 100;
 
   readonly member = input<TopBarMember | null>(null);
+  readonly variant = input<'app' | 'admin'>('app');
   /** The keyword of the result set shown, so the box keeps it. */
   readonly query = input('');
   /** A trimmed keyword of at most 100 characters; empty clears the search. */

@@ -23,6 +23,8 @@ public static class ProblemErrors
 
     public static readonly Error ResponseNotAllowed = new(409, "PROBLEM_RESPONSE_NOT_ALLOWED", "You can reply once while the problem is open");
 
+    public static readonly Error ProblemOpen = new(409, "ORDER_PROBLEM_OPEN", "This order has an open problem; our team decides it");
+
     public static readonly Error AlreadyResolved = new(409, "PROBLEM_ALREADY_RESOLVED", "This problem is already resolved");
 
     public static Error NotFound => Error.NotFound("PROBLEM_NOT_FOUND");

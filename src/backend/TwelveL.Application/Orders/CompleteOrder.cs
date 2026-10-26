@@ -35,8 +35,8 @@ public sealed class ConfirmReceiptCommandHandler(ITwelveLDbContext db, IPublishe
 
         if (await ProblemViews.IsOpenAsync(db, order.Id, cancellationToken))
         {
-            // An open problem is decided by an administrator, not by the buyer (L2-036).
-            return OrderErrors.InvalidTransition;
+            // An open problem is decided by an administrator, not by the buyer (L2-034 AC3, L2-036).
+            return ProblemErrors.ProblemOpen;
         }
 
         try

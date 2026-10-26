@@ -6,18 +6,20 @@ import { AuthState } from '@12l/api';
 import { FooterComponent, LogoComponent, TopBarComponent } from '@12l/components';
 import { PayoutBannerComponent } from '@12l/orders';
 
-/** Shell named by the deepest route's data.shell: 'app' (default) or 'auth'. */
-type Shell = 'app' | 'auth';
+/** Shell named by the deepest route's data.shell: 'app' (default), 'auth' or 'admin'. */
+type Shell = 'app' | 'auth' | 'admin';
 
 function shellOf(route: ActivatedRouteSnapshot): Shell {
   let deepest = route;
   while (deepest.firstChild) deepest = deepest.firstChild;
-  return deepest.data['shell'] === 'auth' ? 'auth' : 'app';
+  const shell = deepest.data['shell'];
+  return shell === 'auth' || shell === 'admin' ? shell : 'app';
 }
 
 /**
  * App shell: the payout banner, top bar with the member from AuthState, main#main with the router
  * outlet and the footer; a top-bar search navigates to the catalog. Routes with data.shell 'auth' render in the auth shell: large logo above a centred card.
+ * Routes with data.shell 'admin' render in the admin shell: the admin top bar and no footer.
  */
 @Component({
   selector: 'tl-app-shell',

@@ -1,16 +1,18 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { OrdersApi, Sale, shortRef } from '@12l/api';
+import { OrdersApi, ProblemsApi, Sale, shortRef } from '@12l/api';
 import {
   AlertComponent,
   ButtonDirective,
   CenterStateComponent,
   DialogService,
+  FormFieldComponent,
   IconComponent,
   OrderSummaryComponent,
   OrderSummaryItem,
   OrderTimelineComponent,
   QuoteComponent,
+  ThreadComponent,
   TrackingLinkComponent,
 } from '@12l/components';
 
@@ -24,6 +26,7 @@ import {
 import { formatMoney } from '../money';
 import { formatDay, timelineSteps } from '../order-dates';
 import { OrderPartyComponent } from '../order-party/order-party';
+import { problemThread } from '../problem-thread';
 
 const HEADINGS: Record<string, string> = {
   Paid: 'You made a sale',
@@ -38,7 +41,8 @@ const HEADINGS: Record<string, string> = {
  * The seller's sale at /sales/{id} (mocks pages/sale-detail, L2-033): the ship-by date and the
  * buyer's address while Paid, with Add tracking and Cancel order; the buyer's request to cancel
  * with Respond; the timeline and tracking link once shipped; the payout after the 12L fee once
- * Completed (L2-031); and Relist item once Cancelled (L2-035).
+ * Completed (L2-031); Relist item once Cancelled (L2-035); and the buyer's open problem with the
+ * payout on hold and one reply (L2-036).
  */
 @Component({
   selector: 'tl-sale-detail-page',
@@ -47,11 +51,13 @@ const HEADINGS: Record<string, string> = {
     AlertComponent,
     ButtonDirective,
     CenterStateComponent,
+    FormFieldComponent,
     IconComponent,
     OrderPartyComponent,
     OrderSummaryComponent,
     OrderTimelineComponent,
     QuoteComponent,
+    ThreadComponent,
     TrackingLinkComponent,
   ],
   templateUrl: './sale-detail-page.html',
@@ -61,6 +67,7 @@ const HEADINGS: Record<string, string> = {
 export class SaleDetailPage {
   private readonly api = inject(OrdersApi);
   private readonly dialogs = inject(DialogService);
+  private readonly problems = inject(ProblemsApi);
 
   /** The order id, from the route parameter. */
   readonly id = input.required<string>();
@@ -73,11 +80,26 @@ export class SaleDetailPage {
   readonly requested = computed(
     () => this.sale()?.status === 'Paid' && this.sale()?.cancellationRequest?.status === 'Pending',
   );
+  /** The buyer's problem waiting for 12L (mocks sale-detail/problem). */
+  readonly problemOpen = computed(() => this.sale()?.problem?.status === 'Open');
   readonly heading = computed(() =>
-    this.requested() ? 'Buyer asked to cancel' : HEADINGS[this.sale()?.status ?? 'Paid'],
+    this.requested()
+      ? 'Buyer asked to cancel'
+      : this.problemOpen()
+        ? 'Problem reported'
+        : HEADINGS[this.sale()?.status ?? 'Paid'],
   );
+  readonly thread = computed(() => {
+    const sale = this.sale();
+    return sale?.problem ? problemThread(sale.problem, sale.buyerDisplayName, 'You') : [];
+  });
+  readonly reply = signal('');
+  readonly replyState = signal<'default' | 'busy' | 'failed'>('default');
+  readonly replyError = signal<string | null>(null);
   readonly endedNote = computed(() => {
     const sale = this.sale();
+    if (sale?.status === 'Refunded')
+      return sale.problem?.resolutionReason ?? 'Our team decided the problem for the buyer.';
     if (sale?.canRelist || sale?.status !== 'Cancelled')
       return 'The listing stays off the catalog until you relist it.';
     return 'The listing is back in the catalog.';
@@ -161,6 +183,28 @@ export class SaleDetailPage {
       shippingCost: sale.shippingCost,
     });
     if (await ref.closed) this.sale.set({ ...sale, canRelist: false });
+  }
+
+  /** The seller's one reply to an open problem (L2-036 AC5); it then shows in the thread. */
+  async sendReply(): Promise<void> {
+    const sale = this.sale();
+    if (!sale || this.replyState() === 'busy') return;
+    const message = this.reply().trim();
+    if (!message) {
+      this.replyError.set('Write your reply');
+      return;
+    }
+    this.replyError.set(null);
+    this.replyState.set('busy');
+    const result = await this.problems.respondToProblem(sale.id, message);
+    if (result.ok) {
+      this.sale.set(result.value);
+      this.replyState.set('default');
+      return;
+    }
+    const error = result.problem.errors['message'];
+    this.replyError.set(error?.message ?? null);
+    this.replyState.set(error ? 'default' : 'failed');
   }
 
   private async load(id: string): Promise<void> {

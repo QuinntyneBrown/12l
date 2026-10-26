@@ -198,6 +198,7 @@ public sealed class ResolveOrderProblemsTests : IDisposable
         using var confirm = await _buyer.ConfirmReceiptAsync(orderId);
 
         Assert.Equal(HttpStatusCode.Conflict, confirm.StatusCode);
+        Assert.Equal("ORDER_PROBLEM_OPEN", (await Problem.ReadAsync(confirm)).Code);
         _factory.InDatabase(db => Assert.Equal(OrderStatus.Delivered, db.Orders.Single().Status));
         Assert.Empty(_factory.Completed.Events);
     }
