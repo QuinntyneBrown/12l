@@ -258,12 +258,19 @@ test.describe('checkout and pay', () => {
   });
 
   test('the timer warns in the last minute and at zero disables Pay', async ({ page }) => {
+    // The installed clock follows real time, so a slow run used to see seconds gone before the
+    // first check. Pause one minute in, before the page loads, so the countdown starts at a known
+    // instant and moves only when the test runs the clock.
+    await page.clock.pauseAt(new Date(checkoutStart.getTime() + 60 * 1000));
     await serveCheckout(page);
     const checkoutPage = new CheckoutPage(page);
     await checkoutPage.goto();
-    await expect(checkoutPage.timer).toHaveText('Reserved for you · 9:41 left');
+    await expect(async () => {
+      await page.clock.runFor(10);
+      await expect(checkoutPage.timer).toHaveText('Reserved for you · 8:41 left', { timeout: 200 });
+    }).toPass();
 
-    await page.clock.runFor((8 * 60 + 42) * 1000);
+    await page.clock.runFor((7 * 60 + 42) * 1000);
 
     await expect(checkoutPage.timer).toHaveText('Reserved for you · 0:59 left');
     await expect(checkoutPage.timer).toHaveClass(/timer--warning/);
