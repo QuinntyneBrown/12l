@@ -28,6 +28,7 @@ export { OrderSummaryComponent, type OrderSummaryItem } from './lib/order-summar
 export { PhotoUploaderComponent, type UploaderMove, type UploaderTile } from './lib/photo-uploader/photo-uploader';
 export { QuoteComponent } from './lib/quote/quote';
 export { RadioGroupComponent } from './lib/radio-group/radio-group';
+export { RatingSummaryComponent, type RatingSummaryView } from './lib/rating-summary/rating-summary';
 export { ReservationTimerComponent, type ReservationPhase } from './lib/reservation-timer/reservation-timer';
 export { SegmentedComponent } from './lib/segmented/segmented';
 export { SellerSummaryComponent, type SellerSummaryView } from './lib/seller-summary/seller-summary';

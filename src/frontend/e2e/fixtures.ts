@@ -636,3 +636,36 @@ export function myListings(
 ): Record<string, unknown> {
   return { items, counts: { all: 0, draft: 0, active: 0, reserved: 0, sold: 0, removed: 0, ...counts } };
 }
+
+/** GET /api/members/{displayName}: a public profile with no reviews (review authoring is deferred). */
+export function memberProfile(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    memberId: '7d0c1a52-3b9e-4f61-9a3d-2c8e5f4b1a07',
+    displayName: 'kicks_12',
+    avatarUrl: null,
+    bio: null,
+    publicLocation: null,
+    memberSince: '2025-01-01',
+    rating: { average: null, count: 0 },
+    completedSales: 141,
+    activeListingCount: 4,
+    ...fields,
+  };
+}
+
+/**
+ * Answers the profile and its listings pages of `total` Active listings. Returns the requested
+ * listing page numbers, in order.
+ */
+export async function serveProfile(page: Page, profile: Record<string, unknown>, total = 4): Promise<number[]> {
+  const pages: number[] = [];
+  const name = profile['displayName'] as string;
+  await page.route(`**/api/members/${name}`, (route) => route.fulfill({ json: profile }));
+  await page.route(`**/api/members/${name}/listings**`, (route) => {
+    const n = Number(new URL(route.request().url()).searchParams.get('page') ?? '1');
+    pages.push(n);
+    return route.fulfill({ json: catalogPage(total, n) });
+  });
+  await page.route('**/photos/**', (route) => route.fulfill({ status: 404 }));
+  return pages;
+}
