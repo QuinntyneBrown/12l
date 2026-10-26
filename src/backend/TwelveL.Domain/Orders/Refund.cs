@@ -3,6 +3,7 @@ namespace TwelveL.Domain.Orders;
 public enum RefundReason
 {
     DuplicatePayment,
+    ShipDeadlinePassed,
 }
 
 public enum RefundStatus
@@ -11,7 +12,10 @@ public enum RefundStatus
     Issued,
 }
 
-/// <summary>Money returned to a buyer. A payment for a listing that already has an order is refunded in full (L2-029 AC2).</summary>
+/// <summary>
+/// Money returned to a buyer. A payment for a listing that already has an order (L2-029 AC2) and
+/// an order cancelled because the ship deadline passed (L2-033 AC2) are refunded in full.
+/// </summary>
 public sealed class Refund
 {
     private Refund()
@@ -38,6 +42,16 @@ public sealed class Refund
         PaymentId = payment.Id,
         Amount = payment.Amount,
         Reason = RefundReason.DuplicatePayment,
+        Status = RefundStatus.Pending,
+        CreatedAt = now,
+    };
+
+    public static Refund ForMissedShipDeadline(Payment payment, DateTime now) => new()
+    {
+        Id = Guid.NewGuid(),
+        PaymentId = payment.Id,
+        Amount = payment.Amount,
+        Reason = RefundReason.ShipDeadlinePassed,
         Status = RefundStatus.Pending,
         CreatedAt = now,
     };

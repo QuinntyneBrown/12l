@@ -1,17 +1,29 @@
 namespace TwelveL.Domain.Orders;
 
-/// <summary>Order states. Checkout creates Paid orders; ship-order adds the states after it.</summary>
+/// <summary>Order states (L2-032). Cancelled, Completed and Refunded are terminal.</summary>
 public enum OrderStatus
 {
     Paid,
+    Shipped,
+    Delivered,
+    Completed,
+    Cancelled,
+    Refunded,
 }
 
 /// <summary>
 /// One sale of one listing to one buyer, created from the provider's signed webhook (L2-030 AC2).
-/// The database allows one order per listing and per checkout (L2-029).
+/// The database allows one order per listing and per checkout (L2-029). Every status change goes
+/// through <see cref="TransitionTo"/>, which checks <see cref="OrderStateMachine"/> and appends
+/// an <see cref="OrderStatusChange"/> (L2-032).
 /// </summary>
 public sealed class Order
 {
+    /// <summary>Business days the seller has to add tracking (L2-033).</summary>
+    public const int ShipWithinBusinessDays = 5;
+
+    private readonly List<OrderStatusChange> _statusChanges = [];
+
     private Order()
     {
     }
@@ -47,25 +59,79 @@ public sealed class Order
 
     public DateTime PaidAt { get; private set; }
 
+    /// <summary>When the seller must have added tracking: 5 business days after payment (L2-033).</summary>
+    public DateTime ShipBy { get; private set; }
+
+    public DateTime? ShippedAt { get; private set; }
+
+    public DateTime? DeliveredAt { get; private set; }
+
+    /// <summary>When the order reached a terminal status.</summary>
+    public DateTime? EndedAt { get; private set; }
+
+    public Carrier? Carrier { get; private set; }
+
+    public string? TrackingNumber { get; private set; }
+
+    /// <summary>The append-only history of transitions, oldest first.</summary>
+    public IReadOnlyList<OrderStatusChange> StatusChanges => _statusChanges;
+
     public static string ReferenceFor(long number) => $"12L-{number}";
 
     /// <summary>The Paid order of a checkout whose payment succeeded. The checkout must have an address and a tax quote.</summary>
-    public static Order CreatePaid(long number, Checkout checkout, Guid sellerId, Payment payment, DateTime now) => new()
+    public static Order CreatePaid(long number, Checkout checkout, Guid sellerId, Payment payment, DateTime now)
     {
-        Id = Guid.NewGuid(),
-        Number = number,
-        Reference = ReferenceFor(number),
-        CheckoutId = checkout.Id,
-        ListingId = checkout.ListingId,
-        BuyerId = checkout.BuyerId,
-        SellerId = sellerId,
-        PaymentId = payment.Id,
-        Status = OrderStatus.Paid,
-        ItemPrice = checkout.ItemPrice,
-        ShippingCost = checkout.ShippingCost,
-        SalesTax = checkout.SalesTax ?? throw new InvalidOperationException("The checkout has no tax."),
-        Total = payment.Amount,
-        ShippingAddress = checkout.Address ?? throw new InvalidOperationException("The checkout has no address."),
-        PaidAt = now,
-    };
+        var order = new Order
+        {
+            Id = Guid.NewGuid(),
+            Number = number,
+            Reference = ReferenceFor(number),
+            CheckoutId = checkout.Id,
+            ListingId = checkout.ListingId,
+            BuyerId = checkout.BuyerId,
+            SellerId = sellerId,
+            PaymentId = payment.Id,
+            Status = OrderStatus.Paid,
+            ItemPrice = checkout.ItemPrice,
+            ShippingCost = checkout.ShippingCost,
+            SalesTax = checkout.SalesTax ?? throw new InvalidOperationException("The checkout has no tax."),
+            Total = payment.Amount,
+            ShippingAddress = checkout.Address ?? throw new InvalidOperationException("The checkout has no address."),
+            PaidAt = now,
+            ShipBy = BusinessDays.Add(now, ShipWithinBusinessDays),
+        };
+        order._statusChanges.Add(OrderStatusChange.Record(order.Id, null, OrderStatus.Paid, OrderActor.System, now));
+        return order;
+    }
+
+    /// <summary>The seller added a well-formed tracking number: Paid to Shipped.</summary>
+    public void MarkShipped(Carrier carrier, string trackingNumber, DateTime now)
+    {
+        TransitionTo(OrderStatus.Shipped, OrderActor.Seller, now);
+        Carrier = carrier;
+        TrackingNumber = trackingNumber;
+        ShippedAt = now;
+    }
+
+    /// <summary>The carrier reported delivery, or the buyer confirmed receipt: Shipped to Delivered.</summary>
+    public void MarkDelivered(OrderActor actor, DateTime now)
+    {
+        TransitionTo(OrderStatus.Delivered, actor, now);
+        DeliveredAt = now;
+    }
+
+    /// <summary>The seller cancelled, or the ship deadline passed: Paid to Cancelled.</summary>
+    public void Cancel(OrderActor actor, DateTime now) => TransitionTo(OrderStatus.Cancelled, actor, now);
+
+    /// <summary>The only path that changes <see cref="Status"/>; throws <see cref="InvalidOrderTransitionException"/> for any move L2-032 does not list.</summary>
+    public void TransitionTo(OrderStatus to, OrderActor actor, DateTime now)
+    {
+        OrderStateMachine.EnsureAllowed(Status, to, actor);
+        _statusChanges.Add(OrderStatusChange.Record(Id, Status, to, actor, now));
+        Status = to;
+        if (OrderStateMachine.IsTerminal(to))
+        {
+            EndedAt = now;
+        }
+    }
 }
