@@ -1,11 +1,21 @@
 // Acceptance Test
-// Traces to: L2-003, L2-011, L2-012, L2-013, L2-014, L2-015, L2-016, L2-018, L2-019, L2-031, L2-051, L2-002
+// Traces to: L2-003, L2-011, L2-012, L2-013, L2-014, L2-015, L2-016, L2-017, L2-018, L2-019, L2-031, L2-051, L2-002
 // Description: A verified member opens /sell, sees the size fixed by the category, saves a draft
 // and publishes; the client never sends a size. Visitors sign in first, unverified members are
 // asked to verify, and the daily limit and load failures show their mocked states.
 
 import { Request } from '@playwright/test';
-import { expect, marcus, myListing, problem, serveCatalogue, signInAs, test, unverifiedMarcus } from '../fixtures';
+import {
+  expect,
+  marcus,
+  myListing,
+  problem,
+  serveCatalogue,
+  servePhotoUploads,
+  signInAs,
+  test,
+  unverifiedMarcus,
+} from '../fixtures';
 import { SellPage } from '../pages/sell.page';
 
 test.describe('sell an item', () => {
@@ -21,6 +31,7 @@ test.describe('sell an item', () => {
     test.beforeEach(async ({ page }) => {
       await signInAs(page, marcus);
       await serveCatalogue(page);
+      await servePhotoUploads(page);
     });
 
     test('the form opens without approval and offers no size choice', async ({ page }) => {
@@ -99,12 +110,12 @@ test.describe('sell an item', () => {
       const saved = page.getByRole('status').filter({ hasText: 'Draft saved' });
       await expect(saved).toContainText('Finish it any time from your listings.');
       await expect(saved.getByRole('link', { name: 'your listings' })).toHaveAttribute('href', '/account/listings');
-      expect(bodies).toEqual([{ category: 'Tops', title: 'Grey hoodie' }]);
+      expect(bodies).toEqual([{ category: 'Tops', title: 'Grey hoodie', photoIds: [] }]);
 
       await sell.title.fill('Grey hoodie, heavy');
       await sell.saveDraft.click();
       await expect.poll(() => updated?.method()).toBe('PUT');
-      expect(updated!.postDataJSON()).toEqual({ category: 'Tops', title: 'Grey hoodie, heavy' });
+      expect(updated!.postDataJSON()).toEqual({ category: 'Tops', title: 'Grey hoodie, heavy', photoIds: [] });
     });
 
     test('a draft needs a category', async ({ page, unfixturedApiCalls }) => {
@@ -133,6 +144,7 @@ test.describe('sell an item', () => {
 
       await expect(sell.errorSummary).toBeFocused();
       for (const message of [
+        'Add at least one photo',
         'Title must be 5 to 80 characters',
         'Brand must be 1 to 50 characters',
         "Describe the item's flaws",
@@ -179,6 +191,7 @@ test.describe('sell an item', () => {
         description: 'Light creasing, soles have plenty left. Cleaned and ready to wear.',
         price: 60,
         shippingCost: 8,
+        photoIds: ['p-1'],
       });
       expect(created).not.toHaveProperty('size');
       expect(published).toEqual({ sizeConfirmed: true });
@@ -186,6 +199,7 @@ test.describe('sell an item', () => {
       await page.getByRole('link', { name: 'Sell another' }).click();
       await expect(sell.heading).toHaveText('Sell an item');
       await expect(sell.title).toHaveValue('');
+      await expect(sell.photoTiles).toHaveCount(0);
     });
 
     test('a title with markup is shown as text', async ({ page }) => {

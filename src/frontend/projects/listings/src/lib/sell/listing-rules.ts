@@ -16,6 +16,7 @@ export interface ListingFormValue {
 
 /** Control ids of the form, in error summary order. The condition links to its first option. */
 export const FIELD_IDS = [
+  'photos',
   'cat',
   'sub',
   'title',
@@ -34,6 +35,8 @@ export type FieldErrors = Partial<Record<FieldId, string>>;
 
 /** Request fields of 12L API mapped to control ids, so server errors land on their control. */
 export const SERVER_FIELDS: Record<string, FieldId> = {
+  photos: 'photos',
+  photoIds: 'photos',
   category: 'cat',
   subcategory: 'sub',
   size: 'cat',
@@ -48,6 +51,14 @@ export const SERVER_FIELDS: Record<string, FieldId> = {
 };
 
 const USED_FAIR = 'Used - Fair';
+
+/** Largest photo 12L API accepts: 10 MB, read as 10 MiB (L2-017). */
+export const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+/** "11.4 MB" for a rejected tile. */
+export function formatFileSize(bytes: number): string {
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
 const MONEY = /^\d+(\.\d{1,2})?$/;
 
 /** Parses typed money with at most two decimals; null when empty or malformed. */
@@ -69,11 +80,13 @@ export function confirmLabel(category: string): string {
 
 /**
  * Client checks mirroring 12L API, for fast feedback only; the server decides. Drafts need a
- * category and every present field within its limits (L2-019); publishing adds L2-014 to L2-018.
+ * category and every present field within its limits (L2-019); publishing adds L2-014 to L2-018,
+ * including at least one photo (L2-017).
  */
-export function checkListing(value: ListingFormValue, mode: 'draft' | 'publish'): FieldErrors {
+export function checkListing(value: ListingFormValue, mode: 'draft' | 'publish', photoCount: number): FieldErrors {
   const errors: FieldErrors = {};
   const publish = mode === 'publish';
+  if (publish && photoCount < 1) errors.photos = 'Add at least one photo';
   const title = value.title.trim();
   const brand = value.brand.trim();
   const description = value.description.trim();

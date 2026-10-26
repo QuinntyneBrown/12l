@@ -1,8 +1,16 @@
-import { Locator, Page } from '@playwright/test';
+import { Locator, Page, expect } from '@playwright/test';
+
+import { imageFile } from '../fixtures';
 
 /** Sell an item at /sell (mocks pages/sell) and the verify-email-prompt dialog it opens. */
 export class SellPage {
   readonly heading: Locator;
+  readonly photoInput: Locator;
+  readonly addPhotosTile: Locator;
+  readonly photoTiles: Locator;
+  readonly rejectedTiles: Locator;
+  readonly photoError: Locator;
+  readonly photoAnnouncement: Locator;
   readonly category: Locator;
   readonly type: Locator;
   readonly fixedSize: Locator;
@@ -22,6 +30,12 @@ export class SellPage {
 
   constructor(private readonly page: Page) {
     this.heading = page.getByRole('heading', { level: 1 });
+    this.photoInput = page.locator('#photos');
+    this.addPhotosTile = page.locator('.uploader__add');
+    this.photoTiles = page.locator('.uploader__tile');
+    this.rejectedTiles = page.locator('.uploader__rejected');
+    this.photoError = page.locator('#photos-error');
+    this.photoAnnouncement = page.locator('tl-photo-uploader [aria-live="polite"]');
     this.category = page.getByLabel('Category');
     this.type = page.getByLabel('Type');
     this.fixedSize = page.locator('#size');
@@ -44,7 +58,20 @@ export class SellPage {
     await this.page.goto(path);
   }
 
+  /** Chooses files in the uploader and waits until every accepted one shows its thumbnail. */
+  async addPhotos(...names: string[]): Promise<void> {
+    const before = await this.photoTiles.count();
+    await this.photoInput.setInputFiles(names.map((name) => imageFile(name)));
+    await expect(this.photoTiles.locator('img')).toHaveCount(before + names.length);
+  }
+
+  photo(n: number): Locator {
+    return this.photoTiles.nth(n - 1);
+  }
+
+  /** Needs servePhotoUploads; uploads one photo first. */
   async fillComplete(): Promise<void> {
+    await this.addPhotos('front.jpg');
     await this.category.selectOption('Shoes');
     await this.type.selectOption('Sneakers');
     await this.title.fill("Air Force 1 '07, white");

@@ -9,6 +9,8 @@ import {
   Category,
   ListingsApi,
   MyListing,
+  Photo,
+  PhotosApi,
   SellingApi,
   SellingOptions,
   shortRef,
@@ -26,8 +28,11 @@ import {
   IconComponent,
   InputGroupComponent,
   ItemRowComponent,
+  PhotoUploaderComponent,
   SegmentedComponent,
   SummaryError,
+  UploaderMove,
+  UploaderTile,
 } from '@12l/components';
 
 import { VerifyEmailPromptComponent } from '../verify-email-prompt/verify-email-prompt';
@@ -35,10 +40,12 @@ import {
   FIELD_IDS,
   FieldErrors,
   ListingFormValue,
+  MAX_PHOTO_BYTES,
   SERVER_FIELDS,
   checkListing,
   confirmLabel,
   estimateEarnings,
+  formatFileSize,
   formatUsd,
   toDetails,
 } from './listing-rules';
@@ -53,10 +60,17 @@ interface Published {
   payoutOnboardingRequired: boolean;
 }
 
+/** An uploader tile with the uploaded photo's ID and, for a refused file, why. */
+interface PhotoTile extends UploaderTile {
+  id?: string;
+  message?: string;
+}
+
 /**
  * Sell an item at /sell and continue a draft at /sell/{reference} (create-listing, mocks
  * pages/sell). There is no size input: the size shown comes from the category and 12L API sets
- * the stored size (L2-012, L2-013). Photos arrive with upload-listing-photos.
+ * the stored size (L2-012, L2-013). Photos upload one file per request as soon as they are chosen;
+ * a save sends the uploaded IDs in display order (upload-listing-photos, L2-017).
  */
 @Component({
   selector: 'tl-sell-page',
@@ -74,6 +88,7 @@ interface Published {
     IconComponent,
     InputGroupComponent,
     ItemRowComponent,
+    PhotoUploaderComponent,
     SegmentedComponent,
   ],
   templateUrl: './sell-page.html',
@@ -84,6 +99,7 @@ export class SellPage implements OnInit {
   private readonly auth = inject(AuthState);
   private readonly selling = inject(SellingApi);
   private readonly listings = inject(ListingsApi);
+  private readonly photoUploads = inject(PhotosApi);
   private readonly dialogs = inject(DialogService);
   private readonly router = inject(Router);
 
@@ -113,8 +129,18 @@ export class SellPage implements OnInit {
   readonly categories = signal<Category[]>([]);
   readonly options = signal<SellingOptions | null>(null);
   readonly email = computed(() => this.auth.member()?.email ?? '');
+  readonly photos = signal<PhotoTile[]>([]);
+  readonly maxPhotos = computed(() => this.options()?.maxPhotos ?? 8);
+  /** The field error, then why the last refused file was refused: "Add at least one photo. Photos must be 10 MB or smaller." */
+  readonly photoError = computed(() => {
+    const rejected = this.photos().filter((p) => p.state === 'rejected');
+    const parts = [this.errors().photos, rejected.at(-1)?.message].filter((m): m is string => !!m);
+    const unique = [...new Set(parts)];
+    return unique.length > 1 ? unique.map((m) => `${m}.`).join(' ') : (unique[0] ?? null);
+  });
 
   private readonly savedReference = signal<string | null>(null);
+  private nextPhotoKey = 0;
 
   readonly value = toSignal(this.form.valueChanges.pipe(map(() => this.form.getRawValue() as ListingFormValue)), {
     initialValue: this.form.getRawValue() as ListingFormValue,
@@ -180,10 +206,43 @@ export class SellPage implements OnInit {
     this.view.set('form');
   }
 
+  /** Uploads the chosen files into the free slots; files over 10 MB are refused before sending. */
+  addPhotos(files: File[]): void {
+    const free = this.maxPhotos() - this.photos().filter((p) => p.state !== 'rejected').length;
+    for (const file of files.slice(0, Math.max(free, 0))) {
+      const key = `photo-${this.nextPhotoKey++}`;
+      if (file.size > MAX_PHOTO_BYTES) {
+        this.photos.update((tiles) => [...tiles, this.rejectedTile(key, file, 'Photos must be 10 MB or smaller')]);
+        continue;
+      }
+      this.photos.update((tiles) => [...tiles, { key, state: 'uploading', name: file.name }]);
+      void this.photoUploads.upload(file).then((result) => {
+        const tile: PhotoTile = result.ok
+          ? { key, state: 'ready', id: result.value.id, src: result.value.url }
+          : this.rejectedTile(key, file, this.uploadMessage(result.problem, file));
+        this.photos.update((tiles) => tiles.map((t) => (t.key === key ? tile : t)));
+      });
+    }
+  }
+
+  removePhoto(key: string): void {
+    this.photos.update((tiles) => tiles.filter((t) => t.key !== key));
+  }
+
+  /** Moves a photo among the photos; refused files stay after them. */
+  movePhoto({ from, to }: UploaderMove): void {
+    this.photos.update((tiles) => {
+      const photos = tiles.filter((t) => t.state !== 'rejected');
+      const [moved] = photos.splice(from, 1);
+      photos.splice(to, 0, moved);
+      return [...photos, ...tiles.filter((t) => t.state === 'rejected')];
+    });
+  }
+
   async saveDraft(): Promise<void> {
     if (this.busy()) return;
     const value = this.form.getRawValue() as ListingFormValue;
-    if (!this.accept(checkListing(value, 'draft'))) return;
+    if (!this.accept(this.check(value, 'draft'))) return;
     this.busy.set('draft');
     const saved = await this.save(value);
     this.busy.set(null);
@@ -193,7 +252,7 @@ export class SellPage implements OnInit {
   async publish(): Promise<void> {
     if (this.busy()) return;
     const value = this.form.getRawValue() as ListingFormValue;
-    if (!this.accept(checkListing(value, 'publish'))) return;
+    if (!this.accept(this.check(value, 'publish'))) return;
     this.busy.set('publish');
     const saved = await this.save(value);
     if (!saved) {
@@ -219,6 +278,7 @@ export class SellPage implements OnInit {
   /** "Sell another": a blank form for a new listing. */
   reset(): void {
     this.form.reset();
+    this.photos.set([]);
     this.savedReference.set(null);
     this.published.set(null);
     this.errors.set({});
@@ -233,7 +293,7 @@ export class SellPage implements OnInit {
 
   /** Creates the draft the first time, then updates it in place. */
   private async save(value: ListingFormValue): Promise<MyListing | null> {
-    const details = toDetails(value);
+    const details = { ...toDetails(value), photoIds: this.photoIds() };
     const reference = this.savedReference();
     const result = reference
       ? await this.listings.updateDraft(reference, details)
@@ -244,6 +304,29 @@ export class SellPage implements OnInit {
     }
     this.savedReference.set(result.value.reference);
     return result.value;
+  }
+
+  private photoIds(): string[] {
+    return this.photos().flatMap((p) => (p.state === 'ready' && p.id ? [p.id] : []));
+  }
+
+  /** Client checks, plus a wait while photos are still uploading. */
+  private check(value: ListingFormValue, mode: 'draft' | 'publish'): FieldErrors {
+    const errors = checkListing(value, mode, this.photoIds().length);
+    if (this.photos().some((p) => p.state === 'uploading')) {
+      errors.photos = 'Wait for your photos to finish uploading';
+    }
+    return errors;
+  }
+
+  private rejectedTile(key: string, file: File, message: string): PhotoTile {
+    return { key, state: 'rejected', name: file.name, size: formatFileSize(file.size), message };
+  }
+
+  /** 413, 415 and 422 carry the message to show; anything else is a failed upload. */
+  private uploadMessage(problem: ApiProblem, file: File): string {
+    if ([413, 415, 422].includes(problem.status)) return problem.title;
+    return `Couldn’t upload ${file.name}. Try again.`;
   }
 
   /** Shows client errors; true when there are none. */
@@ -285,6 +368,7 @@ export class SellPage implements OnInit {
 
   private fill(listing: MyListing): void {
     this.savedReference.set(listing.reference);
+    this.photos.set(listing.photos.map((photo: Photo) => this.readyTile(photo)));
     this.form.patchValue({
       category: listing.category,
       subcategory: listing.subcategory ?? '',
@@ -296,5 +380,9 @@ export class SellPage implements OnInit {
       price: listing.price === null ? '' : listing.price.toFixed(2),
       shipping: listing.shippingCost === null ? '' : listing.shippingCost.toFixed(2),
     });
+  }
+
+  private readyTile(photo: Photo): PhotoTile {
+    return { key: `photo-${this.nextPhotoKey++}`, state: 'ready', id: photo.id, src: photo.url };
   }
 }

@@ -66,8 +66,55 @@ export function myListing(fields: Record<string, unknown>): Record<string, unkno
     createdAt: '2026-10-25T12:00:00Z',
     updatedAt: '2026-10-25T12:00:00Z',
     publishedAt: null,
+    photos: [],
     ...fields,
   };
+}
+
+/** An uploaded photo as POST /api/photo-uploads returns it; the thumbnail is the 400 px WebP. */
+export function photo(id: string): Record<string, unknown> {
+  const hash = id.padEnd(64, '0').replace(/[^0-9a-f]/g, 'a');
+  return {
+    id,
+    url: `/photos/${hash}/400.webp`,
+    width: 1200,
+    height: 1600,
+    versions: [400, 800, 1600].flatMap((size) =>
+      ['WebP', 'Jpeg'].map((format) => ({
+        size,
+        width: Math.min(size, 1200),
+        height: Math.round((1600 * Math.min(size, 1200)) / 1200),
+        format,
+        url: `/photos/${hash}/${size}.${format === 'WebP' ? 'webp' : 'jpg'}`,
+      })),
+    ),
+  };
+}
+
+/** A 1x1 PNG served for every photo version. */
+const PIXEL = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYGD4DwABBAEAwS2OUAAAAABJRU5ErkJggg==',
+  'base64',
+);
+
+/**
+ * Answers POST /api/photo-uploads with photos p-1, p-2... in upload order, and serves every
+ * photo version. Returns the names of the uploaded files.
+ */
+export async function servePhotoUploads(page: Page): Promise<string[]> {
+  const uploaded: string[] = [];
+  await page.route('**/api/photo-uploads', async (route) => {
+    const name = /filename="([^"]+)"/.exec(route.request().postDataBuffer()?.toString('latin1') ?? '')?.[1] ?? '';
+    uploaded.push(name);
+    await route.fulfill({ status: 201, json: photo(`p-${uploaded.length}`) });
+  });
+  await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
+  return uploaded;
+}
+
+/** A small file the uploader accepts; the fixtures decide what 12L API says about it. */
+export function imageFile(name: string, bytes = 2048): { name: string; mimeType: string; buffer: Buffer } {
+  return { name, mimeType: name.endsWith('.png') ? 'image/png' : 'image/jpeg', buffer: Buffer.alloc(bytes, 1) };
 }
 
 /** An RFC 9457 problem body as 12L API writes it (L2-068). */
