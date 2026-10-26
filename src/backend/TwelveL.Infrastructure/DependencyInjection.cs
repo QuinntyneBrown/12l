@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using TwelveL.Application.Abstractions;
+using TwelveL.Application.Catalog;
 using TwelveL.Application.Listings;
 using TwelveL.Infrastructure.Accounts;
 using TwelveL.Infrastructure.Email;
@@ -27,6 +28,7 @@ public static class DependencyInjection
         services.Configure<AppOptions>(configuration.GetSection("App"));
         services.Configure<SellingOptions>(configuration.GetSection("Selling"));
         services.Configure<PhotoOptions>(configuration.GetSection("Photos"));
+        services.Configure<CatalogOptions>(configuration.GetSection("Catalog"));
         services.Configure<PhotoStorageOptions>(configuration.GetSection("PhotoStorage"));
         services.AddSingleton<IImageInspector, SkiaImageInspector>();
         services.AddSingleton<IListingPhotoProcessor, SkiaPhotoProcessor>();
