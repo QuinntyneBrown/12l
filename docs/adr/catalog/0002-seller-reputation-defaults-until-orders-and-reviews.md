@@ -19,3 +19,7 @@ The view-listing-detail design read the seller's rating, review count, completed
 - No migration and no placeholder schema; the detail read stays in one handler.
 - When complete-order and view-member-profile store the figures, they fill `SellerSummaryDto` in this handler; the API shape and the component do not change.
 - `L2-026` acceptance criterion 2 stays open until checkout-and-pay.
+
+## Update 2026-10-26
+
+[ADR reviews/0001](../reviews/0001-public-profile-without-a-reputation-projection.md) fills `CompletedSalesCount` from Completed orders where the member is the seller. The rating stays empty while review authoring is deferred.

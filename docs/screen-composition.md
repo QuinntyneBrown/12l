@@ -61,8 +61,19 @@ implemented, and the catalogue grows in the same change.
 
 ### Member profile — `/members/{displayName}` (`pages/profile`: default, own, empty, loading, error, unavailable, long)
 
-- Library: not yet composed
-- Local: not yet composed
+Built by view-member-profile in `@12l/reviews` (`src/lib/member-profile/`). The Reviews section
+shows "No reviews yet" while review authoring is deferred; the own state shows no "Edit
+profile" until edit-profile exists, and avatar, location and bio show only when a member has
+them (ADR reviews/0001).
+
+- Library: `tl-rating-summary` (header; "No reviews yet" with no reviews), `tl-stat` (Sales,
+  Member since), `tl-listing-grid` (For sale cards; loading skeleton), `tl-load-more` (long:
+  "Showing {n} of {total}", 24 per page), `tl-empty-state` (empty: `compact`, icon `tag`, "No
+  items for sale"), `tl-alert` (danger "Couldn’t load more items"), `tl-center-state`
+  (unavailable: code "404", "Back to shop"; error: reference, "Try again" with icon `refresh`
+  and "Back to shop"), `tlButton`, `tl-icon` (`map-pin`, `refresh`)
+- Local: `.profile-head` with the `avatar--xl` initials or photo, `h1` and bio; the `.stats`
+  row; the For sale and Reviews `.section-head` blocks; the header loading skeleton
 
 ### Join — `/join` (`pages/register`: default, invalid, submitting, success, error)
 
@@ -134,8 +145,8 @@ toggle, the chips and the sort select). The URL holds the result set (`q`, `cate
 
 Built by view-listing-detail in `@12l/catalog` (`src/lib/listing-detail/`) for every state. In
 the own state edit-and-withdraw-listing adds "Withdraw", which opens the Withdraw listing dialog
-(`src/lib/withdraw-listing/`, ADR listings/0003). Sellers show no city until member profiles
-record one.
+(`src/lib/withdraw-listing/`, ADR listings/0003). Sellers show no city until members can edit
+their profile.
 
 - Library: `tl-gallery` (main photo track, dots, thumbnails), `tl-size-tag` (lg), `tl-buy-bar`
   (default and guest: "Buy now" as `tlButton="primary"` lg; own: "Edit listing" with icon

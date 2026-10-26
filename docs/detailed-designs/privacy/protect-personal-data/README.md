@@ -87,6 +87,8 @@ The slice runs from the Privacy page through `12L API` down to the stored bytes.
   - `PublicSellerSummaryDto` and `PublicMemberProfileDto` — `DisplayName`, `AvatarUrl`, `Bio`, `PublicLocation` (city and state only, `L2-004`), `MemberSince`, `RatingAverage`, `RatingCount`, `CompletedSales`.
   - `PublicReviewDto` — `Id`, `Rating`, `Text`, `ReviewerDisplayName`, `Role`, `CreatedAt`.
 
+  The member profile is built as `PublicProfileDto` (`reviews/view-member-profile`), whose
+  property names are already checked against an allow-list in `MemberProfileTests`.
   The owning subsystems define the exact field lists; this feature owns the rule and
   the tests that enforce it.
 - **`PersonalDataFieldNames`** — static list of forbidden property names used by the
