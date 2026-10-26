@@ -14,7 +14,9 @@ export type IconName =
   | 'mail'
   | 'refresh'
   | 'clock'
-  | 'camera';
+  | 'camera'
+  | 'tag'
+  | 'wifi-off';
 
 /** One decorative inline SVG icon from the 12L set, hidden from assistive technology (design system: Icon). */
 @Component({
