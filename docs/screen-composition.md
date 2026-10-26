@@ -10,17 +10,19 @@ screen is composed of. "Local UI" is markup a feature library builds itself beca
 catalogue component covers it; it is listed here so that catalogue change control can pick
 it up. Mock-only chrome (`mock-bar`, `mock-note`, the theme toggle) is excluded.
 
-The catalogue currently holds the shell components only (skip link, top bar, footer, toast,
-sheet, button, link, form field). Feature screens are inventoried below with their states
-and marked **not yet composed**; each is composed when its journey is implemented, and the
-catalogue grows in the same change.
+The catalogue holds the shell components (skip link, top bar, footer, toast, sheet, button,
+link, form field) and the components create-listing added (alert, center state, choice,
+dialog with `DialogService`, earnings, error summary, fixed size, icon, input group, item row,
+segmented control, size tag, spinner). Feature screens not built yet are inventoried below
+with their states and marked **not yet composed**; each is composed when its journey is
+implemented, and the catalogue grows in the same change.
 
 ## Shell
 
 | Part | Library components | Local UI |
 |---|---|---|
 | App shell (`shell: 'app'`) | `tl-skip-link`, `tl-top-bar` (guest, member), `tl-footer`, `tl-toast-region` | `<main id="main" tabindex="-1">` with the router outlet, in `projects/twelvel` |
-| Auth shell (`shell: 'auth'`) | `tl-skip-link`, `tl-toast-region` | Large logo above a centred card; not yet composed |
+| Auth shell (`shell: 'auth'`) | `tl-skip-link`, `tl-logo` (lg), `tl-toast-region` | `.auth-layout` with `<main id="main" class="auth-card" tabindex="-1">` and the router outlet, in `projects/twelvel`; chosen by route `data.shell = 'auth'` |
 | Admin shell (`shell: 'admin'`) | `tl-skip-link`, `tl-top-bar` (admin variant), `tl-toast-region` | Not yet composed |
 | Bare shell (`shell: 'bare'`) | `tl-skip-link`, `tl-top-bar` (bare variant), `tl-toast-region` | Not yet composed |
 | Nav-menu sheet (`dialogs/nav-menu`: default, guest) | `tl-sheet`, `tl-button`, `tl-link` | Not yet composed |
@@ -63,8 +65,10 @@ catalogue grows in the same change.
 
 ### Join — `/join` (`pages/register`: default, invalid, submitting, success, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Auth shell. `@12l/accounts` `JoinPage`.
+
+- Library: `tl-form-field` (display name, email, password), `tl-choice` (age, terms), `tl-error-summary` (invalid), `tl-alert` (error with reference; success "Link sent" and warning "Too many requests" after Resend email), `tl-button` (Join 12L primary lg block with busy; Browse while you wait; Resend email link), `tl-icon` (mail)
+- Local: heading block with the lead line; the mail icon circle and "We sent a link to …" paragraph of the success state
 
 ### Reset password — `/reset-password` (`pages/reset-password`: default, invalid, submitting, success, expired, error)
 
@@ -83,13 +87,18 @@ catalogue grows in the same change.
 
 ### Sign in — `/sign-in` (`pages/sign-in`: default, return, invalid, submitting, locked, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Auth shell. `@12l/accounts` `SignInPage`; `returnUrl` keeps the page the member came from. The
+`locked` state and the "Forgot password?" link arrive with account lockout and password reset.
+
+- Library: `tl-form-field` (email, password), `tl-alert` (invalid: "Email or password is incorrect"; error with reference), `tl-button` (Sign in primary lg block with busy)
+- Local: heading block; "New to 12L? Join" line
 
 ### Verify email — `/verify` (`pages/verify-email`: default, loading, expired, used, error)
 
-- Library: not yet composed
-- Local: not yet composed
+Auth shell. `@12l/accounts` `VerifyEmailPage` reads `token` from the query string.
+
+- Library: `tl-spinner` (loading), `tl-button` (Start shopping, Sell an item, Send a new link, Sign in, Try again), `tl-alert` (Link sent, Too many requests), `tl-icon` (refresh)
+- Local: heading block with the lead line; the reference line of the error state
 
 ### Catalog — `/` (`pages/catalog`: default, guest, category, search, filtered, loading, empty, no-results, error, offline)
 
@@ -148,8 +157,12 @@ catalogue grows in the same change.
 
 ### Sell an item — `/sell` (`pages/sell`: default, filled, invalid, submitting, draft-saved, success, unverified, limited, error)
 
-- Library: not yet composed
-- Local: not yet composed
+App shell. `@12l/listings` `SellPage` at `/sell` and `/sell/{reference}` (continue a draft).
+Visitors are sent to `/sign-in?returnUrl=/sell`. The Photos section and its uploader arrive with
+upload-listing-photos; the footer stays visible under the form.
+
+- Library: `tl-error-summary` (invalid), `tl-alert` (draft-saved success, save or publish failure), `tl-form-field` (category, type, title with counter, brand, flaws, description with counter, price, shipping), `tl-input-group` (`$` addon), `tl-fixed-size` with `tl-size-tag` (after a category is chosen), `tl-segmented` (condition), `tl-earnings`, `tl-choice` (size confirmation), `tl-button` (Save draft, Publish with busy), `tl-center-state` (success, unverified, limited, error) with `tl-item-row` (success panel) and `tl-icon`, `DialogService` (opens the verify-email prompt)
+- Local: `.page-header` with the h1, `.sell-form` sections (`.form-section`, `.form-row`), the brand `<datalist>`, the sticky `.form-actions` bar, the success panel wrapper and the payouts line
 
 ### Forbidden — `/403` (`pages/forbidden`: default)
 
@@ -204,7 +217,7 @@ catalogue grows in the same change.
 | Change password (`dialogs/change-password`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
 | Close account (`dialogs/close-account`: default, invalid, busy, blocked) | `DialogService` | not yet composed | not yet composed |
 | Sign out everywhere (`dialogs/sign-out-everywhere`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
-| Verify email prompt (`dialogs/verify-email-prompt`: default, busy, sent, limited) | `DialogService` | not yet composed | not yet composed |
+| Verify email prompt (`dialogs/verify-email-prompt`: default, busy, sent, limited) | `DialogService` | `tl-dialog` (mail icon, description with the email), `tl-alert` (sent success, limited warning) in the top slot, `tl-button` (Not now, Resend link with busy, Done) | `VerifyEmailPromptComponent` in `@12l/listings`; it moves to a shared place when checkout also opens it |
 | Filters (`dialogs/filters`: default, invalid, busy) | `tl-sheet` | not yet composed | not yet composed |
 | Menu (`dialogs/nav-menu`: default, guest) | `tl-sheet` | `tl-sheet`, `tl-button`, `tl-link` | not yet composed |
 | Add tracking (`dialogs/add-tracking`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |
@@ -232,4 +245,6 @@ catalogue grows in the same change.
 ## Summary of local UI to build
 
 1. `main#main` with the router outlet and the home placeholder (`projects/twelvel`).
-2. Everything marked "not yet composed" is composed, and its library components added to the catalogue, when its journey is implemented.
+2. The auth layout of the auth shell (`projects/twelvel`).
+3. Heading blocks of the auth pages and the sell page header, form sections and sticky actions bar.
+4. Everything marked "not yet composed" is composed, and its library components added to the catalogue, when its journey is implemented.

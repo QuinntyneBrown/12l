@@ -4,7 +4,8 @@ Extracted from [docs/mocks](../mocks/README.md) on 2026-10-25. Open [index.html]
 
 The first extraction covers the tokens, every foundation page and the components the
 application shell needs. Components for feature screens are added as those screens are
-built; until then their mocks remain the reference.
+built; until then their mocks remain the reference. Create-listing added the components of
+the join, verify-email, sign-in and sell screens and the verify-email-prompt dialog.
 
 ## Foundations
 
@@ -35,6 +36,19 @@ built; until then their mocks remain the reference.
 | [Button](components/button.html) | primary, secondary, ghost, link, danger | default, hover, focus, active, disabled, loading | catalog/guest, nav-menu, toast |
 | [Link](components/link.html) | inline, nav, footer | default, hover, focus, current | catalog, rules |
 | [Form field](components/form-field.html) | input, textarea, select | default, hover, focus, invalid, disabled, read only | sign-in, sell |
+| [Alert](components/alert.html) | info, success, warning, danger | static, polite, assertive | sign-in/invalid, sell/draft-saved, verify-email-prompt |
+| [Center state](components/center-state.html) | blocked, limited, error, success | static | sell/unverified, sell/limited, sell/error, sell/success |
+| [Choice](components/choice.html) | plain, with links | unticked, ticked, invalid | register, sell |
+| [Dialog](components/dialog.html) | default, with top alert | default, busy, sent, limited | dialogs/verify-email-prompt |
+| [Earnings](components/earnings.html) | one | unknown, known | sell/filled |
+| [Error summary](components/error-summary.html) | one | shown and focused | sell/invalid, register/invalid |
+| [Fixed size](components/fixed-size.html) | men's US 12, men's L | absent, shown | sell/filled |
+| [Icon](components/icon.html) | 12 glyphs | static | every page |
+| [Input group](components/input-group.html) | leading addon | default, invalid | sell price and shipping |
+| [Item row](components/item-row.html) | with or without thumbnail | default, truncated | sell/success |
+| [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
+| [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |
+| [Spinner](components/spinner.html) | with message | running | verify-email/loading |
 
 ## Patterns
 
