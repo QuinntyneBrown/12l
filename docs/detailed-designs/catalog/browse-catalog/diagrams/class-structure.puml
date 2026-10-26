@@ -19,50 +19,19 @@ enum ListingStatus {
   Removed
 }
 
-class CatalogVisibility <<specification>> {
-  +IsVisible(status: ListingStatus): bool
-  +DisplayStatus(status: ListingStatus, reservedUntil: DateTimeOffset?, now: DateTimeOffset): ListingStatus
+class CatalogVisibility <<static>> {
+  +{static} IsVisible: Expression<Func<Listing, bool>>
 }
 
-class SearchCatalogQuery <<record>> {
+class BrowseCatalogQuery <<record>> {
   +int Page
-  +int PageSize
-  +CatalogCriteria Criteria
+  +int? PageSize
+  +string? Category
 }
 
-class CatalogCriteria <<record>> {
-  +{static} CatalogCriteria Empty
-}
-
-class SearchCatalogQueryValidator {
-  +SearchCatalogQueryValidator()
-}
-
-class SearchCatalogQueryHandler {
-  +Handle(query: SearchCatalogQuery, ct: CancellationToken): Task<CatalogPageDto>
-}
-
-interface ICatalogReadStore {
-  +SearchAsync(criteria: CatalogCriteria, skip: int, take: int, now: DateTimeOffset, ct: CancellationToken): Task<CatalogSearchResult>
-}
-
-class CatalogReadStore {
-  -TwelveLDbContext db
-  +SearchAsync(...): Task<CatalogSearchResult>
-}
-
-class CatalogSearchResult {
-  +IReadOnlyList<CatalogRow> Rows
-  +int TotalCount
-}
-
-interface IPhotoUrlBuilder {
-  +Build(version: PhotoVersionRow): string
-}
-
-class CdnPhotoUrlBuilder {
-  -string cdnBaseUrl
-  +Build(version: PhotoVersionRow): string
+class BrowseCatalogQueryHandler {
+  -ITwelveLDbContext db
+  +Handle(query: BrowseCatalogQuery, ct: CancellationToken): Task<Result<CatalogPageDto>>
 }
 
 class CatalogOptions {
@@ -70,54 +39,52 @@ class CatalogOptions {
   +int MaxPageSize = 48
 }
 
-class CatalogPageDto {
+class PhotoOptions {
+  +string PublicBaseUrl = "/photos"
+}
+
+class CatalogPageDto <<record>> {
   +ListingCardDto[] Items
   +int Page
   +int PageSize
   +int TotalCount
 }
 
-class ListingCardDto {
+class ListingCardDto <<record>> {
   +Guid Id
   +string Reference
   +string Title
   +string Brand
   +string Category
-  +string Subcategory
-  +string Size
+  +string? Subcategory
+  +string SizeLabel
   +string Condition
   +string Price
   +string Status
-  +DateTimeOffset PublishedAt
-  +PhotoDto CoverPhoto
+  +DateTime PublishedAt
+  +CardPhotoDto? CoverPhoto
 }
 
-class PhotoDto {
+class CardPhotoDto <<record>> {
   +int Width
   +int Height
   +string Alt
-  +PhotoSourceSet Webp
-  +PhotoSourceSet Jpeg
+  +string Src
+  +string Webp
+  +string Jpeg
 }
 
 class CatalogController {
-  +GetListings(page: int, pageSize: int?, criteria): Task<ActionResult<CatalogPageDto>>
+  +Listings(page: int, pageSize: int?, category: string?): Task<IActionResult>
 }
 
-SearchCatalogQuery --> CatalogCriteria : has
-SearchCatalogQueryValidator ..> SearchCatalogQuery : validates
-CatalogController ..> SearchCatalogQuery : sends
-SearchCatalogQueryHandler ..> SearchCatalogQuery : handles
-SearchCatalogQueryHandler --> ICatalogReadStore : reads through
-SearchCatalogQueryHandler --> IPhotoUrlBuilder : builds URLs with
-SearchCatalogQueryHandler --> CatalogOptions : caps page size with
-SearchCatalogQueryHandler ..> CatalogVisibility : display status
-CatalogReadStore ..|> ICatalogReadStore
-CdnPhotoUrlBuilder ..|> IPhotoUrlBuilder
-CatalogReadStore ..> CatalogVisibility : filters with
+CatalogController ..> BrowseCatalogQuery : sends
+BrowseCatalogQueryHandler ..> BrowseCatalogQuery : handles
+BrowseCatalogQueryHandler --> CatalogOptions : caps page size with
+BrowseCatalogQueryHandler --> PhotoOptions : builds photo URLs with
+BrowseCatalogQueryHandler ..> CatalogVisibility : filters with
 CatalogVisibility ..> ListingStatus
-ICatalogReadStore ..> CatalogSearchResult : returns
-SearchCatalogQueryHandler ..> CatalogPageDto : returns
+BrowseCatalogQueryHandler ..> CatalogPageDto : returns
 CatalogPageDto "1" *-- "0..48" ListingCardDto
-ListingCardDto *-- PhotoDto
+ListingCardDto *-- CardPhotoDto
 @enduml
