@@ -6,12 +6,13 @@ using TwelveL.Application.Abstractions;
 using TwelveL.Application.Common;
 using TwelveL.Application.Listings;
 using TwelveL.Domain.Listings;
+using TwelveL.Domain.Orders;
 
 namespace TwelveL.Application.Catalog;
 
 /// <summary>
-/// The public summary of a seller. Ratings and completed sales are owned by later features
-/// (orders, reviews); until then a seller has no rating and 0 sales and shows as a new seller.
+/// The public summary of a seller: completed sales as seller, and no rating while review
+/// authoring is deferred (ADR reviews/0001), the same figures as the member profile.
 /// </summary>
 public sealed record SellerSummaryDto(string DisplayName, int CompletedSalesCount, decimal? RatingAverage, int PublishedReviewCount);
 
@@ -57,6 +58,7 @@ public sealed class GetListingDetailQueryHandler(ITwelveLDbContext db, IOptions<
             return Error.NotFound("LISTING_NOT_FOUND");
         }
 
+        var completedSales = await db.Orders.CountAsync(o => o.SellerId == listing.SellerId && o.Status == OrderStatus.Completed, cancellationToken);
         var sellerName = await db.Members.AsNoTracking().Where(m => m.Id == listing.SellerId).Select(m => m.DisplayName).SingleAsync(cancellationToken);
         var photos = await db.ListingPhotos.AsNoTracking()
             .Where(p => p.ListingId == listing.Id).OrderBy(p => p.Position)
@@ -82,7 +84,7 @@ public sealed class GetListingDetailQueryHandler(ITwelveLDbContext db, IOptions<
             listing.Status.ToString(),
             listing.PublishedAt ?? listing.CreatedAt,
             photos.Select((p, i) => CatalogPhotos.ToDto(p, $"Photo {i + 1} of {listing.Brand} {listing.Title}", baseUrl)).ToList(),
-            new SellerSummaryDto(sellerName, 0, null, 0),
+            new SellerSummaryDto(sellerName, completedSales, null, 0),
             new ViewerDto(relation));
     }
 

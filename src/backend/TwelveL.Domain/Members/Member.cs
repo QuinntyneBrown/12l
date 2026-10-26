@@ -33,6 +33,11 @@ public sealed class Member
     /// </summary>
     public bool IsAdministrator { get; private set; }
 
+    /// <summary>When the account was closed (L2-005); a closed member's profile is unavailable (L2-041).</summary>
+    public DateTime? ClosedAt { get; private set; }
+
+    public bool IsClosed => ClosedAt is not null;
+
     public static Member Register(string displayName, string email, string passwordHash, DateTime now) => new()
     {
         Id = Guid.NewGuid(),
@@ -54,5 +59,10 @@ public sealed class Member
     public void GrantAdministrator()
     {
         IsAdministrator = true;
+    }
+
+    public void Close(DateTime now)
+    {
+        ClosedAt ??= now;
     }
 }

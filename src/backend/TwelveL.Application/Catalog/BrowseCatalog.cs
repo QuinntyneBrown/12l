@@ -70,13 +70,25 @@ public sealed class BrowseCatalogQueryHandler(ITwelveLDbContext db, IOptions<Cat
         var listings = await criteria.Value.Order(visible)
             .Skip((query.Page - 1) * pageSize).Take(pageSize)
             .ToListAsync(cancellationToken);
+        var items = await CatalogCards.ToCardsAsync(db, listings, photoOptions.Value, cancellationToken);
+        return new CatalogPageDto(items, query.Page, pageSize, total);
+    }
+
+    private static Error Invalid(string title) => new(400, "VALIDATION_FAILED", title);
+}
+
+/// <summary>Maps listings to catalog cards with their cover photo at position 0, in the given order.</summary>
+public static class CatalogCards
+{
+    public static async Task<List<ListingCardDto>> ToCardsAsync(
+        ITwelveLDbContext db, IReadOnlyList<Listing> listings, PhotoOptions photoOptions, CancellationToken cancellationToken)
+    {
         var ids = listings.Select(l => l.Id).ToList();
         var covers = await db.ListingPhotos.AsNoTracking()
             .Where(p => p.ListingId != null && ids.Contains(p.ListingId.Value) && p.Position == 0)
             .ToDictionaryAsync(p => p.ListingId!.Value, cancellationToken);
-        var baseUrl = photoOptions.Value.PublicBaseUrl.TrimEnd('/');
-        var items = listings.Select(l => ToCard(l, covers.GetValueOrDefault(l.Id), baseUrl)).ToList();
-        return new CatalogPageDto(items, query.Page, pageSize, total);
+        var baseUrl = photoOptions.PublicBaseUrl.TrimEnd('/');
+        return listings.Select(l => ToCard(l, covers.GetValueOrDefault(l.Id), baseUrl)).ToList();
     }
 
     private static ListingCardDto ToCard(Listing listing, ListingPhoto? cover, string baseUrl) => new(
@@ -92,8 +104,6 @@ public sealed class BrowseCatalogQueryHandler(ITwelveLDbContext db, IOptions<Cat
         listing.Status.ToString(),
         listing.PublishedAt ?? listing.CreatedAt,
         cover is null ? null : CatalogPhotos.ToDto(cover, $"Photo 1 of {listing.Brand} {listing.Title}", baseUrl));
-
-    private static Error Invalid(string title) => new(400, "VALIDATION_FAILED", title);
 }
 
 /// <summary>Maps a stored photo to the srcset strings the frontend renders (L2-059).</summary>

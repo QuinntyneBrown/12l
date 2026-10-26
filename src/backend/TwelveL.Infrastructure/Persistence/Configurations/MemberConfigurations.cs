@@ -18,6 +18,7 @@ internal sealed class MemberConfiguration : IEntityTypeConfiguration<Member>
         builder.HasIndex(m => m.NormalizedDisplayName).IsUnique().HasDatabaseName("UX_Members_NormalizedDisplayName");
         builder.HasIndex(m => m.NormalizedEmail).IsUnique().HasDatabaseName("UX_Members_NormalizedEmail");
         builder.Ignore(m => m.IsEmailVerified);
+        builder.Ignore(m => m.IsClosed);
     }
 }
 
