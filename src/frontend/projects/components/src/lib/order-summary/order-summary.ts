@@ -12,7 +12,8 @@ export interface OrderSummaryItem {
 /**
  * The summary panel of a checkout or an order (design system: Order summary): the item row and
  * the Item, Shipping, Sales tax and Total lines. Values are formatted by the caller; a null tax
- * or total reads as not yet known.
+ * or total reads as not yet known. An empty heading labels the panel "Order summary" without a
+ * visible title, as on the order pages, which project the other party below the totals.
  */
 @Component({
   selector: 'tl-order-summary',

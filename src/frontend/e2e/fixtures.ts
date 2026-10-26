@@ -379,3 +379,68 @@ export async function serveCheckout(
   await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
   return sent;
 }
+
+/** The order timeline as the order endpoints return it: Paid on Sat 24 Oct, later steps as given. */
+export function timeline(shipped: string | null = null, delivered: string | null = null): Record<string, unknown>[] {
+  return [
+    { status: 'Paid', at: '2026-10-24T15:00:00Z' },
+    { status: 'Shipped', at: shipped },
+    { status: 'Delivered', at: delivered },
+    { status: 'Completed', at: null },
+  ];
+}
+
+export const uspsTracking = {
+  carrier: 'USPS',
+  number: '9400111899223456120477',
+  url: 'https://tools.usps.com/go/TrackConfirmAction?tLabels=9400111899223456120477',
+};
+
+/** GET /api/sales/o-1: a Paid sale of the hoodie to tall_tom, ship by Fri 30 Oct (mocks pages/sale-detail). */
+export function sale(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    id: 'o-1',
+    reference: '12L-48302',
+    status: 'Paid',
+    paidAt: '2026-10-24T15:00:00Z',
+    shipBy: '2026-10-30T15:00:00Z',
+    item: {
+      ...(checkout()['item'] as object),
+      title: 'Reverse Weave hoodie, grey',
+      brand: 'Champion',
+      size: "Men's L",
+    },
+    itemPrice: '38.00',
+    shippingCost: '7.00',
+    salesTax: '3.15',
+    total: '48.15',
+    buyerDisplayName: 'tall_tom',
+    shipTo: {
+      fullName: 'Tom Reyes',
+      line1: '1450 Larimer St',
+      line2: 'Apt 6B',
+      city: 'Denver',
+      state: 'CO',
+      zip: '80202',
+      country: 'US',
+    },
+    timeline: timeline(),
+    tracking: null,
+    ...fields,
+  };
+}
+
+/** GET /api/purchases/o-1 as the buyer's order page reads it: the Paid order from kicks_12. */
+export function buyerOrder(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    ...purchase,
+    paidAt: '2026-10-24T15:00:00Z',
+    shipBy: '2026-10-30T15:00:00Z',
+    itemPrice: '85.00',
+    shippingCost: '9.00',
+    salesTax: '8.34',
+    timeline: timeline(),
+    tracking: null,
+    ...fields,
+  };
+}
