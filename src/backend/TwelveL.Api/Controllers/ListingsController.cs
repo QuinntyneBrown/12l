@@ -9,7 +9,7 @@ using TwelveL.Domain.Listings;
 namespace TwelveL.Api.Controllers;
 
 /// <summary>
-/// Create, change and publish the caller's listings. Every action needs a verified member
+/// Create, change and publish the caller's listings, and list them all by status (My listings, L2-021). Every action needs a verified member
 /// (CanSell, L2-003, L2-010): 401 for visitors, 403 EMAIL_NOT_VERIFIED for unverified members.
 /// </summary>
 [ApiController]
@@ -44,6 +44,13 @@ public sealed class ListingsController(ISender sender) : ControllerBase
     {
         var result = await sender.Send(new RelistListingCommand(User.MemberId(), reference), cancellationToken);
         return result.IsSuccess ? NoContent() : this.ToProblem(result.Error!);
+    }
+
+    [HttpGet("api/me/listings")]
+    public async Task<IActionResult> Mine([FromQuery] string? status, CancellationToken cancellationToken)
+    {
+        var result = await sender.Send(new GetMyListingsQuery(User.MemberId(), status), cancellationToken);
+        return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Error!);
     }
 
     [HttpGet("api/me/listings/{reference}")]
