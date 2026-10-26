@@ -15,9 +15,9 @@ skinparam package {
   BackgroundColor #F9FAFB
 }
 actor "Seller" as actor
-box "Frontend — 12L Web application" #E0F2FE
+box "Frontend — @12l/orders and @12l/api" #E0F2FE
   participant "RelistDialog" as dialog
-  participant "ListingsApiService" as client
+  participant "OrdersApi" as client
 end box
 box "Backend — 12L API application" #D1FADF
   participant "ListingsController" as controller
@@ -32,10 +32,10 @@ end box
 actor -> dialog : Choose "Relist item" on a cancelled sale
 dialog --> actor : "Relist this item?" with "Not now", "Edit first", "Relist"
 alt Edit first
-  dialog --> actor : Navigate to /items/{reference}/edit
+  dialog --> actor : Close; navigate to /items/{reference}/edit (EditListingPage)
 else Relist
   dialog -> dialog : Busy: Relist aria-busy, Not now disabled
-  dialog -> client : relist(id)
+  dialog -> client : relist(reference)
   client -> controller : POST /api/listings/{reference}/relist
   controller -> handler : Send RelistListingCommand
   handler -> db : Load caller's listing
@@ -43,12 +43,12 @@ else Relist
   alt not Removed with RemovalReason OrderCancelled
     entity --> handler : LISTING_NOT_RELISTABLE
     controller --> client : 409
-    client --> dialog : Error alert, listing unchanged
+    client --> dialog : Danger alert "That didn't go through", listing unchanged
   else relistable (L2-035)
     entity --> handler : Active with original photos, price and description
-    handler -> db : SaveChanges with RowVersion check
-    controller --> client : 200 status Active
-    client --> dialog : Close; toast "Listing published" with "View listing"
+    handler -> db : SaveChanges
+    controller --> client : 204
+    client --> dialog : Close; the sale says "The listing is back in the catalog."
   end
 end
 @enduml

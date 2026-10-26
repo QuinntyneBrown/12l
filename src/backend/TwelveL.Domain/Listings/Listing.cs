@@ -14,6 +14,9 @@ public enum ListingStatus
 public enum ListingRemovalReason
 {
     OrderCancelled,
+
+    /// <summary>The seller withdrew it (L2-020); a withdrawn listing cannot come back.</summary>
+    Withdrawn,
 }
 
 /// <summary>The editable fields of a listing as a client sends them. Every field but the category may be missing in a draft.</summary>
@@ -100,6 +103,12 @@ public sealed class Listing
 
     public DateTime? ReservedUntil { get; private set; }
 
+    /// <summary>
+    /// Bumped by every change; the concurrency token that turns a stale edit or an edit racing a
+    /// checkout into a refusal instead of a lost update (L2-020, L2-029). The API exposes it as the ETag.
+    /// </summary>
+    public int Version { get; private set; }
+
     /// <summary>Why the listing is Removed; null in any other status.</summary>
     public ListingRemovalReason? RemovalReason { get; private set; }
 
@@ -116,7 +125,7 @@ public sealed class Listing
 
         Status = ListingStatus.Removed;
         RemovalReason = ListingRemovalReason.OrderCancelled;
-        UpdatedAt = now;
+        Touch(now);
     }
 
     /// <summary>Removed → Active with its original details (L2-035 AC4).</summary>
@@ -129,7 +138,63 @@ public sealed class Listing
 
         Status = ListingStatus.Active;
         RemovalReason = null;
-        UpdatedAt = now;
+        Touch(now);
+    }
+
+    /// <summary>
+    /// Why the seller cannot change this listing now, as a stable code, or null when they can
+    /// (L2-020): a Reserved or Sold listing is locked and a withdrawn one is gone for good.
+    /// </summary>
+    public string? EditRefusal => Status switch
+    {
+        ListingStatus.Reserved => "LISTING_RESERVED",
+        ListingStatus.Sold => "LISTING_SOLD",
+        ListingStatus.Removed when !CanRelist => "LISTING_NOT_EDITABLE",
+        _ => null,
+    };
+
+    /// <summary>
+    /// Replaces the fields of a published listing (Active, or Removed after a cancelled order) when
+    /// the publish rules of L2-014 to L2-018 hold, reporting every failing field; otherwise leaves
+    /// it unchanged. A changed category needs the size confirmed again and refreshes the confirmation.
+    /// </summary>
+    public IReadOnlyList<RuleViolation> Edit(ListingDetails details, bool sizeConfirmed, int photoCount, DateTime now)
+    {
+        if (Status == ListingStatus.Draft || EditRefusal is not null)
+        {
+            throw new InvalidOperationException("Only an active listing or the listing of a cancelled order can be edited.");
+        }
+
+        var violations = CheckPublish(details, sizeConfirmed, photoCount);
+        if (violations.Count == 0)
+        {
+            var categoryChanged = details.Category != Category;
+            UpdateDetails(details, now);
+            if (categoryChanged)
+            {
+                SizeConfirmedAt = now;
+            }
+        }
+
+        return violations;
+    }
+
+    /// <summary>Active → Removed, out of the catalog for good (L2-020). Withdrawing a withdrawn listing again changes nothing.</summary>
+    public void Withdraw(DateTime now)
+    {
+        if (Status == ListingStatus.Removed && RemovalReason == ListingRemovalReason.Withdrawn)
+        {
+            return;
+        }
+
+        if (Status != ListingStatus.Active)
+        {
+            throw new InvalidOperationException("Only an active listing can be withdrawn.");
+        }
+
+        Status = ListingStatus.Removed;
+        RemovalReason = ListingRemovalReason.Withdrawn;
+        Touch(now);
     }
 
     /// <summary>A seller may not buy their own listing (L2-026 AC2).</summary>
@@ -143,7 +208,7 @@ public sealed class Listing
             Status = ListingStatus.Active;
             ReservedByCheckoutId = null;
             ReservedUntil = null;
-            UpdatedAt = now;
+            Touch(now);
         }
     }
 
@@ -158,7 +223,7 @@ public sealed class Listing
         Status = ListingStatus.Sold;
         ReservedByCheckoutId = null;
         ReservedUntil = null;
-        UpdatedAt = now;
+        Touch(now);
     }
 
     public static string ReferenceFor(long number) => $"L-{number}";
@@ -192,7 +257,7 @@ public sealed class Listing
         Flaws = Condition == ItemCondition.UsedFair ? Clean(details.Flaws) : null;
         Price = details.Price;
         ShippingCost = details.ShippingCost;
-        UpdatedAt = now;
+        Touch(now);
     }
 
     /// <summary>Draft rules (L2-019): an accepted category and size, and every present field within its limits.</summary>
@@ -265,6 +330,21 @@ public sealed class Listing
         }
 
         var details = new ListingDetails(Category, Subcategory, Size, Title, Description, Brand, Condition?.ToLabel(), Flaws, Price, ShippingCost);
+        var violations = CheckPublish(details, sizeConfirmed, photoCount);
+        if (violations.Count == 0)
+        {
+            Status = ListingStatus.Active;
+            SizeConfirmedAt = now;
+            PublishedAt ??= now;
+            Touch(now);
+        }
+
+        return violations;
+    }
+
+    /// <summary>The publish rules (L2-014 to L2-018) on top of the draft rules, every failing field reported once.</summary>
+    public static IReadOnlyList<RuleViolation> CheckPublish(ListingDetails details, bool sizeConfirmed, int photoCount)
+    {
         var draft = CheckDraft(details).ToDictionary(v => v.Field);
         var violations = new List<RuleViolation>();
         void Check(string field, bool failed, RuleViolation violation)
@@ -279,34 +359,37 @@ public sealed class Listing
             }
         }
 
+        var title = Clean(details.Title);
+        var description = Clean(details.Description);
+        var condition = ItemConditions.FromLabel(details.Condition);
+        var flaws = Clean(details.Flaws);
+        violations.AddRange(new[] { "category", "size" }.Where(draft.ContainsKey).Select(field => draft[field]));
         Check("photos", photoCount < 1, new("photos", "PHOTOS_REQUIRED", "Add at least one photo"));
-        Check("subcategory", Subcategory is null, new("subcategory", "SUBCATEGORY_REQUIRED", "Choose a type"));
-        Check("title", Title is null || Title.Length < MinTitle, TitleLength);
-        Check("description", Description is null || Description.Length < MinDescription, DescriptionLength);
-        Check("brand", Brand is null, BrandLength);
-        Check("condition", Condition is null, new("condition", "CONDITION_REQUIRED", "Choose a condition"));
-        if (Condition == ItemCondition.UsedFair)
+        Check("subcategory", Clean(details.Subcategory) is null, new("subcategory", "SUBCATEGORY_REQUIRED", "Choose a type"));
+        Check("title", title is null || title.Length < MinTitle, TitleLength);
+        Check("description", description is null || description.Length < MinDescription, DescriptionLength);
+        Check("brand", Clean(details.Brand) is null, BrandLength);
+        Check("condition", details.Condition is null, new("condition", "CONDITION_REQUIRED", "Choose a condition"));
+        if (condition == ItemCondition.UsedFair)
         {
-            Check("flaws", Flaws is null || Flaws.Length < MinFlaws, new("flaws", "FLAWS_REQUIRED", "Describe the item's flaws"));
+            Check("flaws", flaws is null || flaws.Length < MinFlaws, new("flaws", "FLAWS_REQUIRED", "Describe the item's flaws"));
         }
 
-        Check("price", Price is null, PriceOutOfRange);
-        Check("shippingCost", ShippingCost is null, ShippingOutOfRange);
+        Check("price", details.Price is null, PriceOutOfRange);
+        Check("shippingCost", details.ShippingCost is null, ShippingOutOfRange);
         if (!sizeConfirmed)
         {
-            var label = Size == CategoryCatalog.MensUs12 ? "men's US 12" : "men's L";
+            var label = CategoryCatalog.Find(details.Category)?.AcceptedSize == CategoryCatalog.MensUs12 ? "men's US 12" : "men's L";
             violations.Add(new("sizeConfirmed", "SIZE_CONFIRMATION_REQUIRED", $"Confirm the label shows {label}"));
         }
 
-        if (violations.Count == 0)
-        {
-            Status = ListingStatus.Active;
-            SizeConfirmedAt = now;
-            PublishedAt ??= now;
-            UpdatedAt = now;
-        }
-
         return violations;
+    }
+
+    private void Touch(DateTime now)
+    {
+        Version++;
+        UpdatedAt = now;
     }
 
     private static readonly RuleViolation TitleLength = new("title", "TITLE_LENGTH", "Title must be 5 to 80 characters");

@@ -19,29 +19,28 @@ package "TwelveL.Domain" {
     Sold
     Removed
   }
-  enum RemovalReason {
-    Withdrawn
+  enum ListingRemovalReason {
     OrderCancelled
+    Withdrawn
   }
   class Listing {
     +Guid Id
     +string Reference
     +Guid SellerId
     +ListingStatus Status
-    +RemovalReason? RemovalReason
+    +ListingRemovalReason? RemovalReason
     +string Category
     +string Size
     +decimal? Price
-    +DateTime? RemovedAt
-    +byte[] RowVersion
-    +bool IsEditable
-    +UpdateDetails(details, sizeConfirmed: bool, catalog, clock): void
-    +Withdraw(clock): void
-    +RemoveAfterCancellation(clock): void
-    +Relist(clock): void
-  }
-  class ListingNotEditableException {
-    +string Code
+    +int Version
+    +string? EditRefusal
+    +bool CanRelist
+    +UpdateDetails(details, now): void
+    +Edit(details, sizeConfirmed, photoCount, now): RuleViolation[]
+    +Withdraw(now): void
+    +RemoveAfterCancellation(now): void
+    +Relist(now): void
+    +{static} CheckPublish(details, sizeConfirmed, photoCount): RuleViolation[]
   }
 }
 
@@ -49,19 +48,19 @@ package "TwelveL.Application" {
   class GetMyListingQuery {
     +string Reference
   }
-  class MyListingDetailDto {
-    +Guid Id
+  class MyListingDto {
+    +string Reference
     +string Status
-    +ListingDetailsDto Details
-    +IReadOnlyList<PhotoUploadDto> Photos
-    +DateTime? SizeConfirmedAt
-    +string ETag
+    +string? RemovalReason
+    +PhotoDto[] Photos
+    +int Version (JSON ignored, sent as ETag)
   }
   class UpdateListingCommand {
     +string Reference
-    +ListingDetailsDto Details
+    +ListingDetails Details
+    +Guid[]? PhotoIds
     +bool SizeConfirmed
-    +string IfMatch
+    +int? ExpectedVersion
   }
   class WithdrawListingCommand {
     +string Reference
@@ -69,27 +68,32 @@ package "TwelveL.Application" {
   class RelistListingCommand {
     +string Reference
   }
-  class UpdateListingCommandHandler {
-    +Handle(command): Task<MyListingDetailDto>
+  class ListingCommandHandlers {
+    +Handle(UpdateListingCommand): Result<MyListingDto>
+    +Handle(GetMyListingQuery): Result<MyListingDto>
   }
   class WithdrawListingCommandHandler {
-    +Handle(command): Task
+    +Handle(command): Result<WithdrawListingResult>
   }
   class RelistListingCommandHandler {
-    +Handle(command): Task
+    +Handle(command): Result<bool>
   }
-  class UpdateListingValidator
+  class ListingRefusals {
+    +Reserved, Sold, NotEditable, Changed, PreconditionRequired
+    +AfterConflictAsync(db, listingId): Error
+  }
   class ListingPhotoAttacher
 }
 
 package "TwelveL.Api" {
   class ListingsController {
-    +Update(id, body, ifMatch): Task<IActionResult>
-    +Withdraw(id): Task<IActionResult>
-    +Relist(id): Task<IActionResult>
+    +GetMine(reference): IActionResult
+    +Update(reference, body): IActionResult
+    +Withdraw(reference): IActionResult
+    +Relist(reference): IActionResult
   }
-  class UpdateListingRequest {
-    +string Category
+  class ListingDetailsRequest {
+    +string? Category
     +string? Subcategory
     +string? Size
     +string? Title
@@ -99,25 +103,24 @@ package "TwelveL.Api" {
     +string? Flaws
     +decimal? Price
     +decimal? ShippingCost
-    +Guid[] PhotoIds
-    +bool SizeConfirmed
+    +Guid[]? PhotoIds
+    +bool? SizeConfirmed
   }
 }
 
-ListingsController ..> UpdateListingRequest : binds (no sellerId or status)
-ListingsController ..> UpdateListingCommand : sends
+ListingsController ..> ListingDetailsRequest : binds (no sellerId or status)
+ListingsController ..> UpdateListingCommand : sends (If-Match as ExpectedVersion)
 ListingsController ..> WithdrawListingCommand : sends
 ListingsController ..> RelistListingCommand : sends
-UpdateListingCommandHandler ..> UpdateListingCommand : handles
-UpdateListingCommandHandler --> Listing : loads / mutates
-UpdateListingCommandHandler ..> ListingPhotoAttacher : uses
-UpdateListingValidator ..> UpdateListingCommand : validates
-WithdrawListingCommandHandler ..> WithdrawListingCommand : handles
+ListingCommandHandlers ..> UpdateListingCommand : handles
+ListingCommandHandlers ..> GetMyListingQuery : handles
+ListingCommandHandlers --> Listing : loads / edits
+ListingCommandHandlers ..> ListingPhotoAttacher : uses
+ListingCommandHandlers ..> ListingRefusals : refuses with
 WithdrawListingCommandHandler --> Listing : withdraws
-RelistListingCommandHandler ..> RelistListingCommand : handles
+WithdrawListingCommandHandler ..> ListingRefusals : refuses with
 RelistListingCommandHandler --> Listing : relists
 Listing --> ListingStatus
-Listing --> RemovalReason
-Listing ..> ListingNotEditableException : throws
-GetMyListingQuery ..> MyListingDetailDto : returns
+Listing --> ListingRemovalReason
+ListingCommandHandlers ..> MyListingDto : returns
 @enduml

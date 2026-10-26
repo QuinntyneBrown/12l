@@ -257,6 +257,29 @@ def _():
     return Page(main=main)
 
 
+@e.state("changed", "Save refused because the listing changed since the form opened (412): reload, nothing overwritten.")
+def _():
+    top = alert("warning", "This listing changed since you opened it", "Reload to see the latest version, then make your changes again.",
+                actions=btn("Reload", "sm", icon="refresh"))
+    return edit_page(sell_form({**ARIZONA, "price": "40.00"}, photos=ARIZONA_PHOTOS, mode="edit", top=top))
+
+
+@e.state("sold", "Sold listing: it can no longer be edited; the seller goes to their sales.")
+def _():
+    main = (f'<div class="center-state"><div class="empty__icon">{ic("check", "icon icon--lg")}</div><h1>This item has sold</h1>'
+            f'<p class="text-muted">Sold listings can’t be edited.</p>'
+            f'<div class="actions">{btn("Your sales", "primary", P("sales"))}{btn("Your listings", href=P("my-listings"))}</div></div>')
+    return Page(main=main)
+
+
+@e.state("withdrawn", "Withdrawn listing: it is gone for good and can no longer be edited.")
+def _():
+    main = (f'<div class="center-state"><div class="empty__icon">{ic("trash", "icon icon--lg")}</div><h1>This listing was withdrawn</h1>'
+            f'<p class="text-muted">Withdrawn listings can’t be edited or relisted.</p>'
+            f'<div class="actions">{btn("Your listings", "primary", P("my-listings"))}</div></div>')
+    return Page(main=main)
+
+
 # ---------------------------------------------------------------------------
 # My listings
 # ---------------------------------------------------------------------------

@@ -1,5 +1,6 @@
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
+import { map } from 'rxjs';
 
 import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
@@ -21,6 +22,8 @@ export interface ListingDetails {
   shippingCost?: number;
   /** Uploaded photo IDs in display order; the first is the cover (L2-017). */
   photoIds?: string[];
+  /** The seller ticked the size confirmation again; required to save a published listing (L2-014). */
+  sizeConfirmed?: boolean;
 }
 
 /** A listing as its seller sees it. */
@@ -40,8 +43,16 @@ export interface MyListing {
   createdAt: string;
   updatedAt: string;
   publishedAt: string | null;
+  /** Why a Removed listing is off the catalog; a withdrawn one cannot be edited or relisted. */
+  removalReason: 'Withdrawn' | 'OrderCancelled' | null;
   /** Cover first. */
   photos: Photo[];
+}
+
+/** A listing with the ETag 12L API sent for it, to send back in If-Match when saving (L2-020). */
+export interface VersionedListing {
+  listing: MyListing;
+  etag: string;
 }
 
 export type ListingStatus = MyListing['status'];
@@ -102,4 +113,37 @@ export class ListingsApi {
   getMine(reference: string): Promise<ApiResult<MyListing>> {
     return toResult(this.http.get<MyListing>(`${this.baseUrl}/me/listings/${encodeURIComponent(reference)}`));
   }
+
+  /** The listing to edit with its ETag (edit-and-withdraw-listing). */
+  getForEdit(reference: string): Promise<ApiResult<VersionedListing>> {
+    const url = `${this.baseUrl}/me/listings/${encodeURIComponent(reference)}`;
+    return toResult(this.http.get<MyListing>(url, { observe: 'response' }).pipe(map(versioned)));
+  }
+
+  /**
+   * Saves a published listing under the ETag it was read with. 412 LISTING_CHANGED means someone
+   * changed it since; 409 LISTING_RESERVED, LISTING_SOLD or LISTING_NOT_EDITABLE that it is locked.
+   */
+  updateListing(reference: string, details: ListingDetails, etag: string): Promise<ApiResult<VersionedListing>> {
+    const url = `${this.baseUrl}/listings/${encodeURIComponent(reference)}`;
+    return toResult(
+      this.http
+        .put<MyListing>(url, details, { observe: 'response', headers: { 'If-Match': etag } })
+        .pipe(map(versioned)),
+    );
+  }
+
+  /** Takes an Active listing off the catalog for good (L2-020). */
+  withdraw(reference: string): Promise<ApiResult<{ reference: string; status: ListingStatus }>> {
+    return toResult(
+      this.http.post<{ reference: string; status: ListingStatus }>(
+        `${this.baseUrl}/listings/${encodeURIComponent(reference)}/withdraw`,
+        {},
+      ),
+    );
+  }
+}
+
+function versioned(response: HttpResponse<MyListing>): VersionedListing {
+  return { listing: response.body!, etag: response.headers.get('ETag') ?? '' };
 }

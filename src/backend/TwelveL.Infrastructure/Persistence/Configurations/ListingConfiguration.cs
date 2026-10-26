@@ -25,6 +25,7 @@ internal sealed class ListingConfiguration : IEntityTypeConfiguration<Listing>
         builder.HasIndex(l => l.Number).IsUnique().HasDatabaseName("UX_Listings_Number");
         builder.Property(l => l.RemovalReason).HasConversion<string>().HasMaxLength(24);
         builder.Property(l => l.Status).HasConversion<string>().HasMaxLength(16);
+        builder.Property(l => l.Version).IsConcurrencyToken();
         builder.Property(l => l.Category).HasMaxLength(16).IsRequired();
         builder.Property(l => l.Subcategory).HasMaxLength(24);
         builder.Property(l => l.Size).HasMaxLength(16).IsRequired();

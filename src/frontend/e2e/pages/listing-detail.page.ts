@@ -15,6 +15,7 @@ export class ListingDetailPage {
   readonly buyBar: Locator;
   readonly buyNow: Locator;
   readonly editListing: Locator;
+  readonly withdraw: Locator;
   readonly stamp: Locator;
   readonly reservedAlert: Locator;
   readonly similar: Locator;
@@ -34,6 +35,7 @@ export class ListingDetailPage {
     this.buyBar = page.locator('.buy-bar');
     this.buyNow = page.getByRole('link', { name: 'Buy now' });
     this.editListing = page.getByRole('link', { name: 'Edit listing' });
+    this.withdraw = page.getByRole('button', { name: 'Withdraw' });
     this.stamp = this.info.locator('.photo__stamp');
     this.reservedAlert = this.info.locator('.alert');
     this.similar = page.getByRole('region', { name: 'More in size 12' });

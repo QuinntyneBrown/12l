@@ -20,6 +20,7 @@ export {
   type MyListingRow,
   type MyListings,
   type PublishResult,
+  type VersionedListing,
 } from './lib/listings/listings-api';
 export { PhotosApi, type Photo, type PhotoVersion } from './lib/listings/photos-api';
 export { SellingApi, type Category, type SellingOptions } from './lib/listings/selling-api';

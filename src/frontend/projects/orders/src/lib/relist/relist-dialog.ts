@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { CheckoutItem, OrdersApi } from '@12l/api';
 import {
   AlertComponent,
@@ -20,12 +21,13 @@ export interface RelistData {
 
 /**
  * "Relist this item?" (L2-035 AC4, mocks dialogs/relist): the item with its price and shipping,
- * then "Relist", which returns the listing to the catalog unchanged. A failure offers another
- * try. Closes with true once relisted.
+ * then "Relist", which returns the listing to the catalog unchanged, or "Edit first", which
+ * opens the edit page (edit-and-withdraw-listing). A failure offers another try. Closes with true
+ * once relisted.
  */
 @Component({
   selector: 'tl-relist-dialog',
-  imports: [AlertComponent, ButtonDirective, DialogComponent, ItemRowComponent],
+  imports: [RouterLink, AlertComponent, ButtonDirective, DialogComponent, ItemRowComponent],
   templateUrl: './relist-dialog.html',
   styleUrl: './relist-dialog.css',
   changeDetection: ChangeDetectionStrategy.OnPush,

@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-/** Lazy routes of the listings feature area, mounted at /: the sell form and the seller's listings. */
+/** Lazy routes of the listings feature area, mounted at /: the sell form, the edit form and the seller's listings. */
 export const routes: Routes = [
   {
     path: 'sell',
@@ -11,6 +11,11 @@ export const routes: Routes = [
     path: 'sell/:reference',
     loadComponent: () => import('./sell/sell-page').then((m) => m.SellPage),
     title: 'Sell an item · 12L',
+  },
+  {
+    path: 'items/:reference/edit',
+    loadComponent: () => import('./edit-listing/edit-listing-page').then((m) => m.EditListingPage),
+    title: 'Edit listing · 12L',
   },
   {
     path: 'account/listings',

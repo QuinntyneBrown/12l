@@ -1,54 +1,21 @@
 import { ChangeDetectionStrategy, Component, OnInit, computed, inject, input, signal } from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
+import { ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { map } from 'rxjs';
-import {
-  ApiProblem,
-  AuthState,
-  Category,
-  ListingsApi,
-  MyListing,
-  Photo,
-  PhotosApi,
-  SellingApi,
-  SellingOptions,
-  shortRef,
-} from '@12l/api';
+import { ApiProblem, AuthState, ListingsApi, MyListing, SellingApi, shortRef } from '@12l/api';
 import {
   AlertComponent,
   ButtonDirective,
   CenterStateComponent,
-  ChoiceComponent,
   DialogService,
-  EarningsComponent,
   ErrorSummaryComponent,
-  FixedSizeComponent,
-  FormFieldComponent,
   IconComponent,
-  InputGroupComponent,
   ItemRowComponent,
-  PhotoUploaderComponent,
-  SegmentedComponent,
-  SummaryError,
-  UploaderMove,
-  UploaderTile,
 } from '@12l/components';
 
+import { ListingFormComponent } from '../listing-form/listing-form';
+import { ListingFormModel } from '../listing-form/listing-form-model';
+import { formatUsd } from '../listing-form/listing-rules';
 import { VerifyEmailPromptComponent } from '../verify-email-prompt/verify-email-prompt';
-import {
-  FIELD_IDS,
-  FieldErrors,
-  ListingFormValue,
-  MAX_PHOTO_BYTES,
-  SERVER_FIELDS,
-  checkListing,
-  confirmLabel,
-  estimateEarnings,
-  formatFileSize,
-  formatUsd,
-  toDetails,
-} from './listing-rules';
 
 type View = 'loading' | 'form' | 'success' | 'unverified' | 'limited' | 'error';
 
@@ -58,12 +25,6 @@ interface Published {
   title: string;
   meta: string;
   payoutOnboardingRequired: boolean;
-}
-
-/** An uploader tile with the uploaded photo's ID and, for a refused file, why. */
-interface PhotoTile extends UploaderTile {
-  id?: string;
-  message?: string;
 }
 
 /**
@@ -80,16 +41,10 @@ interface PhotoTile extends UploaderTile {
     AlertComponent,
     ButtonDirective,
     CenterStateComponent,
-    ChoiceComponent,
-    EarningsComponent,
     ErrorSummaryComponent,
-    FixedSizeComponent,
-    FormFieldComponent,
     IconComponent,
-    InputGroupComponent,
     ItemRowComponent,
-    PhotoUploaderComponent,
-    SegmentedComponent,
+    ListingFormComponent,
   ],
   templateUrl: './sell-page.html',
   styleUrl: './sell-page.css',
@@ -99,77 +54,22 @@ export class SellPage implements OnInit {
   private readonly auth = inject(AuthState);
   private readonly selling = inject(SellingApi);
   private readonly listings = inject(ListingsApi);
-  private readonly photoUploads = inject(PhotosApi);
   private readonly dialogs = inject(DialogService);
   private readonly router = inject(Router);
 
   /** The draft to continue, bound from /sell/:reference. */
   readonly reference = input<string>();
 
-  readonly form = inject(NonNullableFormBuilder).group({
-    category: '',
-    subcategory: { value: '', disabled: true },
-    title: '',
-    brand: '',
-    condition: '',
-    flaws: '',
-    description: '',
-    price: '',
-    shipping: '',
-    confirm: false,
-  });
-
+  readonly model = new ListingFormModel();
   readonly view = signal<View>('loading');
   readonly busy = signal<'draft' | 'publish' | null>(null);
-  readonly errors = signal<FieldErrors>({});
   readonly draftSaved = signal(false);
   readonly failure = signal<{ heading: string; text: string; ref: string } | null>(null);
   readonly loadRef = signal('');
   readonly published = signal<Published | null>(null);
-  readonly categories = signal<Category[]>([]);
-  readonly options = signal<SellingOptions | null>(null);
   readonly email = computed(() => this.auth.member()?.email ?? '');
-  readonly photos = signal<PhotoTile[]>([]);
-  readonly maxPhotos = computed(() => this.options()?.maxPhotos ?? 8);
-  /** The field error, then why the last refused file was refused: "Add at least one photo. Photos must be 10 MB or smaller." */
-  readonly photoError = computed(() => {
-    const rejected = this.photos().filter((p) => p.state === 'rejected');
-    const parts = [this.errors().photos, rejected.at(-1)?.message].filter((m): m is string => !!m);
-    const unique = [...new Set(parts)];
-    return unique.length > 1 ? unique.map((m) => `${m}.`).join(' ') : (unique[0] ?? null);
-  });
 
   private readonly savedReference = signal<string | null>(null);
-  private nextPhotoKey = 0;
-
-  readonly value = toSignal(this.form.valueChanges.pipe(map(() => this.form.getRawValue() as ListingFormValue)), {
-    initialValue: this.form.getRawValue() as ListingFormValue,
-  });
-  readonly category = computed(() => this.categories().find((c) => c.name === this.value().category) ?? null);
-  readonly confirmText = computed(() => confirmLabel(this.value().category));
-  readonly isUsedFair = computed(() => this.value().condition === 'Used - Fair');
-  readonly titleCount = computed(() => `${this.value().title.length} / 80`);
-  readonly descriptionCount = computed(() => `${this.value().description.length.toLocaleString('en-US')} / 2,000`);
-  readonly earnings = computed(() =>
-    estimateEarnings(this.value().price, this.value().shipping, this.options()?.feePercent ?? 0),
-  );
-  readonly summary = computed<SummaryError[]>(() =>
-    FIELD_IDS.filter((id) => this.errors()[id]).map((id) => ({ fieldId: id, message: this.errors()[id]! })),
-  );
-
-  constructor() {
-    this.form.controls.category.valueChanges.pipe(takeUntilDestroyed()).subscribe((name) => {
-      const subcategory = this.form.controls.subcategory;
-      const category = this.categories().find((c) => c.name === name);
-      if (!category) {
-        subcategory.setValue('');
-        subcategory.disable();
-        return;
-      }
-      if (!category.subcategories.includes(subcategory.value)) subcategory.setValue('');
-      subcategory.enable();
-    });
-  }
 
   ngOnInit(): void {
     void this.open();
@@ -192,8 +92,8 @@ export class SellPage implements OnInit {
       this.showLoadError(catalogue.problem);
       return;
     }
-    this.categories.set(catalogue.value.categories);
-    this.options.set(catalogue.value.options);
+    this.model.categories.set(catalogue.value.categories);
+    this.model.options.set(catalogue.value.options);
     const reference = this.reference();
     if (reference) {
       const draft = await this.listings.getMine(reference);
@@ -201,65 +101,31 @@ export class SellPage implements OnInit {
         this.showLoadError(draft.problem);
         return;
       }
-      this.fill(draft.value);
+      this.savedReference.set(draft.value.reference);
+      this.model.fill(draft.value);
     }
     this.view.set('form');
   }
 
-  /** Uploads the chosen files into the free slots; files over 10 MB are refused before sending. */
-  addPhotos(files: File[]): void {
-    const free = this.maxPhotos() - this.photos().filter((p) => p.state !== 'rejected').length;
-    for (const file of files.slice(0, Math.max(free, 0))) {
-      const key = `photo-${this.nextPhotoKey++}`;
-      if (file.size > MAX_PHOTO_BYTES) {
-        this.photos.update((tiles) => [...tiles, this.rejectedTile(key, file, 'Photos must be 10 MB or smaller')]);
-        continue;
-      }
-      this.photos.update((tiles) => [...tiles, { key, state: 'uploading', name: file.name }]);
-      void this.photoUploads.upload(file).then((result) => {
-        const tile: PhotoTile = result.ok
-          ? { key, state: 'ready', id: result.value.id, src: result.value.url }
-          : this.rejectedTile(key, file, this.uploadMessage(result.problem, file));
-        this.photos.update((tiles) => tiles.map((t) => (t.key === key ? tile : t)));
-      });
-    }
-  }
-
-  removePhoto(key: string): void {
-    this.photos.update((tiles) => tiles.filter((t) => t.key !== key));
-  }
-
-  /** Moves a photo among the photos; refused files stay after them. */
-  movePhoto({ from, to }: UploaderMove): void {
-    this.photos.update((tiles) => {
-      const photos = tiles.filter((t) => t.state !== 'rejected');
-      const [moved] = photos.splice(from, 1);
-      photos.splice(to, 0, moved);
-      return [...photos, ...tiles.filter((t) => t.state === 'rejected')];
-    });
-  }
-
   async saveDraft(): Promise<void> {
     if (this.busy()) return;
-    const value = this.form.getRawValue() as ListingFormValue;
-    if (!this.accept(this.check(value, 'draft'))) return;
+    if (!this.accept('draft')) return;
     this.busy.set('draft');
-    const saved = await this.save(value);
+    const saved = await this.save();
     this.busy.set(null);
     if (saved) this.draftSaved.set(true);
   }
 
   async publish(): Promise<void> {
     if (this.busy()) return;
-    const value = this.form.getRawValue() as ListingFormValue;
-    if (!this.accept(this.check(value, 'publish'))) return;
+    if (!this.accept('publish')) return;
     this.busy.set('publish');
-    const saved = await this.save(value);
+    const saved = await this.save();
     if (!saved) {
       this.busy.set(null);
       return;
     }
-    const result = await this.listings.publish(saved.reference, value.confirm);
+    const result = await this.listings.publish(saved.reference, this.model.raw().confirm);
     this.busy.set(null);
     if (!result.ok) {
       this.showProblem(result.problem, 'Couldn’t publish your listing');
@@ -277,11 +143,9 @@ export class SellPage implements OnInit {
 
   /** "Sell another": a blank form for a new listing. */
   reset(): void {
-    this.form.reset();
-    this.photos.set([]);
+    this.model.reset();
     this.savedReference.set(null);
     this.published.set(null);
-    this.errors.set({});
     this.draftSaved.set(false);
     this.failure.set(null);
     this.view.set('form');
@@ -292,8 +156,8 @@ export class SellPage implements OnInit {
   }
 
   /** Creates the draft the first time, then updates it in place. */
-  private async save(value: ListingFormValue): Promise<MyListing | null> {
-    const details = { ...toDetails(value), photoIds: this.photoIds() };
+  private async save(): Promise<MyListing | null> {
+    const details = this.model.details();
     const reference = this.savedReference();
     const result = reference
       ? await this.listings.updateDraft(reference, details)
@@ -306,45 +170,16 @@ export class SellPage implements OnInit {
     return result.value;
   }
 
-  private photoIds(): string[] {
-    return this.photos().flatMap((p) => (p.state === 'ready' && p.id ? [p.id] : []));
-  }
-
-  /** Client checks, plus a wait while photos are still uploading. */
-  private check(value: ListingFormValue, mode: 'draft' | 'publish'): FieldErrors {
-    const errors = checkListing(value, mode, this.photoIds().length);
-    if (this.photos().some((p) => p.state === 'uploading')) {
-      errors.photos = 'Wait for your photos to finish uploading';
-    }
-    return errors;
-  }
-
-  private rejectedTile(key: string, file: File, message: string): PhotoTile {
-    return { key, state: 'rejected', name: file.name, size: formatFileSize(file.size), message };
-  }
-
-  /** 413, 415 and 422 carry the message to show; anything else is a failed upload. */
-  private uploadMessage(problem: ApiProblem, file: File): string {
-    if ([413, 415, 422].includes(problem.status)) return problem.title;
-    return `Couldn’t upload ${file.name}. Try again.`;
-  }
-
   /** Shows client errors; true when there are none. */
-  private accept(errors: FieldErrors): boolean {
-    this.errors.set(errors);
+  private accept(mode: 'draft' | 'publish'): boolean {
     this.draftSaved.set(false);
     this.failure.set(null);
-    return Object.keys(errors).length === 0;
+    return this.model.accept(mode);
   }
 
   private showProblem(problem: ApiProblem, heading: string): void {
     if (problem.status === 422) {
-      const errors: FieldErrors = {};
-      for (const [field, error] of Object.entries(problem.errors)) {
-        const id = SERVER_FIELDS[field];
-        if (id) errors[id] ??= error.message;
-      }
-      this.errors.set(errors);
+      this.model.showFieldErrors(problem);
     } else if (problem.status === 429) {
       this.view.set('limited');
     } else if (problem.status === 403 && problem.code === 'EMAIL_NOT_VERIFIED') {
@@ -364,25 +199,5 @@ export class SellPage implements OnInit {
   private showLoadError(problem: ApiProblem): void {
     this.loadRef.set(shortRef(problem.correlationId));
     this.view.set('error');
-  }
-
-  private fill(listing: MyListing): void {
-    this.savedReference.set(listing.reference);
-    this.photos.set(listing.photos.map((photo: Photo) => this.readyTile(photo)));
-    this.form.patchValue({
-      category: listing.category,
-      subcategory: listing.subcategory ?? '',
-      title: listing.title ?? '',
-      brand: listing.brand ?? '',
-      condition: listing.condition ?? '',
-      flaws: listing.flaws ?? '',
-      description: listing.description ?? '',
-      price: listing.price === null ? '' : listing.price.toFixed(2),
-      shipping: listing.shippingCost === null ? '' : listing.shippingCost.toFixed(2),
-    });
-  }
-
-  private readyTile(photo: Photo): PhotoTile {
-    return { key: `photo-${this.nextPhotoKey++}`, state: 'ready', id: photo.id, src: photo.url };
   }
 }
