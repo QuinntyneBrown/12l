@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve twelvel",
-    "build:libs": "ng build api && ng build components && ng build accounts && ng build catalog && ng build listings && ng build orders && ng build reviews && ng build privacy",
+    "build:libs": "ng build api && ng build components && ng build accounts && ng build catalog && ng build listings && ng build orders && ng build reviews && ng build privacy && ng build marketing",
     "build:app": "ng build twelvel",
     "build:all": "npm run build:libs && npm run build:app",
     "format": "prettier --write .",
