@@ -126,7 +126,7 @@ public sealed class BrowseCatalogTests : IDisposable
         using var response = await _client.GetAsync("/api/catalog/listings?category=Hats");
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
-        Assert.Equal("VALIDATION_FAILED", (await Problem.ReadAsync(response)).Code);
+        Assert.Equal("CATALOG_FILTER_INVALID", (await Problem.ReadAsync(response)).Code);
     }
 
     private string Seed(string title, int minutes, string category = "Shoes", string subcategory = "Sneakers", decimal price = 85m, bool publish = true)

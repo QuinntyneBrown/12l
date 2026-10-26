@@ -40,12 +40,12 @@ public sealed record ListingCardDto(
 
 public sealed record CatalogPageDto(IReadOnlyList<ListingCardDto> Items, int Page, int PageSize, int TotalCount);
 
-/// <summary>A page of the catalog, optionally narrowed to one category. Null page size means the default.</summary>
-public sealed record BrowseCatalogQuery(int Page, int? PageSize, string? Category) : IRequest<Result<CatalogPageDto>>;
+/// <summary>A page of the catalog narrowed by keyword and filters (L2-023, L2-024). Null page size means the default.</summary>
+public sealed record BrowseCatalogQuery(int Page, int? PageSize, CatalogFilters Filters) : IRequest<Result<CatalogPageDto>>;
 
 /// <summary>
-/// Reads Active and Reserved listings only (<see cref="CatalogVisibility"/>), newest first, with
-/// the cover photo at position 0. A page size above the maximum is capped, not refused.
+/// Reads Active and Reserved listings only (<see cref="CatalogVisibility"/>) that meet the
+/// <see cref="CatalogCriteria"/>, in its order, with the cover photo at position 0. A page size above the maximum is capped, not refused.
 /// </summary>
 public sealed class BrowseCatalogQueryHandler(ITwelveLDbContext db, IOptions<CatalogOptions> options, IOptions<PhotoOptions> photoOptions) :
     IRequestHandler<BrowseCatalogQuery, Result<CatalogPageDto>>
@@ -58,21 +58,16 @@ public sealed class BrowseCatalogQueryHandler(ITwelveLDbContext db, IOptions<Cat
             return Invalid("Page and page size must be 1 or more");
         }
 
-        if (query.Category is not null && CategoryCatalog.Find(query.Category) is null)
+        var criteria = CatalogCriteria.From(query.Filters);
+        if (!criteria.IsSuccess)
         {
-            return Invalid("Choose one of the 4 categories");
+            return criteria.Error!;
         }
 
         var pageSize = Math.Min(query.PageSize ?? settings.DefaultPageSize, settings.MaxPageSize);
-        var visible = db.Listings.AsNoTracking().Where(CatalogVisibility.IsVisible);
-        if (query.Category is { } category)
-        {
-            visible = visible.Where(l => l.Category == category);
-        }
-
+        var visible = criteria.Value!.Apply(db.Listings.AsNoTracking());
         var total = await visible.CountAsync(cancellationToken);
-        var listings = await visible
-            .OrderByDescending(l => l.PublishedAt).ThenByDescending(l => l.Id)
+        var listings = await criteria.Value.Order(visible)
             .Skip((query.Page - 1) * pageSize).Take(pageSize)
             .ToListAsync(cancellationToken);
         var ids = listings.Select(l => l.Id).ToList();
