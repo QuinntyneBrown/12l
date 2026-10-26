@@ -138,13 +138,20 @@ public static class DemoCatalogue
 
     /// <summary>
     /// Every listing in publish order, oldest first. The categories alternate, so the newest
-    /// listings on the home page mix shoes and clothing.
+    /// listings on the home page mix shoes and clothing, and the two listings that share a cover
+    /// photo are published six apart instead of side by side.
     /// </summary>
-    public static readonly IReadOnlyList<DemoListing> Listings =
-        Enumerable.Range(0, Shoes.Count).SelectMany(i => new[] { Shoes[i], Tops[i], Outerwear[i], Bottoms[i] }).ToList();
+    public static readonly IReadOnlyList<DemoListing> Listings = Interleave(Spread(Shoes), Spread(Tops), Spread(Outerwear), Spread(Bottoms));
 
     /// <summary>Every photo file the catalogue uses, relative to the seed photos folder.</summary>
     public static IReadOnlyList<string> PhotoFiles { get; } = Listings.SelectMany(l => l.Photos).Distinct().Order(StringComparer.Ordinal).ToList();
+
+    /// <summary>The even entries, then the odd ones.</summary>
+    private static List<DemoListing> Spread(IReadOnlyList<DemoListing> listings) =>
+        listings.Where((_, i) => i % 2 == 0).Concat(listings.Where((_, i) => i % 2 == 1)).ToList();
+
+    private static List<DemoListing> Interleave(params List<DemoListing>[] categories) =>
+        Enumerable.Range(0, categories[0].Count).SelectMany(i => categories.Select(c => c[i])).ToList();
 
     /// <summary>The member who sells listing <paramref name="index"/>: sellers take turns.</summary>
     public static DemoMember SellerOf(int index) => Members[index % Members.Count];

@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using TwelveL.Application.Accounts;
 using TwelveL.Application.Common;
+using TwelveL.Application.Listings;
+using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
 using TwelveL.Domain.Notifications;
 using TwelveL.Infrastructure.Persistence;
@@ -19,6 +21,9 @@ public sealed class DemoSeeder(ISender sender, TwelveLDbContext db, SeedClock cl
 {
     /// <summary>The demo members register this long before the seed, before their first listing.</summary>
     public static readonly TimeSpan MembersJoinedBefore = TimeSpan.FromDays(31);
+
+    /// <summary>The listings are published over this many days before the seed, oldest first.</summary>
+    public static readonly TimeSpan ListingsSpread = TimeSpan.FromDays(30);
 
     private const string SuppressionReason = "Demo member verified by TwelveL.Cli";
 
@@ -42,9 +47,19 @@ public sealed class DemoSeeder(ISender sender, TwelveLDbContext db, SeedClock cl
         try
         {
             clock.Set(start - MembersJoinedBefore);
+            var memberIds = new Dictionary<DemoMember, Guid>();
             foreach (var member in DemoCatalogue.Members)
             {
-                await AddMemberAsync(member, cancellationToken);
+                memberIds[member] = await AddMemberAsync(member, cancellationToken);
+            }
+
+            // Spread the publishes so no seller publishes twice on one day: the daily limit
+            // (Selling:PublishesPerDay, L2-051) stays in force and never blocks the seed.
+            var spacing = ListingsSpread / DemoCatalogue.Listings.Count;
+            for (var i = 0; i < DemoCatalogue.Listings.Count; i++)
+            {
+                clock.Set(start - ListingsSpread + (spacing * i));
+                await AddListingAsync(memberIds[DemoCatalogue.SellerOf(i)], DemoCatalogue.Listings[i], cancellationToken);
             }
         }
         finally
@@ -56,7 +71,7 @@ public sealed class DemoSeeder(ISender sender, TwelveLDbContext db, SeedClock cl
     }
 
     /// <summary>Registers the member, verifies them with the link from their queued email, then suppresses that email.</summary>
-    private async Task AddMemberAsync(DemoMember member, CancellationToken cancellationToken)
+    private async Task<Guid> AddMemberAsync(DemoMember member, CancellationToken cancellationToken)
     {
         var memberId = Expect(
             await sender.Send(new RegisterMemberCommand(member.DisplayName, member.Email, DemoCatalogue.Password, AgeConfirmed: true, TermsAccepted: true), cancellationToken),
@@ -70,6 +85,27 @@ public sealed class DemoSeeder(ISender sender, TwelveLDbContext db, SeedClock cl
         email.Claim(now);
         email.Suppress(SuppressionReason);
         await db.SaveChangesAsync(cancellationToken);
+        return memberId;
+    }
+
+    /// <summary>
+    /// Uploads the listing's photos through the photo pipeline (L2-017), creates the draft with
+    /// them and publishes it with the size confirmed, as a seller would on the sell form.
+    /// </summary>
+    private async Task AddListingAsync(Guid sellerId, DemoListing listing, CancellationToken cancellationToken)
+    {
+        var photoIds = new List<Guid>();
+        foreach (var file in listing.Photos)
+        {
+            var content = await File.ReadAllBytesAsync(Path.Combine(PhotosPath, file), cancellationToken);
+            photoIds.Add(Expect(await sender.Send(new UploadListingPhotoCommand(sellerId, content), cancellationToken), $"Uploading {file}").Id);
+        }
+
+        var details = new ListingDetails(
+            listing.Category, listing.Subcategory, Size: null, listing.Title, listing.Description, listing.Brand,
+            listing.Condition, listing.Flaws, listing.Price, listing.ShippingCost);
+        var draft = Expect(await sender.Send(new CreateListingDraftCommand(sellerId, details, photoIds), cancellationToken), $"Creating '{listing.Title}'");
+        Expect(await sender.Send(new PublishListingCommand(sellerId, draft.Reference, SizeConfirmed: true), cancellationToken), $"Publishing '{listing.Title}'");
     }
 
     /// <summary>The raw token in the verification link of an EmailVerificationEmail payload.</summary>
