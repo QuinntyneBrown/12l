@@ -5,7 +5,7 @@ title System Context — Manage cookie consent
 
 Person(visitor, "Visitor", "Anyone using 12L, signed in or not")
 System(twelvel, "12L", "Marketplace for men's size 12 shoes and size L clothing")
-System_Ext(analytics, "Analytics provider", "Page-view and timing analytics (product <TO SUPPLY>)")
+System_Ext(analytics, "Analytics provider", "Page-view and timing analytics (product not chosen yet)")
 
 Rel(visitor, twelvel, "Browses; accepts or declines analytics", "HTTPS")
 Rel(twelvel, analytics, "Sends page views only after consent", "HTTPS from the browser")

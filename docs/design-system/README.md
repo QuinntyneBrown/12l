@@ -12,7 +12,8 @@ seller summary, the edit and star icons and the status code of the center state;
 cancel-order added the quote, the radio group and the danger tone of the dialog;
 resolve-order-problems added the thread, facts and status, the flag icon, the admin variant of
 the top bar and the no-cover mode of the photo uploader; manage-notification-preferences added
-the switch and implemented the toast with `ToastService`.
+the switch and implemented the toast with `ToastService`; manage-cookie-consent added the
+consent banner, the visible label and hint of the switch and the footer's Cookie settings button.
 
 ## Foundations
 
@@ -38,6 +39,7 @@ the switch and implemented the toast with `ToastService`.
 | [Skip link](components/skip-link.html) | one | hidden, focused | every page |
 | [Top bar](components/top-bar.html) | guest, member, admin, bare | default, current | catalog/guest, catalog/default, problem-detail, maintenance |
 | [Footer](components/footer.html) | one | default, hover | catalog |
+| [Consent banner](components/consent-banner.html) | one | shown until a choice, then gone | notifications/cookie-consent/info |
 | [Toast](components/toast.html) | info, success, warning, danger; optional action; `ToastService` | entering, leaving, paused | notifications/toast |
 | [Sheet](components/sheet.html) | navigation, filter | open | dialogs/nav-menu, dialogs/filters |
 | [Button](components/button.html) | primary, secondary, ghost, link, danger | default, hover, focus, active, disabled, loading | catalog/guest, nav-menu, toast |
@@ -71,7 +73,7 @@ the switch and implemented the toast with `ToastService`.
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |
 | [Spinner](components/spinner.html) | with message | running | verify-email/loading |
 | [Stat](components/stat.html) | in a `.stats` row | static, loading skeleton | payouts/default, payouts/loading |
-| [Switch](components/switch.html) | on, off, locked on | off, on, focus, disabled | notification-settings/default, notification-settings/submitting |
+| [Switch](components/switch.html) | on, off, locked on; hidden label or label with hint | off, on, focus, disabled | notification-settings/default, notification-settings/submitting |
 | [Quote](components/quote.html) | one | static | order-detail/cancelled, sale-detail/cancel-requested, respond-cancellation |
 | [Radio group](components/radio-group.html) | one | nothing chosen, chosen, invalid | cancel-order/default, cancel-order/invalid |
 | [Thread](components/thread.html) | one | static, with photos | order-detail/problem, sale-detail/problem, problem-detail/default |

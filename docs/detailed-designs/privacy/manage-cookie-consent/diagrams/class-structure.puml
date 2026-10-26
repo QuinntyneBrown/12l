@@ -11,7 +11,7 @@ skinparam class {
 }
 title Class structure — Manage cookie consent
 
-package "12L Web" {
+package "12L Web (@12l/privacy, @12l/components)" {
   enum ConsentState {
     unknown
     necessary
@@ -22,38 +22,40 @@ package "12L Web" {
     +acceptAnalytics(): void
     +necessaryOnly(): void
     +save(analytics: boolean): void
-    -readCookie(): ConsentState
-    -writeCookie(state: ConsentState): void
+  }
+  class AnalyticsConfig {
+    +scriptUrl: string
+    +cookieNames: string[]
   }
   class AnalyticsService {
-    -loaded: boolean
-    +start(): void
-    +stop(): void
+    -script?: HTMLScriptElement
     +trackPageView(url: string): void
-    +trackTiming(name: string, ms: number): void
-    -deleteCookies(names: string[]): void
+    -start(): void
+    -stop(): void
   }
-  class CookieConsentBannerComponent {
-    +visible: Signal<boolean>
-    +onAccept(): void
-    +onNecessaryOnly(): void
-    +openSettings(): void
+  class CookieConsentComponent {
+    +accept(): void
+    +decline(): void
   }
-  class CookieSettingsDialogComponent {
+  class CookieSettingsDialog {
     +analytics: WritableSignal<boolean>
-    +onSave(): void
-    +onCancel(): void
+    +save(): void
   }
   class CookieSettingsDialogService {
-    +open(): void
+    +open(): DialogRef<boolean>
+  }
+  class ConsentBannerComponent <<tl-consent-banner>> {
+    +accepted: OutputRef
+    +declined: OutputRef
+    +settings: OutputRef
   }
   class ToastService {
-    +success(title: string, body: string): void
+    +show(options: ToastOptions): number
   }
 }
 package "TwelveL.Api" {
   class StrictlyNecessaryCookieOptions {
-    +IReadOnlyList<string> Names
+    +string[] StrictlyNecessary
   }
   class CookieAllowListMiddleware {
     +InvokeAsync(context: HttpContext): Task
@@ -62,10 +64,12 @@ package "TwelveL.Api" {
 
 CookieConsentService --> ConsentState : holds
 AnalyticsService --> CookieConsentService : reacts to consent
-CookieConsentBannerComponent ..> CookieConsentService
-CookieConsentBannerComponent ..> ToastService
-CookieConsentBannerComponent ..> CookieSettingsDialogService
-CookieSettingsDialogService ..> CookieSettingsDialogComponent : opens
-CookieSettingsDialogComponent ..> CookieConsentService
+AnalyticsService --> AnalyticsConfig
+CookieConsentComponent --> ConsentBannerComponent : renders while unknown
+CookieConsentComponent ..> CookieConsentService
+CookieConsentComponent ..> ToastService
+CookieConsentComponent ..> CookieSettingsDialogService
+CookieSettingsDialogService ..> CookieSettingsDialog : opens
+CookieSettingsDialog ..> CookieConsentService
 CookieAllowListMiddleware --> StrictlyNecessaryCookieOptions
 @enduml

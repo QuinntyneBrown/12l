@@ -70,7 +70,8 @@ Per `AGENTS.md`, the application project holds `AppComponent`, the four shell co
   Listings, Purchases, Sales, Payouts, Profile, Emails, Settings; horizontally
   scrollable below 576 px without page-level horizontal scroll.
 - **`FooterComponent`** — links "Marketplace rules", "Privacy", "Terms",
-  "Cookie settings" (opens the cookie-settings dialog, privacy subsystem) and
+  a "Cookie settings" button (emits `cookieSettings`; the shell opens the
+  cookie-settings dialog of `@12l/privacy`) and
   "© 2026 12L" (year from the clock).
 - **`NavMenuSheetComponent`** (`docs/mocks/dialogs/nav-menu/`) — opened by the
   menu button through `SheetService` as a full-screen sheet with `id="menu"`,

@@ -26,7 +26,7 @@ Terms used below:
 
 > **consent cookie** — first-party cookie named `12l_consent` that records the consent state in the browser
 
-> **analytics provider** — external service that receives page-view and timing events; the product is `<TO SUPPLY>`
+> **analytics provider** — external service that receives page-view events; the product is not chosen yet (deferred)
 
 The feature belongs to the `privacy` subsystem (`L1-014`). It is mostly frontend: the
 choice is stored in the browser with no request to `12L API`. The API's part is to set
@@ -34,77 +34,84 @@ only strictly necessary cookies on every response.
 
 ## Description
 
-### Frontend (`12L Web`, `src/frontend/src/app/privacy/consent/`)
+### Frontend (`12L Web`, `@12l/privacy` and `@12l/components`)
 
-The consent code is provided in the root injector and loaded with the application shell,
-not with a lazy route, because the banner appears on the first page a visitor opens.
+The consent code lives in the `privacy` feature library
+(`src/frontend/projects/privacy/src/lib/consent/` and `.../cookie-settings/`). It is exported
+to the application shell and loaded with it, not with a lazy route, because the banner appears
+on the first page a visitor opens. It makes no call to `12L API`, so `@12l/api` is not involved.
+Decisions are recorded in [ADR privacy/0001](../../../adr/privacy/0001-cookie-consent-in-the-browser-and-a-placeholder-analytics-provider.md).
 
-- **`CookieConsentService`** — root service holding the consent state in a signal
-  `consent: Signal<'unknown' | 'necessary' | 'analytics'>`. On start-up it reads the
-  consent cookie. Its methods are `acceptAnalytics()`, `necessaryOnly()` and
-  `save(analytics: boolean)`. Each method writes the consent cookie, updates the signal
-  and asks `AnalyticsService` to start or stop. No HTTP request is made, so saving
-  cannot fail and has no busy state.
+- **`CookieConsentService`** (`consent/cookie-consent.service.ts`) — root service holding the
+  consent state in a read-only signal `consent: Signal<'unknown' | 'necessary' | 'analytics'>`.
+  On start-up it reads the consent cookie. Its methods are `acceptAnalytics()`,
+  `necessaryOnly()` and `save(analytics: boolean)`. Each writes the consent cookie and updates
+  the signal; `AnalyticsService` follows the signal. No HTTP request is made, so saving cannot
+  fail and has no busy state.
 - **Consent cookie** — `12l_consent`, value `v1.necessary` or `v1.analytics`, attributes
-  `Path=/`, `Secure`, `SameSite=Strict`. It is readable by script (not `HttpOnly`)
-  because the frontend reads it. Its lifetime (`Max-Age`) is `<TO SUPPLY>`. An unknown
-  or malformed value counts as `unknown`, so the banner returns.
-- **`CookieConsentBannerComponent`** — shell component shown while the state is
-  `unknown` (`docs/mocks/notifications/cookie-consent/info.html`). It is a `section`
+  `Path=/`, `Max-Age=15552000` (180 days), `Secure`, `SameSite=Strict`. It is readable by script
+  (not `HttpOnly`) because the frontend reads it. An unknown or malformed value counts as
+  `unknown`, so the banner returns.
+- **`tl-consent-banner`** (`@12l/components`, design system: Consent banner) — a `section`
   labelled by the heading "Cookies", with the text "We use necessary cookies to run 12L.
-  Analytics only if you say yes.", a primary "Accept analytics" button, a secondary
-  "Necessary only" button and a "Cookie settings" link that opens the dialog. The banner
-  does not block the page and does not trap focus. It disappears once a choice is saved.
-- **Saved toast** — after either banner button, the shared `ToastService` shows a
-  success toast titled "Cookie choice saved"
-  (`docs/mocks/notifications/cookie-consent/success.html`). For "Necessary only" the body
-  is "Necessary only. Change it any time in the footer." The body after "Accept
-  analytics" is not mocked and is `<TO SUPPLY>`.
-- **`CookieSettingsDialogComponent`** — small dialog titled "Cookie settings"
-  (`docs/mocks/dialogs/cookie-settings/`). It has two switches:
+  Analytics only if you say yes.", a primary "Accept analytics" button, a secondary "Necessary
+  only" button and a link-styled "Cookie settings" button. It emits `accepted`, `declined` and
+  `settings`. It is fixed to the bottom of the page, does not block the page and does not trap
+  focus.
+- **`CookieConsentComponent`** (`tl-cookie-consent`, `consent/cookie-consent.ts`) — placed in
+  the root component next to the toast region, so it shows in every shell. It renders
+  `tl-consent-banner` while the state is `unknown`
+  (`docs/mocks/notifications/cookie-consent/info.html`) and disappears once a choice is saved.
+- **Saved toast** — after either banner button, `ToastService` shows a success toast titled
+  "Cookie choice saved" (`docs/mocks/notifications/cookie-consent/success.html`). The body is
+  "Necessary only. Change it any time in the footer." or "Analytics on. Change it any time in
+  the footer."
+- **`CookieSettingsDialog`** (`cookie-settings/cookie-settings-dialog.ts`) — small `tl-dialog`
+  titled "Cookie settings" (`docs/mocks/dialogs/cookie-settings/`) with two `tl-switch`es that
+  show their label and hint:
   - "Strictly necessary" with the hint "Sign-in and checkout. Always on.", checked and
     disabled.
-  - "Analytics" with the hint "Helps us see which pages are slow.", with initial focus.
-    It is off in the `default` state and on in the `analytics-on` state.
+  - "Analytics" with the hint "Helps us see which pages are slow.", with initial focus. It is
+    off in the `default` state and on in the `analytics-on` state.
 
-  "Cancel" closes without change. "Save" calls `CookieConsentService.save(...)` and
-  closes. Saving from the dialog also counts as a first choice, so the banner closes.
-  The dialog has no `busy` or `invalid` state.
-- **Entry points** — the footer link "Cookie settings" in the shell (every page), the
-  banner link, the "Cookie settings" link on the Privacy page
-  (`docs/mocks/pages/privacy/`) and the "Cookies" row on Settings
-  (`docs/mocks/pages/settings/default.html`). The Settings row shows the meta text
-  "Strictly necessary only" when analytics is off. Its text when analytics is on is
-  `<TO SUPPLY>`. Each entry point calls `CookieSettingsDialogService.open()`.
-- **`AnalyticsService`** — the only code that talks to the analytics provider.
-  - `start()` runs only when the state is `analytics`. It appends a `<script src>`
-    element for `environment.analytics.scriptUrl` (no inline script, `L2-048`) and
-    subscribes to router `NavigationEnd` events to send page views.
-  - `stop()` calls the provider's opt-out function when the script is loaded, stops page
-    views, and deletes every cookie named in `environment.analytics.cookieNames`. It
-    deletes each name on `Path=/` for both the host and the parent domain, by writing it
-    with `Max-Age=0`.
-  - `trackPageView(url)` and `trackTiming(...)` return without effect unless the state is
-    `analytics`.
-- **Consent effect** — an Angular `effect` in the `AnalyticsService` constructor that
-  reacts to the consent signal. A switch to `necessary` calls `stop()` at once; a switch to
-  `analytics` calls `start()`.
+  "Cancel" closes without change. "Save" calls `CookieConsentService.save(...)` and closes.
+  Saving from the dialog also counts as a first choice, so the banner closes. The dialog has
+  no `busy` or `invalid` state. Focus returns to the control that opened it.
+- **`CookieSettingsDialogService`** — `open()` opens the dialog through `DialogService`.
+- **Entry points** — the footer button "Cookie settings" in the app shell (`tl-footer` emits
+  `cookieSettings`, the shell calls `open()`) and the banner's "Cookie settings". The
+  "Cookie settings" link on the Privacy page (`docs/mocks/pages/privacy/`) and the "Cookies" row
+  on Settings (`docs/mocks/pages/settings/default.html`) are deferred until those pages exist;
+  they will call the same service.
+- **`AnalyticsService`** (`consent/analytics.service.ts`) — the only code that talks to the
+  analytics provider. `provideAnalytics(environment.analytics)` in `app.config.ts` registers
+  its configuration and creates it at start-up.
+  - On `analytics` it appends one `<script src>` element for `scriptUrl` (no inline script,
+    `L2-048`) and subscribes to router `NavigationEnd` events to send page views through
+    `window.twelvelAnalytics.pageView(url)` when the script exposes it.
+  - On `necessary` it calls `window.twelvelAnalytics.optOut()` when present, stops page views,
+    and deletes every cookie named in `cookieNames` on `Path=/` for both the host and the parent
+    domain, by writing it with `Max-Age=0`.
+  - On `unknown` it does nothing, so nothing loads before a choice.
+  - `trackPageView(url)` returns without effect unless the state is `analytics`.
+- **Consent effect** — an Angular `effect` in the `AnalyticsService` constructor that reacts to
+  the consent signal, as above.
 
 ### API (`TwelveL.Api`)
 
-- **`StrictlyNecessaryCookieOptions`** — bound from `Privacy:Cookies:StrictlyNecessary`,
-  the list of cookie names the API may set. The names are those of the session cookies
-  (accounts subsystem) and the anti-forgery cookie (platform subsystem).
-- **`CookieAllowListMiddleware`** — runs on every response. Before headers are sent it
-  reads each `Set-Cookie` header and removes any whose name is not in the list. It logs
-  a warning with the cookie name and endpoint. This keeps a later change from adding a
-  non-essential cookie by mistake (`L2-056` criterion 1).
-- **`CookiePolicyOptions`** — `MinimumSameSitePolicy = Strict`,
-  `Secure = CookieSecurePolicy.Always`, and every API cookie marked `IsEssential = true`.
-- **Content Security Policy** — the analytics script and collection origins are added
-  to `script-src` and `connect-src` in the security headers owned by the platform
-  subsystem (`L2-048`). The CSP permits the origins; consent decides whether the
-  frontend uses them.
+- **`StrictlyNecessaryCookieOptions`** (`TwelveL.Api/Privacy/`) — bound from
+  `Privacy:Cookies:StrictlyNecessary`, the list of cookie names the API may set: the session
+  cookies `tl_access` and `tl_refresh`. The anti-forgery cookie joins the list when the platform
+  subsystem adds it.
+- **`CookieAllowListMiddleware`** — first in the pipeline. Before headers are sent it reads
+  each `Set-Cookie` header and removes any whose name is not in the list, logging a warning with
+  the cookie name and path. This keeps a later change from adding a non-essential cookie by
+  mistake (`L2-056` criterion 1).
+- **Cookie attributes** — the session cookies are already `HttpOnly`, `Secure`,
+  `SameSite=Strict` and `IsEssential = true` (`L2-008`); no `CookiePolicyOptions` is added.
+- **Content Security Policy** — none exists yet. When the platform subsystem adds one
+  (`L2-048`), the analytics script and collection origins go into `script-src` and
+  `connect-src`; consent decides whether the frontend uses them.
 
 ### Data and configuration
 
@@ -113,24 +120,32 @@ member account; each browser holds its own choice.
 
 | Key | Where | Value |
 |-----|-------|-------|
-| `environment.analytics.scriptUrl` | `12L Web` environment | Analytics provider script URL, `<TO SUPPLY>` |
-| `environment.analytics.cookieNames` | `12L Web` environment | Cookie names the provider sets, `<TO SUPPLY>` |
-| `environment.consent.cookieMaxAgeDays` | `12L Web` environment | `<TO SUPPLY>` |
-| `Privacy:Cookies:StrictlyNecessary` | `12L API` configuration | Session cookie names and the anti-forgery cookie name |
+| `environment.analytics.scriptUrl` | `12L Web` environment | `https://analytics.12l.invalid/script.js` until a provider is chosen; empty turns analytics off |
+| `environment.analytics.cookieNames` | `12L Web` environment | `['_12la']` until a provider is chosen |
+| consent cookie lifetime | `CONSENT_MAX_AGE_SECONDS` in `@12l/privacy` | 180 days |
+| `Privacy:Cookies:StrictlyNecessary` | `12L API` `appsettings.json` | `tl_access`, `tl_refresh` |
 
 ### Tests
 
-- **Playwright, first visit** — clears cookies, opens `/`, and asserts that the banner is
-  visible. It also asserts that every cookie name is either in the strictly necessary
-  list or `12l_consent` (`L2-056` criterion 1).
-- **Playwright, necessary only** — chooses "Necessary only", opens 3 further pages and
-  asserts that no request goes to the analytics origin and no analytics cookie exists
-  (criterion 2).
-- **Playwright, withdraw** — accepts analytics, confirms an analytics cookie exists,
-  opens "Cookie settings" from the footer, turns analytics off, saves, and asserts the
-  analytics cookies are gone (criterion 3).
-- **API integration test** — calls a sample of endpoints, signed in and signed out, and
-  asserts every `Set-Cookie` name is in `Privacy:Cookies:StrictlyNecessary`.
+Playwright never runs the backend: the analytics origin is served by a `page.route` fixture
+whose script sets the `_12la` cookie. The `consent` fixture option starts every other test with
+"Necessary only" chosen, so the banner stays out of their way.
+
+- **Playwright, `e2e/tests/manage-cookie-consent.spec.ts`** with the page object
+  `e2e/pages/cookie-consent.page.ts`:
+  - first visit: the banner shows, every cookie is strictly necessary or `12l_consent`, and no
+    request reaches the analytics origin (criterion 1);
+  - "Necessary only": the toast, the cookie, then 3 further pages with no banner, no analytics
+    request and no analytics cookie (criterion 2);
+  - "Accept analytics": the toast, the cookie, the script loads and sets its cookie;
+  - the banner's "Cookie settings" opens the dialog with its switches, and Save closes the
+    banner (criterion 4); a malformed consent cookie shows the banner again (criterion 5);
+  - withdraw: with analytics accepted, footer "Cookie settings", analytics off, Save, and the
+    analytics cookie is gone and focus is back on the footer button (criterion 3); Cancel
+    changes nothing.
+- **xUnit, `tests/TwelveL.Api.Tests/CookieConsentTests.cs`** — calls a sample of endpoints,
+  signed out and signed in, and asserts every `Set-Cookie` name is strictly necessary; a stray
+  cookie set by a test-only endpoint is removed.
 
 ## Requirements
 
@@ -157,7 +172,7 @@ browser.
 
 ### Components
 
-The banner, dialog and entry points all go through `CookieConsentService`, which drives
+The banner, dialog and footer entry point all go through `CookieConsentService`, which drives
 `AnalyticsService`. In `12L API`, `CookieAllowListMiddleware` filters `Set-Cookie`
 headers.
 
