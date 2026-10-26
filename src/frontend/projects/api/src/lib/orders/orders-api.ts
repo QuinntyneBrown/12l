@@ -3,7 +3,7 @@ import { Injectable, inject } from '@angular/core';
 
 import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
-import { CheckoutItem, ShippingAddress } from './checkout-api';
+import { CheckoutItem, Purchase, ShippingAddress } from './checkout-api';
 
 export type OrderStatus = 'Paid' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled' | 'Refunded';
 
@@ -41,7 +41,7 @@ export interface Sale {
 /** The carriers a seller can choose in Add tracking. */
 export const CARRIERS = ['USPS', 'UPS', 'FedEx', 'DHL'] as const;
 
-/** Typed client for the seller's side of an order (ship-order). */
+/** Typed client for order actions: the seller's sale and tracking (ship-order), the buyer's receipt (complete-order). */
 @Injectable({ providedIn: 'root' })
 export class OrdersApi {
   private readonly http = inject(HttpClient);
@@ -58,5 +58,13 @@ export class OrdersApi {
    */
   addTracking(id: string, carrier: string, trackingNumber: string): Promise<ApiResult<Sale>> {
     return toResult(this.http.post<Sale>(`${this.baseUrl}/orders/${id}/shipment`, { carrier, trackingNumber }));
+  }
+
+  /**
+   * The buyer confirms receipt of a Shipped or Delivered order, which becomes Completed (L2-034).
+   * 409 ORDER_INVALID_TRANSITION in any other status; 404 for anyone but the buyer.
+   */
+  confirmReceipt(id: string): Promise<ApiResult<Purchase>> {
+    return toResult(this.http.post<Purchase>(`${this.baseUrl}/orders/${id}/receipt`, null));
   }
 }

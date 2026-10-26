@@ -5,6 +5,7 @@ import {
   AlertComponent,
   ButtonDirective,
   CenterStateComponent,
+  DialogService,
   IconComponent,
   OrderSummaryComponent,
   OrderSummaryItem,
@@ -14,6 +15,7 @@ import {
 
 import { formatMoney } from '../money';
 import { formatDay, timelineSteps } from '../order-dates';
+import { ConfirmReceiptData, ConfirmReceiptDialog } from '../confirm-receipt/confirm-receipt-dialog';
 import { OrderPartyComponent } from '../order-party/order-party';
 
 const HEADINGS: Record<string, string> = {
@@ -27,7 +29,8 @@ const HEADINGS: Record<string, string> = {
 
 /**
  * The buyer's order at /orders/{id} (mocks pages/order-detail, L2-032, L2-033): waiting to ship
- * with the ship-by date, on its way with the tracking link, delivered, or cancelled and refunded.
+ * with the ship-by date, on its way with the tracking link, delivered with the automatic completion
+ * date, completed, or cancelled and refunded. A Shipped or Delivered order offers "I received it" (L2-034).
  */
 @Component({
   selector: 'tl-order-detail-page',
@@ -48,6 +51,7 @@ const HEADINGS: Record<string, string> = {
 })
 export class OrderDetailPage {
   private readonly api = inject(CheckoutApi);
+  private readonly dialogs = inject(DialogService);
 
   /** The order id, from the route parameter. */
   readonly id = input.required<string>();
@@ -57,6 +61,7 @@ export class OrderDetailPage {
   readonly errorRef = signal('');
 
   readonly heading = computed(() => HEADINGS[this.order()?.status ?? 'Paid']);
+  readonly canConfirm = computed(() => ['Shipped', 'Delivered'].includes(this.order()?.status ?? ''));
   readonly ended = computed(() => ['Cancelled', 'Refunded'].includes(this.order()?.status ?? ''));
   readonly steps = computed(() => timelineSteps(this.order()?.timeline ?? []));
   readonly refund = computed(() => {
@@ -82,6 +87,18 @@ export class OrderDetailPage {
 
   retry(): Promise<void> {
     return this.load(this.id());
+  }
+
+  async confirmReceipt(): Promise<void> {
+    const order = this.order();
+    if (!order) return;
+    const ref = this.dialogs.open<ConfirmReceiptDialog, ConfirmReceiptData, Purchase>(ConfirmReceiptDialog, {
+      orderId: order.id,
+      item: order.item,
+      sellerDisplayName: order.sellerDisplayName,
+    });
+    const completed = await ref.closed;
+    if (completed) this.order.set(completed);
   }
 
   private async load(id: string): Promise<void> {

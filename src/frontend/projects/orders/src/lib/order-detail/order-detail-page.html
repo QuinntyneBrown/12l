@@ -48,6 +48,16 @@
                 {{ order.sellerDisplayName }} ships by {{ day(order.shipBy) }}. If not, you’re refunded automatically.
               </p>
             }
+            @if (order.status === 'Delivered' && order.autoCompletesAt) {
+              <p class="text-muted order__completes">
+                Completes automatically on {{ day(order.autoCompletesAt) }} unless you report a problem.
+              </p>
+            }
+            @if (canConfirm()) {
+              <div class="cluster">
+                <button tlButton="primary" type="button" (click)="confirmReceipt()">I received it</button>
+              </div>
+            }
           }
         </div>
         @if (summaryItem(); as item) {

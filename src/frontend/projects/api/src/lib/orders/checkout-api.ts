@@ -74,6 +74,8 @@ export interface Purchase {
   salesTax: string;
   timeline: OrderTimelineStep[];
   tracking: Tracking | null;
+  /** When a Delivered order completes by itself, 3 days after delivery (L2-034); null otherwise. */
+  autoCompletesAt: string | null;
 }
 
 /** Typed client for /api/checkouts and /api/purchases (checkout-and-pay). */
