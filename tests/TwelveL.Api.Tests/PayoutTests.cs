@@ -9,9 +9,11 @@
 using System.Net;
 using System.Net.Http.Json;
 using MediatR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TwelveL.Api.Tests.Support;
 using TwelveL.Application.Payouts;
+using TwelveL.Domain.Orders;
 using TwelveL.Domain.Payouts;
 
 namespace TwelveL.Api.Tests;
@@ -178,6 +180,24 @@ public sealed class PayoutTests : IDisposable
         _factory.InDatabase(db => Assert.Equal(PayoutHoldReason.OnboardingIncomplete, db.Payouts.Single().HoldReason));
 
         await _factory.OnboardAsync(seller);
+
+        Assert.Equal(1, await ReleaseAsync());
+        Assert.Single(_factory.PayoutProvider.Payouts);
+    }
+
+    [Fact]
+    public async Task A_completion_whose_event_was_lost_is_still_paid_by_the_job()
+    {
+        await _buyer.SignInVerifiedMemberAsync(_factory);
+        var (orderId, seller) = await _factory.SeedPaidOrderAsync(_buyer);
+        await _factory.OnboardAsync(seller);
+        await _factory.DeliverAsync(orderId, seller, Now());
+        _factory.InDatabase(db =>
+        {
+            // Completed without publishing OrderCompleted, as a crash after the save would leave it.
+            db.Orders.Include(o => o.StatusChanges).Single(o => o.Id == orderId).Complete(OrderActor.System, Now());
+            db.SaveChanges();
+        });
 
         Assert.Equal(1, await ReleaseAsync());
         Assert.Single(_factory.PayoutProvider.Payouts);

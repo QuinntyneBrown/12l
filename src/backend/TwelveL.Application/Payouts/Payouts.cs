@@ -185,6 +185,7 @@ public sealed class ReleasePayoutsHandler(ITwelveLDbContext db, IPayoutProvider 
 {
     public async Task<int> Handle(ReleasePayoutsCommand command, CancellationToken cancellationToken)
     {
+        await CatchUpLostCompletionsAsync(cancellationToken);
         var due = await (
             from payout in db.Payouts
             join order in db.Orders on payout.OrderId equals order.Id
@@ -214,6 +215,33 @@ public sealed class ReleasePayoutsHandler(ITwelveLDbContext db, IPayoutProvider 
         }
 
         return sent;
+    }
+
+    /// <summary>
+    /// A payout still waiting for its order although the order is Completed lost its OrderCompleted
+    /// event (published after the save, ADR orders/0004); the job applies it, so the payout is late, not lost.
+    /// </summary>
+    private async Task CatchUpLostCompletionsAsync(CancellationToken cancellationToken)
+    {
+        var stale = await (
+            from payout in db.Payouts
+            join order in db.Orders on payout.OrderId equals order.Id
+            where payout.Status == PayoutStatus.Held && payout.HoldReason == PayoutHoldReason.OrderNotCompleted && order.Status == OrderStatus.Completed
+            select payout)
+            .ToListAsync(cancellationToken);
+        if (stale.Count == 0)
+        {
+            return;
+        }
+
+        var sellers = stale.Select(p => p.SellerId).Distinct().ToList();
+        var onboarded = await db.SellerPayoutAccounts
+            .Where(a => sellers.Contains(a.MemberId) && a.Status == PayoutAccountStatus.Complete)
+            .Select(a => a.MemberId)
+            .ToListAsync(cancellationToken);
+        var now = clock.GetUtcNow().UtcDateTime;
+        stale.ForEach(p => p.OrderCompleted(onboarded.Contains(p.SellerId), now));
+        await db.SaveChangesAsync(cancellationToken);
     }
 }
 
