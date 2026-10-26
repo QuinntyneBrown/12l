@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using TwelveL.Application.Abstractions;
 using TwelveL.Application.Catalog;
 using TwelveL.Application.Listings;
+using TwelveL.Application.Notifications;
 using TwelveL.Infrastructure.Accounts;
 using TwelveL.Infrastructure.Carriers;
 using TwelveL.Infrastructure.Email;
@@ -28,6 +29,7 @@ public static class DependencyInjection
         services.AddSingleton<IEmailSender, LoggingEmailSender>();
         services.AddScoped<ISellerPayoutAccountReader, PayoutAccountReader>();
         services.Configure<AppOptions>(configuration.GetSection("App"));
+        services.Configure<NotificationOptions>(configuration.GetSection("Notifications"));
         services.Configure<SellingOptions>(configuration.GetSection("Selling"));
         services.Configure<PhotoOptions>(configuration.GetSection("Photos"));
         services.Configure<CatalogOptions>(configuration.GetSection("Catalog"));

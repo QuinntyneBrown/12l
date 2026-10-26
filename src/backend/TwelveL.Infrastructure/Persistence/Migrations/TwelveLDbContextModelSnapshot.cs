@@ -341,6 +341,39 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.ToTable("Sessions", (string)null);
                 });
 
+            modelBuilder.Entity("TwelveL.Domain.Notifications.NotificationPreferences", b =>
+                {
+                    b.Property<Guid>("MemberId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LastMarketingChangeSource")
+                        .HasMaxLength(16)
+                        .HasColumnType("nvarchar(16)");
+
+                    b.Property<bool>("MarketingEmails")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("MarketingOptedInAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("MarketingOptedOutAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("ReviewEmails")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .HasColumnType("int");
+
+                    b.HasKey("MemberId");
+
+                    b.ToTable("NotificationPreferences", (string)null);
+                });
+
             modelBuilder.Entity("TwelveL.Domain.Notifications.OutboxMessage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1076,6 +1109,15 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.HasOne("TwelveL.Domain.Members.Member", null)
                         .WithMany()
                         .HasForeignKey("MemberId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("TwelveL.Domain.Notifications.NotificationPreferences", b =>
+                {
+                    b.HasOne("TwelveL.Domain.Members.Member", null)
+                        .WithOne()
+                        .HasForeignKey("TwelveL.Domain.Notifications.NotificationPreferences", "MemberId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });

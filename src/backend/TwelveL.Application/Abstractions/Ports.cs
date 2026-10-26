@@ -42,6 +42,8 @@ public interface ITwelveLDbContext
 
     DbSet<OrderProblem> OrderProblems { get; }
 
+    DbSet<NotificationPreferences> NotificationPreferences { get; }
+
     /// <summary>Transactions, for the steps of checkout that must commit together.</summary>
     DatabaseFacade Database { get; }
 
@@ -75,8 +77,11 @@ public interface IEmailSender
     Task SendAsync(EmailMessage message, CancellationToken cancellationToken);
 }
 
-/// <summary>One email; the provider sends a repeated key once.</summary>
-public sealed record EmailMessage(string To, string Subject, string Body, Guid IdempotencyKey);
+/// <summary>
+/// One email; the provider sends a repeated key once. <paramref name="Headers"/> are extra mail
+/// headers, such as List-Unsubscribe on marketing email (L2-043).
+/// </summary>
+public sealed record EmailMessage(string To, string Subject, string Body, Guid IdempotencyKey, IReadOnlyDictionary<string, string>? Headers = null);
 
 /// <summary>The provider refused the email for good, for example a rejected address (HTTP 4xx other than 429).</summary>
 public sealed class EmailRejectedException(string reason) : Exception(reason);

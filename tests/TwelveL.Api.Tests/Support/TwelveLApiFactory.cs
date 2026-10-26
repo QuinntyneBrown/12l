@@ -56,6 +56,7 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Testing");
         builder.UseSetting("Auth:SigningKey", "test-signing-key-that-is-at-least-32-bytes-long");
         builder.UseSetting("App:BaseUrl", "https://12l.test");
+        builder.UseSetting("Notifications:UnsubscribeSigningKey", "test-unsubscribe-key");
         builder.ConfigureTestServices(services =>
         {
             services.RemoveAll<DbContextOptions<TwelveLDbContext>>();

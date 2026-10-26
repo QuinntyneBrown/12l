@@ -11,6 +11,8 @@ public static class DependencyInjection
         services.AddMediatR(config => config.RegisterServicesFromAssemblyContaining(typeof(DependencyInjection)));
         services.AddScoped<VerificationEmails>();
         services.AddScoped<Notifications.IEmailOutbox, Notifications.EmailOutbox>();
+        services.AddScoped<Notifications.INotificationPreferenceReader, Notifications.NotificationPreferenceReader>();
+        services.AddSingleton<Notifications.UnsubscribeTokens>();
         services.AddScoped<Listings.ListingPhotoAttacher>();
         services.AddScoped<Orders.OrderCancellation>();
         return services;
