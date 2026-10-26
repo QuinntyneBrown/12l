@@ -4,6 +4,7 @@ import { Injectable, inject } from '@angular/core';
 import { API_BASE_URL } from '../api-base-url';
 import { ApiResult, toResult } from '../api-result';
 import { CheckoutItem, Purchase, ShippingAddress } from './checkout-api';
+import { SalePayout } from './payouts-api';
 
 export type OrderStatus = 'Paid' | 'Shipped' | 'Delivered' | 'Completed' | 'Cancelled' | 'Refunded';
 
@@ -20,7 +21,7 @@ export interface Tracking {
   url: string;
 }
 
-/** One order as its seller's sale page shows it (L2-033): ship-by date, buyer's address and tracking. */
+/** One order as its seller's sale page shows it (L2-033): ship-by date, buyer's address, tracking and the payout (L2-031). */
 export interface Sale {
   id: string;
   reference: string;
@@ -36,6 +37,7 @@ export interface Sale {
   shipTo: ShippingAddress;
   timeline: OrderTimelineStep[];
   tracking: Tracking | null;
+  payout: SalePayout | null;
 }
 
 /** The carriers a seller can choose in Add tracking. */

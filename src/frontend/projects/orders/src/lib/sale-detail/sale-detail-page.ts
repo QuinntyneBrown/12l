@@ -29,7 +29,8 @@ const HEADINGS: Record<string, string> = {
 
 /**
  * The seller's sale at /sales/{id} (mocks pages/sale-detail, L2-033): the ship-by date and the
- * buyer's address while Paid, with Add tracking; the timeline and tracking link once shipped.
+ * buyer's address while Paid, with Add tracking; the timeline and tracking link once shipped; the
+ * payout after the 12L fee once Completed (L2-031).
  */
 @Component({
   selector: 'tl-sale-detail-page',
@@ -65,6 +66,18 @@ export class SaleDetailPage {
   readonly summaryItem = computed<OrderSummaryItem | null>(() => {
     const item = this.sale()?.item;
     return item ? { title: item.title, meta: `${item.brand} · ${item.size}`, photo: item.photo } : null;
+  });
+
+  /** Where the payout of a Completed sale is (mocks sale-detail/completed). */
+  readonly payoutNote = computed(() => {
+    const payout = this.sale()?.payout;
+    if (!payout) return '';
+    const bank = payout.bankDisplay ?? 'your bank';
+    if (payout.status === 'Paid' || (payout.status === 'Sent' && payout.sentAt)) {
+      return `Sent ${formatDay(payout.sentAt!)} to ${bank}.`;
+    }
+    if (payout.status === 'Failed') return 'Your bank returned this payout.';
+    return payout.status === 'Held' ? 'Held until you set up payouts.' : 'On its way soon.';
   });
 
   readonly day = formatDay;

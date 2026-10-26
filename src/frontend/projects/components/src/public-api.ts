@@ -29,6 +29,7 @@ export { SellerSummaryComponent, type SellerSummaryView } from './lib/seller-sum
 export { SizeTagComponent } from './lib/size-tag/size-tag';
 export { SkipLinkComponent } from './lib/skip-link/skip-link';
 export { SpinnerComponent } from './lib/spinner/spinner';
+export { StatComponent } from './lib/stat/stat';
 export { ToastRegionComponent } from './lib/toast-region/toast-region';
 export { TrackingLinkComponent } from './lib/tracking-link/tracking-link';
 export { TopBarComponent, type TopBarMember } from './lib/top-bar/top-bar';

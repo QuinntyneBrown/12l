@@ -31,6 +31,16 @@ export {
   type Tracking,
 } from './lib/orders/orders-api';
 export {
+  PayoutsApi,
+  type PayoutBanner,
+  type PayoutHoldReason,
+  type PayoutOnboarding,
+  type PayoutRow,
+  type PayoutStatus,
+  type PayoutSummary,
+  type SalePayout,
+} from './lib/orders/payouts-api';
+export {
   PAYMENT_FIELDS,
   TEST_CARDS,
   TestModePaymentFields,

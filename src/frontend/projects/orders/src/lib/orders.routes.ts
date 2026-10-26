@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
 
-/** Lazy routes of the orders feature area, mounted at /: checkout, the order confirmation, the buyer's order and the seller's sale. */
+/** Lazy routes of the orders feature area, mounted at /: checkout, the order confirmation, the buyer's order, the seller's sale and payouts. */
 export const routes: Routes = [
   {
     path: 'checkout/:reference',
@@ -21,5 +21,10 @@ export const routes: Routes = [
     path: 'sales/:id',
     loadComponent: () => import('./sale-detail/sale-detail-page').then((m) => m.SaleDetailPage),
     title: 'Sale · 12L',
+  },
+  {
+    path: 'account/payouts',
+    loadComponent: () => import('./payouts/payouts-page').then((m) => m.PayoutsPage),
+    title: 'Payouts · 12L',
   },
 ];

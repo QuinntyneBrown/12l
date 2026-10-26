@@ -131,11 +131,17 @@ export function problem(
   };
 }
 
-/** Answers GET /api/auth/me and POST /api/auth/refresh with this member. */
+/**
+ * Answers GET /api/auth/me and POST /api/auth/refresh with this member, and GET /api/payouts with
+ * a summary that shows no payout banner (a test that needs one routes it again).
+ */
 export async function signInAs(page: Page, member: MemberFixture): Promise<void> {
   const answer = (route: Route) => route.fulfill({ json: member });
   await page.route('**/api/auth/me', answer);
   await page.route('**/api/auth/refresh', answer);
+  await page.route('**/api/payouts', (route) =>
+    route.fulfill({ json: payoutSummary({ history: [], pending: '0.00' }) }),
+  );
 }
 
 /**
@@ -426,6 +432,7 @@ export function sale(fields: Record<string, unknown> = {}): Record<string, unkno
     },
     timeline: timeline(),
     tracking: null,
+    payout: null,
     ...fields,
   };
 }
@@ -441,6 +448,46 @@ export function buyerOrder(fields: Record<string, unknown> = {}): Record<string,
     salesTax: '8.34',
     timeline: timeline(),
     tracking: null,
+    ...fields,
+  };
+}
+
+/** One row of the payouts history: the hoodie sold as 12L-48302, held until the order completes. */
+export function payoutRow(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    orderId: 'o-1',
+    orderReference: '12L-48302',
+    item: (sale()['item'] as object) ?? {},
+    amount: '40.50',
+    fee: '4.50',
+    status: 'Held',
+    holdReason: 'OrderNotCompleted',
+    paidAt: null,
+    ...fields,
+  };
+}
+
+/** The shorts sold as 12L-47511 and paid out on Mon 5 Oct (mocks pages/payouts/default). */
+export const paidPayoutRow = payoutRow({
+  orderId: 'o-2',
+  orderReference: '12L-47511',
+  item: { ...(sale()['item'] as object), title: 'Tech Fleece shorts', brand: 'Nike' },
+  amount: '33.30',
+  fee: '3.70',
+  status: 'Paid',
+  holdReason: null,
+  paidAt: '2026-10-05T16:00:00Z',
+});
+
+/** GET /api/payouts for an onboarded seller with one held and one paid payout (mocks pages/payouts/default). */
+export function payoutSummary(fields: Record<string, unknown> = {}): Record<string, unknown> {
+  return {
+    paidOut: '33.30',
+    pending: '40.50',
+    onboarding: 'Complete',
+    bankDisplay: 'Chase •••• 6021',
+    banner: null,
+    history: [payoutRow(), paidPayoutRow],
     ...fields,
   };
 }
