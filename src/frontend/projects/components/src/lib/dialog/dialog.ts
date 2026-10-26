@@ -23,6 +23,8 @@ export class DialogComponent {
 
   readonly heading = input.required<string>();
   readonly icon = input<IconName>();
+  /** Panel width: `sm` for a short confirmation, `lg` for wide content. */
+  readonly size = input<'sm' | 'md' | 'lg'>('md');
 
   readonly id = `tl-dialog-${nextId++}`;
 

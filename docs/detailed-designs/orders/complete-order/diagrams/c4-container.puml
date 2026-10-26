@@ -7,13 +7,11 @@ Person(buyer, "Buyer", "Member")
 System_Boundary(twelvel, "12L") {
   Container(web, "12L Web", "Angular", "Order detail page, Confirm receipt dialog")
   Container(api, "12L API", "ASP.NET Core", "Receipt endpoint")
-  Container(worker, "12L Worker", ".NET worker service", "OrderAutoCompletionJob, PayoutReleaseJob")
-  ContainerDb(db, "12L database", "SQL Server", "Orders, problems, payouts")
+  Container(worker, "12L Worker", ".NET worker service", "OrderCompletionJob")
+  ContainerDb(db, "12L database", "SQL Server", "Orders, OrderStatusChanges")
 }
-System_Ext(pay, "Payment provider", "Payouts")
 Rel(buyer, web, "Uses", "HTTPS")
 Rel(web, api, "Calls", "JSON/HTTPS")
 Rel(api, db, "Reads and writes", "EF Core")
 Rel(worker, db, "Completes due orders", "EF Core")
-Rel(worker, pay, "Transfers payouts", "HTTPS")
 @enduml

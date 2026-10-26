@@ -308,11 +308,12 @@ od = screen("order-detail", "page", "Order (buyer)", route="/orders/{id}", reqs=
             na={"empty": "An order always has an item, a status and a history."})
 
 
-@od.state("default", "Shipped order: progress, tracking link and help, nothing else to do yet.")
+@od.state("default", "Shipped order: progress, tracking link, confirm receipt once it arrives, and help.")
 def _():
     o = ORDERS["12L-48213"]
     body = (timeline("Shipped", SHIP_DATES) + tracking(o) +
-            f'<p class="text-muted">Expected Tue 27 Oct.</p><div>{btn("Report a problem", href=D("report-problem"))}</div>')
+            f'<p class="text-muted">Expected Tue 27 Oct.</p>'
+            f'<div class="cluster">{btn("I received it", "primary", D("confirm-receipt"))}{btn("Report a problem", "ghost", D("report-problem"))}</div>')
     return order_page("12L-48213", head="On its way", body=body)
 
 

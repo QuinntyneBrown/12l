@@ -6,7 +6,7 @@
   [attr.aria-labelledby]="id + '-title'"
   [attr.aria-describedby]="id + '-desc'"
 >
-  <div class="dialog__panel">
+  <div class="dialog__panel" [class.dialog__panel--sm]="size() === 'sm'" [class.dialog__panel--lg]="size() === 'lg'">
     <div class="dialog__header">
       @if (icon(); as icon) {
         <div class="dialog__icon dialog__icon--info" aria-hidden="true"><tl-icon [name]="icon" /></div>

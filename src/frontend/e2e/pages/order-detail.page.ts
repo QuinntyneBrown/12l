@@ -1,6 +1,6 @@
 import { Locator, Page } from '@playwright/test';
 
-/** The buyer's order page at /orders/{id} (mocks pages/order-detail). */
+/** The buyer's order page at /orders/{id} and its Confirm receipt dialog (mocks pages/order-detail, dialogs/confirm-receipt). */
 export class OrderDetailPage {
   readonly heading: Locator;
   readonly eyebrow: Locator;
@@ -12,6 +12,12 @@ export class OrderDetailPage {
   readonly summary: Locator;
   readonly loading: Locator;
   readonly centerState: Locator;
+  readonly completesNote: Locator;
+  readonly confirmReceipt: Locator;
+  readonly dialog: Locator;
+  readonly dialogAlert: Locator;
+  readonly completeOrder: Locator;
+  readonly notYet: Locator;
 
   constructor(private readonly page: Page) {
     const main = page.locator('main');
@@ -25,6 +31,12 @@ export class OrderDetailPage {
     this.summary = main.getByRole('complementary', { name: 'Order summary' });
     this.loading = main.locator('[aria-busy="true"]');
     this.centerState = main.locator('.center-state');
+    this.completesNote = main.locator('.order__completes');
+    this.confirmReceipt = main.getByRole('button', { name: 'I received it' });
+    this.dialog = page.getByRole('dialog', { name: 'Got it and all good?' });
+    this.dialogAlert = this.dialog.getByRole('alert');
+    this.completeOrder = this.dialog.locator('.dialog__footer .btn--primary');
+    this.notYet = this.dialog.getByRole('button', { name: 'Not yet' });
   }
 
   async goto(id = 'o-1'): Promise<void> {

@@ -10,105 +10,115 @@ the order automatically 3 days after delivery when the buyer has not reported a
 problem.
 
 Completion is the hinge between three other features. It is a transition of the
-order state machine defined in [ship-order](../ship-order/README.md). It releases the
-payout in [seller-payouts](../seller-payouts/README.md). An open problem from
-[resolve-order-problems](../resolve-order-problems/README.md) blocks automatic
-completion.
+order state machine defined in [ship-order](../ship-order/README.md). It makes the
+payout releasable in [seller-payouts](../seller-payouts/README.md) through the
+`OrderCompleted` event. An open problem from
+[resolve-order-problems](../resolve-order-problems/README.md) will block automatic
+completion once that feature introduces problems.
 
 Terms used in this design:
 
 - **confirm receipt** — buyer action "I received it" that completes a Shipped or Delivered order
-- **auto-completion** — system transition `Delivered → Completed` once 3 days have passed since `DeliveredAt` with no open problem
-- **auto-completion time** — `DeliveredAt` plus `Orders:AutoCompleteAfter` (3 days), shown to the buyer as "Completes automatically on Tue 27 Oct"
-- **open problem** — `OrderProblem` with status `Open` on the order
+- **auto-completion** — system transition `Delivered → Completed` once 3 days have passed since `DeliveredAt`
+- **auto-completion time** — `DeliveredAt` plus `Order.AutoCompleteAfter` (3 days), shown to the buyer as "Completes automatically on Tue 27 Oct"
+- **open problem** — `OrderProblem` with status `Open` on the order (resolve-order-problems)
 
 ## Description
 
-### Frontend (`src/frontend/src/app/orders/`)
+### Frontend (`src/frontend/projects/orders/src/lib/`, `@12l/orders`)
 
-- **`OrderDetailPage`** (route `/orders/:id`, mock `docs/mocks/pages/order-detail/`) — buyer view; the full page is described in [order-history](../order-history/README.md). This feature owns two of its states:
-  - `delivered` — heading "Delivered", timeline at Delivered, "Completes automatically on {date} unless you report a problem.", primary "I received it", ghost "Report a problem". The default `Shipped` state also offers receipt confirmation through the same dialog, because `L2-034` permits confirming a Shipped order.
-  - `completed` — heading "Completed" and the full timeline. Review authoring is deferred ([ADR 0001](../../../adr/general/0001-defer-moderation-reviews-and-data-export.md)), so no review panel is shown.
-- **`ConfirmReceiptDialog`** (mock `docs/mocks/dialogs/confirm-receipt/`) — small dialog titled "Got it and all good?" showing the item row. The description reads "This completes the order and pays {seller}. You can't report a problem afterwards." Buttons are "Not yet" and primary "Yes, complete order". States: `default`; `busy` (primary `aria-busy`, "Not yet" disabled); `failed` ("That didn't go through", primary becomes "Try again"). It has no `invalid` state because it has no inputs.
-- **`OrdersApiService`** — `confirmReceipt(orderId)` returns `OrderDetail`.
+- **`OrderDetailPage`** (`order-detail/`, route `/orders/:id`, mock `docs/mocks/pages/order-detail/`) — buyer view built by ship-order. This feature adds:
+  - `default` (Shipped) and `delivered` — primary "I received it", opening the Confirm receipt dialog through `DialogService`, because `L2-034` permits confirming a Shipped order.
+  - `delivered` — "Completes automatically on {date} unless you report a problem.", from `autoCompletesAt`.
+  - `completed` — heading "Completed", the full timeline and no actions. Review authoring is deferred ([ADR 0001](../../../adr/general/0001-defer-moderation-reviews-and-data-export.md)), so no review panel is shown.
+  - "Report a problem" is not shown until resolve-order-problems builds its dialog.
+- **`ConfirmReceiptDialog`** (`confirm-receipt/`, mock `docs/mocks/dialogs/confirm-receipt/`) — `tl-dialog` with `size="sm"`, titled "Got it and all good?", showing the item in `tl-item-row`. The description reads "This completes the order and pays {seller}. You can't report a problem afterwards." Buttons are "Not yet" and primary "Yes, complete order". States: `default`; `busy` (primary `aria-busy`, "Not yet" disabled); `failed` ("That didn't go through", primary becomes "Try again"). It has no `invalid` state because it has no inputs. It closes with the completed order, which the page then shows.
+- **`OrdersApi`** (`@12l/api`, `src/lib/orders/orders-api.ts`) — `confirmReceipt(orderId)` returns `Purchase`. `Purchase` gains `autoCompletesAt`.
 
 ### API (`TwelveL.Api`)
 
 - **`OrdersController`**
-  - `POST /api/orders/{id}/receipt` — no body. Policy `VerifiedMember`. Responses: `200` `OrderDetailDto` with `status: "Completed"` and `canReview: true`; `401`; `404` when the caller is not the buyer (`L2-010`); `409` `order.invalid_transition` when the order is not Shipped or Delivered; `409` `order.problem_open` when a problem is open; `409` `concurrency.conflict`.
+  - `POST /api/orders/{id}/receipt` — no body. Policy `VerifiedMember`. Responses: `200` `PurchaseDto` with `status: "Completed"`; `401`; `404` `ORDER_NOT_FOUND` when the caller is not the buyer (`L2-010`); `409` `ORDER_INVALID_TRANSITION` when the order is not Shipped or Delivered, or its status changed between the read and the write.
+- **`GET /api/purchases/{id}`** (checkout-and-pay) — `PurchaseDto` gains `autoCompletesAt`: `DeliveredAt` plus 3 days while Delivered, otherwise `null`.
 
 ### Application and domain
 
-- **`ConfirmReceiptCommand`** / **`ConfirmReceiptCommandHandler`** — loads the order filtered by `BuyerId = caller`. When the status is `Shipped`, it first calls `Order.MarkDelivered(Buyer, now)`, since the state machine has no direct `Shipped → Completed` transition. It then calls `Order.Complete(Buyer, now)`. Both status changes are recorded with the buyer as actor and saved in one transaction (`L2-032`, `L2-034` criterion 1).
-- **`Order.Complete(actor, at)`** — the state machine permits `Delivered → Completed` for Buyer, System and Administrator (the last from resolve-order-problems). For Buyer and System the method also refuses while a problem is open, raising `order.problem_open`, because an open problem holds the payout until an administrator decides (`L2-036`). It sets `CompletedAt` and `EndedAt` and raises `OrderCompleted`.
-- **`AutoCompleteOrderCommand`** / **`AutoCompleteOrderCommandHandler`** — loads one candidate order with its problem. It skips the order when a problem is open (`L2-034` criterion 3) and otherwise calls `Order.Complete(System, now)` (`L2-034` criterion 2). A `RowVersion` conflict, such as a problem opened at the same moment, skips the order until the next run.
-- **`OrderCompleted`** (domain event: `OrderId`, `BuyerId`, `SellerId`, `CompletedAt`) — handled in the same unit of work by:
-  - `OrderCompletedPayoutHandler` ([seller-payouts](../seller-payouts/README.md)) — marks the payout releasable;
-  - `UpdateReputationOnOrderCompletedHandler` (reviews subsystem) — updates the completed-sales count in the `MemberReputation` projection; review eligibility is read from `Orders` through `IOrderReviewEligibilityReader`, which requires `Status = Completed` and `CompletedAt`.
-- No completion email is sent: `L2-042` does not list one, and the `NotificationType` list in send-email-notifications has none.
+- **`Order.ConfirmReceipt(now)`** — when the status is `Shipped`, first calls `MarkDelivered(Buyer, now)`, since the state machine has no direct `Shipped → Completed` transition. It then calls `Complete(Buyer, now)`. Both changes are recorded with the buyer as actor (`L2-032`, `L2-034` criteria 1 and 4).
+- **`Order.Complete(actor, now)`** — the state machine permits `Delivered → Completed` for Buyer, System and Administrator (the last from resolve-order-problems). It sets `CompletedAt`; the state machine sets `EndedAt`.
+- **`Order.AutoCompletesAt`** and **`IsDueForAutoCompletion(now)`** — `DeliveredAt + AutoCompleteAfter` while Delivered, otherwise null. `AutoCompleteAfter` is a domain constant of 3 days ([ADR orders/0004](../../../adr/orders/0004-complete-order-in-process-event-and-fixed-3-day-window.md)).
+- **`ConfirmReceiptCommand`** / **`ConfirmReceiptCommandHandler`** — loads the order filtered by `BuyerId = caller`, calls `ConfirmReceipt`, saves, publishes `OrderCompleted` and returns the buyer's `PurchaseDto`. An invalid transition or a concurrency conflict on the status token answers `409`.
+- **`CompleteDeliveredOrdersCommand`** / **`CompleteDeliveredOrdersHandler`** — selects Delivered orders with `DeliveredAt <= now − 3 days`, completes each with `Complete(System, now)` and publishes `OrderCompleted` for each (`L2-034` criterion 2). An order whose status changed meanwhile is skipped. Returns how many were completed.
+- **`OrderCompleted`** (MediatR notification: `OrderId`, `BuyerId`, `SellerId`, `CompletedAt`) — published once after the save. seller-payouts adds the handler that marks the payout releasable; until then a completed order is recognised as ready for payout by `Status = Completed` with `CompletedAt` set.
+- The open-problem guard (`L2-034` criterion 3, `409` `ORDER_PROBLEM_OPEN`) is added by resolve-order-problems together with `OrderProblem`.
+- No completion email is sent: `L2-042` does not list one.
 
 ### Worker (`TwelveL.Worker`)
 
-- **`OrderAutoCompletionJob`** — runs every `Orders:CompletionJobInterval` (`<TO SUPPLY>`). Selects orders with `Status = 'Delivered'` and `DeliveredAt <= now − Orders:AutoCompleteAfter` using index `IX_Orders_Status_DeliveredAt`, and sends `AutoCompleteOrderCommand` for each. The mocks count calendar days: delivered Sat 24 Oct gives completion Tue 27 Oct. `Orders:AutoCompleteAfter` is therefore `3.00:00:00`.
+- **`OrderCompletionJob`** — runs every `Orders:CompletionJobInterval` (5 minutes) and sends `CompleteDeliveredOrdersCommand` in its own scope. The mocks count calendar days: delivered Sat 24 Oct gives completion Tue 27 Oct.
 
 ### Data
 
-No new tables. The feature writes `Orders.Status`, `CompletedAt`, `EndedAt` and `RowVersion`, two `OrderStatusChanges` rows when confirming a Shipped order (one otherwise), and the `Payouts` row. It reads `OrderProblems` (filtered index on open problems, see resolve-order-problems).
+One migration (`AddCompleteOrder`) adds the nullable `Orders.CompletedAt` column and the index `IX_Orders_Status_DeliveredAt` for the job. The feature writes `Orders.Status`, `CompletedAt`, `EndedAt` and, for a Shipped order, `DeliveredAt`, plus one `OrderStatusChanges` row, or two when confirming a Shipped order. `Status` is the concurrency token ([ADR orders/0003](../../../adr/orders/0003-ship-order-status-token-weekday-deadline-and-carrier-port.md)).
 
 ### Error codes
 
 | Code | HTTP | Meaning |
 |------|------|---------|
-| `order.invalid_transition` | 409 | Order is not Shipped or Delivered |
-| `order.problem_open` | 409 | A problem is open; an administrator decides the outcome |
-| `concurrency.conflict` | 409 | The order changed since it was read |
+| `ORDER_NOT_FOUND` | 404 | No such order, or the caller is not its buyer |
+| `ORDER_INVALID_TRANSITION` | 409 | Order is not Shipped or Delivered, or changed since it was read |
+
+### Testing
+
+- `tests/TwelveL.Domain.Tests/OrderTests.cs` — confirm receipt from Shipped and Delivered, refusal otherwise, and the 3-day window.
+- `tests/TwelveL.Api.Tests/CompleteOrderTests.cs` — the endpoint, `autoCompletesAt` and the completion command on SQLite in memory with a fake clock; a recording `OrderCompleted` handler stands in for seller-payouts.
+- `tests/TwelveL.Worker.Tests/OrderCompletionJobTests.cs` — each pass sends the command.
+- `src/frontend/e2e/tests/complete-order.spec.ts` — the page and the dialog against `page.route` fixtures.
 
 ## Requirements
 
 | L2 ID | Refines (L1) | Requirement |
 |-------|--------------|-------------|
-| `L2-034` | `L1-008` | The buyer shall be able to confirm receipt of a Shipped or Delivered order. An order shall complete automatically 3 days after it becomes Delivered unless the buyer has reported a problem. |
+| `L2-034` | `L1-008` | The buyer shall be able to confirm receipt of a Shipped or Delivered order. An order shall complete automatically 3 days after it becomes Delivered unless the buyer has reported a problem. Criterion 3 (open problem) is built with resolve-order-problems. |
 
 ## Diagrams
 
 ### System context
 
-The buyer confirms receipt through 12L. Completion lets 12L release the seller's
-payout through the payment provider.
+The buyer confirms receipt through 12L. Completion makes the seller's payout
+releasable; the release itself belongs to seller-payouts.
 
 ![C4 system context for completing an order](diagrams/c4-context.png)
 
 ### Containers
 
-`12L API` handles the buyer's confirmation. `12L Worker` runs auto-completion and the
-payout release that follows.
+`12L API` handles the buyer's confirmation. `12L Worker` runs auto-completion.
 
 ![C4 container view for completing an order](diagrams/c4-container.png)
 
 ### Components
 
-Both paths reach `Order.Complete`. The `OrderCompleted` event drives the payout and
-reputation handlers.
+Both paths reach `Order.Complete` and publish `OrderCompleted`, which seller-payouts
+handles.
 
 ![C4 component view for completing an order](diagrams/c4-component.png)
 
 ### Class structure
 
-The two command handlers mutate the shared `Order` aggregate. An open `OrderProblem`
-blocks completion, and `OrderCompleted` fans out to the payout and reviews handlers.
+The two command handlers mutate the shared `Order` aggregate and publish
+`OrderCompleted` for the payout handler of seller-payouts.
 
 ![Class diagram for completing an order](diagrams/class-structure.png)
 
 ### Behaviour — confirm receipt
 
 A Shipped order passes through Delivered on the way to Completed, with both changes
-recorded against the buyer. A wrong status or an open problem returns HTTP 409.
+recorded against the buyer. A wrong status returns HTTP 409.
 
 ![Sequence diagram for confirming receipt](diagrams/sequence-confirm-receipt.png)
 
 ### Behaviour — auto-completion
 
-The job completes Delivered orders after 3 days and leaves any order with an open
-problem in Delivered.
+The job completes Delivered orders 3 days after delivery and skips an order the
+buyer completed meanwhile.
 
 ![Sequence diagram for automatic completion](diagrams/sequence-auto-complete.png)

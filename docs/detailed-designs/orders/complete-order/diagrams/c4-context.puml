@@ -6,8 +6,6 @@ title System Context — Complete an order
 Person(buyer, "Buyer", "Received the item")
 Person(seller, "Seller", "Awaits the payout")
 System(twelvel, "12L", "Men's US 12 / L marketplace")
-System_Ext(pay, "Payment provider", "Pays out the seller")
 Rel(buyer, twelvel, "Confirms receipt using")
-Rel(twelvel, pay, "Releases the payout to the seller via", "HTTPS API")
-Rel(seller, twelvel, "Sees the completed sale and payout using")
+Rel(seller, twelvel, "Sees the completed sale using")
 @enduml

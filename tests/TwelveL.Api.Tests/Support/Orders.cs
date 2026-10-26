@@ -32,6 +32,17 @@ public static class Orders
     public static Task<HttpResponseMessage> AddTrackingAsync(this HttpClient client, Guid orderId, string carrier = "USPS", string trackingNumber = UspsNumber) =>
         client.PostAsJsonAsync($"/api/orders/{orderId}/shipment", new { carrier, trackingNumber });
 
+    public static Task<HttpResponseMessage> ConfirmReceiptAsync(this HttpClient client, Guid orderId) =>
+        client.PostAsync($"/api/orders/{orderId}/receipt", null);
+
+    /// <summary>Ships the order as the seller and has the carrier report delivery at <paramref name="deliveredAt"/>.</summary>
+    public static async Task DeliverAsync(this TwelveLApiFactory factory, Guid orderId, HttpClient seller, DateTime deliveredAt)
+    {
+        (await seller.AddTrackingAsync(orderId)).EnsureSuccessStatusCode();
+        using var carrier = factory.CreateMemberClient();
+        (await carrier.PostCarrierWebhookAsync(FakeCarrierTracking.Delivered("9400111899223456120477", deliveredAt))).EnsureSuccessStatusCode();
+    }
+
     public static Task<HttpResponseMessage> PostCarrierWebhookAsync(this HttpClient client, string body, string? signature = null)
     {
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/carriers/webhook") { Content = new StringContent(body, System.Text.Encoding.UTF8, "application/json") };
@@ -60,4 +71,4 @@ public sealed record SaleView(
     IReadOnlyList<TimelineStepView> Timeline,
     TrackingView? Tracking);
 
-public sealed record OrderView(Guid Id, string Reference, string Status, DateTime ShipBy, IReadOnlyList<TimelineStepView> Timeline, TrackingView? Tracking);
+public sealed record OrderView(Guid Id, string Reference, string Status, DateTime ShipBy, IReadOnlyList<TimelineStepView> Timeline, TrackingView? Tracking, DateTime? AutoCompletesAt = null);
