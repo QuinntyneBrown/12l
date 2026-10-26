@@ -1,6 +1,8 @@
+using MediatR;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using TwelveL.Application.Abstractions;
@@ -31,26 +33,18 @@ public sealed class CliHarness : IDisposable
     public Dictionary<string, string?> Settings { get; } = new();
 
     public Task<CliRun> RunAsync(string[] args, string environment = "Development", string? sqliteConnectionString = null) =>
-        CliRun.RunAsync(args, ConnectionString, environment, Settings, services =>
-        {
-            services.RemoveAll<DbContextOptions<TwelveLDbContext>>();
-            services.RemoveAll<IDbContextOptionsConfiguration<TwelveLDbContext>>();
-            services.AddDbContext<TwelveLDbContext>(options =>
-            {
-                if (sqliteConnectionString is null)
-                {
-                    options.UseSqlite(_connection);
-                }
-                else
-                {
-                    options.UseSqlite(sqliteConnectionString);
-                }
-            });
-            services.RemoveAll<IPhotoStorage>();
-            services.AddSingleton<IPhotoStorage>(Photos);
-            services.RemoveAll<IDatabaseSchema>();
-            services.AddSingleton<IDatabaseSchema, EnsureCreatedSchema>();
-        });
+        CliRun.RunAsync(args, ConnectionString, environment, Settings, services => Substitute(services, sqliteConnectionString));
+
+    /// <summary>Sends one command or query through the same services a run uses, as the API would.</summary>
+    public async Task<T> SendAsync<T>(IRequest<T> request)
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?>(Settings) { ["ConnectionStrings:TwelveL"] = ConnectionString })
+            .Build();
+        await using var services = CliApp.BuildServices(configuration, s => Substitute(s, null));
+        await using var scope = services.CreateAsyncScope();
+        return await scope.ServiceProvider.GetRequiredService<ISender>().Send(request);
+    }
 
     /// <summary>Reads the database the runs wrote, through a fresh context.</summary>
     public T InDatabase<T>(Func<TwelveLDbContext, T> query)
@@ -60,4 +54,25 @@ public sealed class CliHarness : IDisposable
     }
 
     public void Dispose() => _connection.Dispose();
+
+    private void Substitute(IServiceCollection services, string? sqliteConnectionString)
+    {
+        services.RemoveAll<DbContextOptions<TwelveLDbContext>>();
+        services.RemoveAll<IDbContextOptionsConfiguration<TwelveLDbContext>>();
+        services.AddDbContext<TwelveLDbContext>(options =>
+        {
+            if (sqliteConnectionString is null)
+            {
+                options.UseSqlite(_connection);
+            }
+            else
+            {
+                options.UseSqlite(sqliteConnectionString);
+            }
+        });
+        services.RemoveAll<IPhotoStorage>();
+        services.AddSingleton<IPhotoStorage>(Photos);
+        services.RemoveAll<IDatabaseSchema>();
+        services.AddSingleton<IDatabaseSchema, EnsureCreatedSchema>();
+    }
 }

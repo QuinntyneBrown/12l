@@ -83,7 +83,8 @@ public static class CliApp
         }
     }
 
-    private static ServiceProvider BuildServices(IConfiguration configuration, Action<IServiceCollection>? configureServices)
+    /// <summary>The services one run uses; tests build the same set to read what a run wrote.</summary>
+    public static ServiceProvider BuildServices(IConfiguration configuration, Action<IServiceCollection>? configureServices = null)
     {
         var services = new ServiceCollection();
         services.AddSingleton(configuration);
