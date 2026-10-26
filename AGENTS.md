@@ -80,7 +80,9 @@ first and record the change as an ADR.
 │   │   ├── TwelveL.Domain/      entities, value objects, state machines, domain events
 │   │   ├── TwelveL.Infrastructure/ EF Core DbContext, repositories, outbox, adapters
 │   │   ├── TwelveL.Worker/      hosted background jobs
-│   │   └── TwelveL.Migrator/    applies EF Core migrations
+│   │   ├── TwelveL.Migrator/    applies EF Core migrations
+│   │   └── TwelveL.Cli/         developer tool: `reset` and `seed` a local demo install
+│   │       └── SeedPhotos/      {category}/ demo product photos + ATTRIBUTION.md
 │   └── frontend/                Angular workspace (see below)
 │       ├── angular.json
 │       ├── package.json
@@ -100,7 +102,11 @@ first and record the change as an ADR.
 │           └── privacy/         library: feature area
 └── tests/
     └── TwelveL.*.Tests/         unit, integration and architecture tests per backend project
+                                 (including TwelveL.Cli.Tests)
 ```
+
+`TwelveL.Cli` is a developer tool only: deployments and CI never run it against a database
+([ADR platform/0010](docs/adr/platform/0010-twelvel-cli-for-demo-seeding.md)).
 
 There is no `moderation` library and no `TwelveL.Moderation` project.
 
