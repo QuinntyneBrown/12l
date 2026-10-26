@@ -121,7 +121,7 @@ def player(state: str) -> str:
         overlay = (f'<div class="video-player__state" role="alert">{ic("alert", "icon icon--lg")}<strong>The video didn’t load</strong>'
                    f'<p>Check your connection and try again, or read the transcript.</p>{btn("Try again", "primary", icon="refresh")}</div>')
     playing = state in ("default", "captions")
-    play = btn("Pause", "primary", icon="pause") if playing else btn("Play", "primary", icon="play", attrs="disabled")
+    play = btn("Pause", "primary", icon="pause") if playing else btn("Play", "primary", icon="play")
     cc_on = state == "captions"
     cc = btn("Captions", "", icon="captions", attrs=f'aria-pressed="{"true" if cc_on else "false"}"' + ("" if state != "error" else " disabled"))
     controls = "" if state == "error" else play + cc
@@ -142,7 +142,7 @@ def _():
     return d
 
 
-@pv.state("loading", "The video is buffering: spinner over the poster; Play waits.")
+@pv.state("loading", "The video is buffering: spinner over the poster; Play and Captions stay usable.")
 def _():
     return Dialog(bg=("welcome", "default"), html=dialog("12L in 30 seconds", player("loading"), size="lg"))
 

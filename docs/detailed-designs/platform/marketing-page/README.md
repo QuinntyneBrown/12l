@@ -38,7 +38,7 @@ Nothing in the size rules, the catalog, sell, accounts or the API changes. The c
 | `tl-shapes` | `density: 'full' \| 'quiet'` | `aria-hidden`; drift stops under reduced motion |
 | `tl-feature-band` | `eyebrow`, `heading`, `headingId`, `points`, `tone: 'default' \| 'surface'`, `stacked`; slots `[actions]`, body | Section labelled by its h2 |
 | `tl-steps` | `steps: { title, text }[]` | Ordered list, h3 titles |
-| `tl-video-poster` | `poster`, `label`, `duration`; output `play` | Native button; no `<video>` on the page |
+| `tl-video-poster` | `poster`, `label`, `duration`; output `watch` | Native button; no `<video>` on the page |
 | `tl-video-player` | `label`, `sources`, `captions`, `transcript`, `poster`, `autoplay` | States: loading, ready, error; Play/Pause, Captions (`aria-pressed`), transcript link; error when the last `<source>` fails |
 
 ### Feature (`@12l/marketing`)

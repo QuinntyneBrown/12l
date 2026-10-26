@@ -1,0 +1,53 @@
+<tl-marketing-hero
+  headingId="welcome-title"
+  eyebrow="Men’s US 12 shoes · Men’s L clothing"
+  lede="Big sizes, finally in one place. Shop pieces that already fit, or sell yours to people your size."
+>
+  <ng-container title>Built for size <em>12 and L.</em></ng-container>
+  <ng-container actions>
+    <a tlButton="primary" size="lg" routerLink="/">Shop the catalog</a>
+    <a tlButton size="lg" [routerLink]="sellHref()">Start selling</a>
+  </ng-container>
+  <tl-video-poster
+    media
+    poster="/media/12l-pitch-poster.png"
+    label="Watch the 30-second pitch"
+    duration="0:30"
+    (watch)="openVideo()"
+  />
+</tl-marketing-hero>
+
+<tl-feature-band
+  headingId="shoppers-title"
+  eyebrow="For shoppers"
+  heading="Everything already fits you."
+  [points]="shopperPoints"
+>
+  <a tlButton="primary" routerLink="/" actions>Browse the catalog</a>
+</tl-feature-band>
+
+<tl-feature-band
+  headingId="sellers-title"
+  eyebrow="For sellers"
+  heading="Sell to people your size."
+  tone="surface"
+  [points]="sellerPoints"
+>
+  <a tlButton="primary" [routerLink]="sellHref()" actions>Start selling</a>
+</tl-feature-band>
+
+<tl-feature-band headingId="how-title" eyebrow="How it works" heading="Three steps. That’s it." [stacked]="true">
+  <tl-steps [steps]="steps" />
+</tl-feature-band>
+
+<tl-marketing-hero
+  variant="closing"
+  headingId="closing-title"
+  lede="New listings every day, every one in men’s US 12 or men’s L."
+>
+  <ng-container title>Your size is <em>waiting.</em></ng-container>
+  <ng-container actions>
+    <a tlButton="primary" size="lg" routerLink="/">Shop the catalog</a>
+    <a tlButton size="lg" [routerLink]="sellHref()">Start selling</a>
+  </ng-container>
+</tl-marketing-hero>

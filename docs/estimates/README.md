@@ -1,11 +1,11 @@
 # Estimates
 
 - Overall effort: 117 days
-- Complete: 65%
+- Complete: 69%
 
 | Subsystem | Effort | Complete |
 |---|---|---|
-| [platform](platform.md) | 37 days | 16% |
+| [platform](platform.md) | 37 days | 29% |
 | [accounts](accounts.md) | 4 days | 100% |
 | [privacy](privacy.md) | 7 days | 43% |
 | [listings](listings.md) | 17 days | 88% |
@@ -21,5 +21,4 @@
 3. catalog
 4. orders
 5. reviews and notifications
-6. marketing page
-7. Deferred: moderation, leave review and export personal data
+6. Deferred: moderation, leave review and export personal data

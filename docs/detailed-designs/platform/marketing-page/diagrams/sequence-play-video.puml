@@ -20,7 +20,7 @@ participant "Static host /media/" as host
 v -> page : open /welcome
 page -> poster : render poster (no video element yet)
 v -> poster : Enter / click "Watch the 30-second pitch"
-poster -> page : (play)
+poster -> page : (watch)
 page -> ds : open(PitchVideoDialog)
 ds -> dlg : create, make page inert
 dlg -> player : render (autoplay after the press)
