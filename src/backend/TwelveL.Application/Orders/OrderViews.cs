@@ -3,6 +3,7 @@ using TwelveL.Application.Abstractions;
 using TwelveL.Application.Catalog;
 using TwelveL.Application.Checkouts;
 using TwelveL.Application.Listings;
+using TwelveL.Application.Payouts;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Orders;
 
@@ -16,7 +17,8 @@ public sealed record TrackingDto(string Carrier, string Number, string Url);
 
 /// <summary>
 /// One order as its seller's sale page shows it (mocks pages/sale-detail): ship-by date, the
-/// buyer's address under "Ship to" (L2-033), the summary, the timeline and the tracking once shipped.
+/// buyer's address under "Ship to" (L2-033), the summary, the timeline, the tracking once shipped
+/// and the payout after the fee (L2-031).
 /// </summary>
 public sealed record SaleDto(
     Guid Id,
@@ -32,7 +34,8 @@ public sealed record SaleDto(
     string BuyerDisplayName,
     AddressDto ShipTo,
     IReadOnlyList<TimelineStepDto> Timeline,
-    TrackingDto? Tracking);
+    TrackingDto? Tracking,
+    SalePayoutDto? Payout);
 
 public static class OrderViews
 {
@@ -75,6 +78,7 @@ public static class OrderViews
             buyer,
             AddressDto.From(order.ShippingAddress),
             Timeline(order),
-            Tracking(order));
+            Tracking(order),
+            await SalePayouts.ForAsync(db, order, cancellationToken));
     }
 }

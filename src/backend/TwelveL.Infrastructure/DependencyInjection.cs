@@ -7,8 +7,8 @@ using TwelveL.Application.Listings;
 using TwelveL.Infrastructure.Accounts;
 using TwelveL.Infrastructure.Carriers;
 using TwelveL.Infrastructure.Email;
-using TwelveL.Infrastructure.Listings;
 using TwelveL.Infrastructure.Payments;
+using TwelveL.Infrastructure.Payouts;
 using TwelveL.Infrastructure.Persistence;
 using TwelveL.Infrastructure.Photos;
 
@@ -26,7 +26,7 @@ public static class DependencyInjection
         services.AddSingleton<IPasswordHasher, IdentityPasswordHasher>();
         services.AddSingleton<IBreachedPasswords, BundledBreachedPasswords>();
         services.AddSingleton<IEmailSender, LoggingEmailSender>();
-        services.AddSingleton<ISellerPayoutAccountReader, NoPayoutAccountsReader>();
+        services.AddScoped<ISellerPayoutAccountReader, PayoutAccountReader>();
         services.Configure<AppOptions>(configuration.GetSection("App"));
         services.Configure<SellingOptions>(configuration.GetSection("Selling"));
         services.Configure<PhotoOptions>(configuration.GetSection("Photos"));
@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddSingleton<IPhotoStorage, FileSystemPhotoStorage>();
         services.AddSingleton<IPaymentProvider, UnconfiguredPaymentProvider>();
         services.AddSingleton<ICarrierTracking, UnconfiguredCarrierTracking>();
+        services.AddSingleton<IPayoutProvider, UnconfiguredPayoutProvider>();
         return services;
     }
 }

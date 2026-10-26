@@ -236,6 +236,6 @@ public sealed class OrderTests
         var checkout = Checkout.Start(Guid.NewGuid(), Guid.NewGuid(), Guid.NewGuid(), 38m, 7m, paidAt.AddMinutes(-5));
         checkout.SetAddress(Denver, 3.15m);
         var payment = Payment.Create(checkout.Id, Guid.NewGuid(), 48.15m, paidAt);
-        return Order.CreatePaid(48302, checkout, Guid.NewGuid(), payment, paidAt);
+        return Order.CreatePaid(48302, checkout, Guid.NewGuid(), payment, 0.10m, paidAt);
     }
 }

@@ -3,6 +3,7 @@ using TwelveL.Application.Abstractions;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
 using TwelveL.Domain.Orders;
+using TwelveL.Domain.Payouts;
 
 namespace TwelveL.Infrastructure.Persistence;
 
@@ -30,6 +31,10 @@ public sealed class TwelveLDbContext(DbContextOptions<TwelveLDbContext> options)
     public DbSet<SavedAddress> SavedAddresses => Set<SavedAddress>();
 
     public DbSet<PaymentWebhookEvent> PaymentWebhookEvents => Set<PaymentWebhookEvent>();
+
+    public DbSet<Payout> Payouts => Set<Payout>();
+
+    public DbSet<SellerPayoutAccount> SellerPayoutAccounts => Set<SellerPayoutAccount>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TwelveLDbContext).Assembly);
