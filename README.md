@@ -28,6 +28,7 @@ The name says it all: **12** for the shoes, **L** for the clothes.
 - [Architecture](#architecture)
 - [Getting started](#getting-started)
   - [Prerequisites](#prerequisites)
+  - [Load demo data](#load-demo-data)
 - [Project structure](#project-structure)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
@@ -109,6 +110,26 @@ npm start                                   # Angular app on http://localhost:42
 dotnet run --project ../backend/TwelveL.Api # API; GET /api/health returns 200
 ```
 
+### Load demo data
+
+`TwelveL.Cli` resets a local database and fills it with 8 demo members and 48 listings with
+real product photos in every category, so `/`, `/shoes`, `/tops`, `/outerwear`, `/bottoms`
+and the listing pages look real. It is for your own machine only; see
+[its README](src/backend/TwelveL.Cli/README.md) for the demo accounts and password.
+
+```bash
+# from src/backend, with SQL Server LocalDB (or any SQL Server you own)
+export ConnectionStrings__TwelveL="Server=(localdb)\MSSQLLocalDB;Database=TwelveL;Trusted_Connection=True;TrustServerCertificate=True"
+export DOTNET_ENVIRONMENT=Development   # reset refuses to run otherwise, unless --force
+dotnet build TwelveL.Cli
+dotnet TwelveL.Cli/bin/Debug/net10.0/TwelveL.Cli.dll seed --reset
+```
+
+Start the API with the same `ConnectionStrings__TwelveL` so it reads the seeded database.
+On Windows on Arm, LocalDB is x64 only: build with the normal SDK, then run the built DLL
+with the x64 host, `"C:\Program Files\dotnet\x64\dotnet.exe" TwelveL.Cli\bin\Debug\net10.0\TwelveL.Cli.dll seed --reset`
+(the arm64 host fails with error 193). Run the API the same way.
+
 ### Individual checks
 
 | Command (from `src/frontend`) | Does |
@@ -126,7 +147,7 @@ dotnet run --project ../backend/TwelveL.Api # API; GET /api/health returns 200
 ├── .claude/skills/        Agent skills for Claude Code
 ├── .github/               Issue templates, pull request template, Copilot instructions
 ├── docs/                  Journeys, specs, mocks, design system, designs, estimates, ADRs
-├── src/backend/           .NET solution (TwelveL.Api, Application, Domain, Infrastructure, Worker, Migrator)
+├── src/backend/           .NET solution (TwelveL.Api, Application, Domain, Infrastructure, Worker, Migrator, Cli)
 ├── src/frontend/          Angular workspace (projects/twelvel plus api, components and feature libraries)
 ├── tests/                 xUnit test project per backend project
 ├── AGENTS.md              Working agreement for coding agents
@@ -165,4 +186,6 @@ See [SUPPORT.md](SUPPORT.md) for how to file issues and get help.
 
 ## License
 
-12L is licensed under the [MIT License](LICENSE).
+12L is licensed under the [MIT License](LICENSE). The demo photos in
+`src/backend/TwelveL.Cli/SeedPhotos/` are not: they keep their CC BY 2.0 licence, with authors
+and sources in [ATTRIBUTION.md](src/backend/TwelveL.Cli/SeedPhotos/ATTRIBUTION.md).

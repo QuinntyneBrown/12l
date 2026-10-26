@@ -14,7 +14,7 @@ fake photo store only; `reset` against SQL Server is checked by hand.
 | Work item | Hours |
 |-----------|------:|
 | `TwelveL.Cli` and `TwelveL.Cli.Tests` projects, `CliArguments`, help and exit codes | 3 |
-| `reset`: `ResetGuard`, `DatabaseTarget`, `IDatabaseSchema` with `MigratorApp.ApplyMigrations`, photo store clean-up | 4 |
+| `reset`: `ResetGuard`, `IDatabaseSchema` with `MigratorApp.ApplyMigrations`, photo store clean-up | 4 |
 | `seed` members: register, verify from the queued link, suppress the email | 3 |
 | `seed` listings: `DemoCatalogue`, `SeedClock`, drafts and publish across four categories | 5 |
 | `seed` photos: upload through the pipeline, missing-file check | 3 |

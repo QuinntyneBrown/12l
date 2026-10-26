@@ -66,12 +66,12 @@ folder.
 
 ### Reset (`L2-072`, `L2-073`)
 
-1. **`DatabaseTarget.Describe(connectionString)`** reads `Data Source`/`Server` and
+1. **`ResetGuard.DescribeTarget(connectionString)`** reads `Data Source`/`Server` and
    `Initial Catalog`/`Database` with `SqlConnectionStringBuilder` and prints
    `Target: server …, database …`. Passwords and user IDs are never printed.
 2. **`ResetGuard.Allows(environmentName, force)`** — true for `Development` (ignoring case)
    or `--force`. Otherwise the tool prints why and exits 3 before touching anything.
-3. **`DemoReset.RunAsync`** — `IDatabaseSchema.Rebuild(db, output)` then empties the photo
+3. **`DemoReset.Run`** — `IDatabaseSchema.Rebuild(db, output)` then empties the photo
    store by deleting `RootPath/public` and `RootPath/private`. It prints each step.
 4. **`MigratedSchema`** — `db.Database.EnsureDeleted()` then
    `MigratorApp.ApplyMigrations(db, output)`. `ApplyMigrations` is the method
@@ -134,7 +134,9 @@ report or order.
 | `OxfordOwen` | `owen@demo.12l.test` |
 | `CoatRackCal` | `cal@demo.12l.test` |
 
-48 listings, 12 per category, assigned to sellers in turn. Each has a subcategory from the
+48 listings, 12 per category. They are published with the categories alternating, and each
+category's two listings that share a cover photo are published six apart, so a catalog page
+does not show the same photo side by side. Sellers take turns. Each has a subcategory from the
 `L2-011` table, a title, a description of at least 20 characters, a brand from
 `Selling:SuggestedBrands`, one of the five conditions (every `Used - Fair` listing names its
 flaws), a price from $18 to $420 and shipping from $0 to $15.
@@ -164,8 +166,12 @@ The real SkiaSharp pipeline runs on the committed photos. Each test file starts 
 - `SeedMembersTests` — `L2-074` (verified, `.test`, sign-in with the demo password, no
   pending email).
 - `SeedListingsTests` — `L2-075` (counts, sizes, photos and versions, brands in the API's
-  `appsettings.json`, `PublishesPerDay = 1`, catalog query per category).
+  `appsettings.json`, cover photo hashes, one publish per seller per day, catalog query per
+  category, every detail query).
 - `RepeatableSeedTests` — `L2-076`.
+- `SeedLimitsTests` — `L2-075` (`PublishesPerDay = 1`), `L2-077` (missing photos, exit 4,
+  nothing written, checked before `--reset` acts) and that every photo is committed,
+  attributed and under 400 KB.
 
 ### Configuration values
 
@@ -217,6 +223,10 @@ through MediatR and the photo pipeline, and reset goes through the migrator's co
   unreachable when the feature was built. Swapping in CC0 or Unsplash-licensed photos needs
   only new files and a new `ATTRIBUTION.md`.
 - `reset` against SQL Server is verified by hand on a developer machine; tests rebuild the
-  schema with `EnsureCreated` on SQLite.
+  schema with `EnsureCreated` on SQLite. The environment that built this feature had no SQL
+  Server or LocalDB (and could not install one), so its hand check seeded a SQLite file
+  through `CliApp` with the real file-system photo store, served it through `TwelveL.Api`
+  and the Angular dev server, and confirmed the home, category and detail pages and a demo
+  sign-in. The `reset` run against LocalDB on Windows on Arm is still owed.
 - A seed interrupted half way leaves a partial demo; `seed --reset` is the documented
   recovery.

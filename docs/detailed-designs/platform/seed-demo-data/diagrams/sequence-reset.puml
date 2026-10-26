@@ -26,7 +26,7 @@ else connection string set
   alt not Development and no --force
     guard --> dev : "reset only runs in Development or with --force" exit 3 (L2-073)
   else allowed
-    cli -> reset : RunAsync
+    cli -> reset : Run
     reset -> schema : Rebuild(db)
     schema -> sql : EnsureDeleted (DROP DATABASE)
     schema -> mig : ApplyMigrations(db)

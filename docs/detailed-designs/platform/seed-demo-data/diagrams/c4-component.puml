@@ -7,7 +7,7 @@ Person(dev, "Developer", "Runs reset and seed on their own machine")
 System_Boundary(cli, "TwelveL.Cli (src/backend/TwelveL.Cli)") {
   Component(program, "Program / CliApp", "Console entry point", "Reads configuration and DOTNET_ENVIRONMENT, parses arguments, maps failures to exit codes")
   Component(args, "CliArguments", "Plain argument parsing", "help | reset [~--force] | seed [~--reset] [~--force]")
-  Component(guard, "ResetGuard + DatabaseTarget", "Safety check", "Development or ~--force; prints server and database, never credentials")
+  Component(guard, "ResetGuard", "Safety check", "Development or ~--force; prints server and database, never credentials")
   Component(reset, "DemoReset", "Command", "Drops and rebuilds the schema, empties the photo store")
   Component(schema, "IDatabaseSchema", "Port", "MigratedSchema: EnsureDeleted + MigratorApp.ApplyMigrations")
   Component(seeder, "DemoSeeder", "Command", "Registers, verifies, uploads, drafts and publishes through MediatR")
