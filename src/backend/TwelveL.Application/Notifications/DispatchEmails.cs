@@ -10,7 +10,9 @@ namespace TwelveL.Application.Notifications;
 /// <summary>
 /// One pass of the email dispatcher (L2-042): claims up to <see cref="BatchSize"/> due outbox
 /// messages and, for each, resolves the recipient, renders the template, runs the content guard and
-/// sends through the provider with the message ID as idempotency key. A transient failure is
+/// sends through the provider with the message ID as idempotency key. An email of a category the
+/// member turned off is suppressed (L2-043), and a marketing email gets the one-click unsubscribe
+/// link and the RFC 8058 List-Unsubscribe headers. A transient failure is
 /// retried with back-off for 24 hours; a rejected address or a guard hit fails at once. Each
 /// failure is logged with the message ID, type and attempt, never the address or the content.
 /// Returns how many emails were sent.
@@ -23,6 +25,8 @@ public sealed record DispatchEmailsCommand : IRequest<int>
 public sealed partial class DispatchEmailsHandler(
     ITwelveLDbContext db,
     IEmailSender sender,
+    INotificationPreferenceReader preferences,
+    UnsubscribeTokens unsubscribeTokens,
     IOptions<AppOptions> app,
     TimeProvider clock,
     ILogger<DispatchEmailsHandler> logger) : IRequestHandler<DispatchEmailsCommand, int>
@@ -85,7 +89,21 @@ public sealed partial class DispatchEmailsHandler(
             return false;
         }
 
+        var category = NotificationCategories.Of(message.NotificationType);
+        if (!await preferences.IsAllowedAsync(message.RecipientMemberId, category, cancellationToken))
+        {
+            message.Suppress("preference_off");
+            await db.SaveChangesAsync(cancellationToken);
+            return false;
+        }
+
         var email = EmailTemplates.Render(message.NotificationType, message.Payload, recipient.DisplayName, app.Value.BaseUrl);
+        IReadOnlyDictionary<string, string>? headers = null;
+        if (category == NotificationCategory.Marketing)
+        {
+            (email, headers) = WithUnsubscribe(email, message.RecipientMemberId);
+        }
+
         if (EmailContentGuard.Check(email.Subject + "\n" + email.Body, email.Identifiers) is { } reason)
         {
             message.Fail($"content_guard:{reason}");
@@ -96,7 +114,7 @@ public sealed partial class DispatchEmailsHandler(
 
         try
         {
-            await sender.SendAsync(new EmailMessage(recipient.Email, email.Subject, email.Body, message.Id), cancellationToken);
+            await sender.SendAsync(new EmailMessage(recipient.Email, email.Subject, email.Body, message.Id, headers), cancellationToken);
             message.RecordSent(clock.GetUtcNow().UtcDateTime);
             await db.SaveChangesAsync(cancellationToken);
             return true;
@@ -124,6 +142,23 @@ public sealed partial class DispatchEmailsHandler(
 
             return false;
         }
+    }
+
+    /// <summary>
+    /// Adds the unsubscribe link to 12L Web's unsubscribe page and the List-Unsubscribe headers that
+    /// let a mail client POST the token to 12L API, which 12L Web serves under the same origin.
+    /// </summary>
+    private (RenderedEmail Email, IReadOnlyDictionary<string, string> Headers) WithUnsubscribe(RenderedEmail email, Guid memberId)
+    {
+        var root = app.Value.BaseUrl.TrimEnd('/');
+        var token = Uri.EscapeDataString(unsubscribeTokens.Issue(memberId, NotificationCategory.Marketing, clock.GetUtcNow().UtcDateTime));
+        var page = $"{root}/emails/unsubscribe?token={token}";
+        var headers = new Dictionary<string, string>
+        {
+            ["List-Unsubscribe"] = $"<{root}/api/notifications/unsubscribe?token={token}>",
+            ["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click",
+        };
+        return (email with { Body = $"{email.Body}\nUnsubscribe from news from 12L in one click: {page}", Identifiers = [.. email.Identifiers, page] }, headers);
     }
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Email {OutboxMessageId} ({NotificationType}) attempt {AttemptCount} failed with {Error}; retrying at {NextAttemptAt:o}")]

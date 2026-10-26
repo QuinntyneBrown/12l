@@ -41,6 +41,8 @@ public sealed class TwelveLDbContext(DbContextOptions<TwelveLDbContext> options)
 
     public DbSet<OrderProblem> OrderProblems => Set<OrderProblem>();
 
+    public DbSet<NotificationPreferences> NotificationPreferences => Set<NotificationPreferences>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(TwelveLDbContext).Assembly);
 }

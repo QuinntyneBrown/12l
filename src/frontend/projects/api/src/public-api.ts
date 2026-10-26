@@ -1,5 +1,13 @@
 export { AccountsApi, type Registration } from './lib/accounts/accounts-api';
 export {
+  NotificationPreferencesApi,
+  type NotificationCategory,
+  type NotificationCategoryKey,
+  type NotificationPreferences,
+  type NotificationPreferencesUpdate,
+  type VersionedNotificationPreferences,
+} from './lib/accounts/notification-preferences-api';
+export {
   CatalogApi,
   type CardPhoto,
   type CatalogBrand,

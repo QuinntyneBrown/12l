@@ -17,7 +17,7 @@ skinparam package {
 actor "Member" as actor
 box "Frontend — 12L Web application" #E0F2FE
   participant "NotificationSettingsPageComponent" as page
-  participant "NotificationPreferencesApiService" as client
+  participant "NotificationPreferencesApi" as client
 end box
 box "Backend — 12L API application" #D1FADF
   participant "NotificationPreferencesController" as controller
@@ -41,8 +41,8 @@ else loaded
   actor -> page : Turn Reviews off, "Save"
   page --> actor : "Save" aria-busy, switches disabled
   page -> client : update({reviewEmails: false, marketingEmails: false})
-  client -> controller : PUT /api/me/notification-preferences, If-Match, anti-forgery token
-  controller -> controller : MemberPolicy, validator
+  client -> controller : PUT /api/me/notification-preferences, If-Match
+  controller -> controller : Signed in, both values present (422)
   controller -> handler : Send UpdateNotificationPreferencesCommand
   handler -> db : Load NotificationPreferences
   db --> handler : Row
@@ -51,13 +51,13 @@ else loaded
     The request has no field for Account security
     or Orders, so they stay on (L2-043)
   end note
-  handler -> db : Save with RowVersion = If-Match
-  alt RowVersion changed elsewhere
-    db --> handler : DbUpdateConcurrencyException
+  handler -> handler : Version = If-Match?
+  handler -> db : Save, Version as concurrency token
+  alt Version changed elsewhere
+    db --> handler : Old version or DbUpdateConcurrencyException
     handler --> controller : Stale
-    controller --> client : 412 notifications.stale
-    client --> page : Reload values
-    page --> actor : Toast "Something went wrong" with "Try again" (L2-068)
+    controller --> client : 412 NOTIFICATION_PREFERENCES_CHANGED
+    page --> actor : Warning toast with the title, values reloaded
   else committed
     db --> handler : Commit result
     handler --> controller : NotificationPreferencesDto
@@ -67,7 +67,7 @@ else loaded
   end
 end
 note over db
-  The dispatcher reads ReviewEmails at send time,
-  so the next ReviewReceived email is suppressed (L2-043)
+  The dispatcher reads the row at send time, so an email
+  of a category the member turned off is suppressed (L2-043)
 end note
 @enduml

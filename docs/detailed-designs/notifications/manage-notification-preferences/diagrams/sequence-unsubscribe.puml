@@ -26,7 +26,7 @@ box "Backend — TwelveL Application and Domain" #ECFDF3
   participant "NotificationPreferences" as entity
 end box
 box "Backend — TwelveL Infrastructure" #FFF4E5
-  participant "HmacUnsubscribeTokenService" as tokens
+  participant "UnsubscribeTokens" as tokens
   database "12L database" as db
 end box
 actor -> page : Click unsubscribe link in a marketing email (no sign-in)
@@ -36,20 +36,20 @@ note right of actor
   POSTs to the same endpoint with
   List-Unsubscribe=One-Click
 end note
-controller -> controller : Anonymous policy, rate limit (L2-051)
+controller -> controller : Anonymous; token from query or JSON body
 controller -> handler : Send UnsubscribeCommand
-handler -> tokens : TryValidate(token)
-alt signature, key ID or category invalid
-  tokens --> handler : false
+handler -> tokens : Read(token)
+alt malformed, bad signature or not Marketing
+  tokens --> handler : null
   handler --> controller : Invalid
-  controller --> page : 400 notifications.unsubscribe_invalid
-  page --> actor : Invalid link state (copy TO SUPPLY)
+  controller --> page : 400 UNSUBSCRIBE_LINK_INVALID
+  page --> actor : "This link doesn’t work" with "Manage your emails"
 else valid token
-  tokens --> handler : UnsubscribeClaims(memberId, Marketing)
+  tokens --> handler : UnsubscribeToken(memberId, Marketing)
   handler -> db : Load NotificationPreferences
-  alt member closed or erased
-    db --> handler : none
-  else row found
+  alt no row (defaults) or already off
+    db --> handler : nothing to change
+  else marketing on
     db --> handler : Row
     handler -> entity : UnsubscribeMarketing(now) (L2-043)
     handler -> db : Save
@@ -57,6 +57,6 @@ else valid token
   end
   handler --> controller : Success (idempotent)
   controller --> page : 200 {category: Marketing, unsubscribed: true}
-  page --> actor : Unsubscribed state with link to /account/emails
+  page --> actor : "You’re unsubscribed" with "Manage your emails"
 end
 @enduml

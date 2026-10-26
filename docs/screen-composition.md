@@ -15,7 +15,8 @@ link, form field) and the components create-listing added (alert, center state, 
 dialog with `DialogService`, earnings, error summary, fixed size, icon, input group, item row,
 segmented control, size tag, spinner) and the components browse-catalog added (empty
 state, listing card with listing grid, load more) and the components search-and-filter-catalog
-added (chip, `tl-sheet` with `SheetService`, the `search` icon). Feature screens not built yet are inventoried below
+added (chip, `tl-sheet` with `SheetService`, the `search` icon) and the components
+manage-notification-preferences added (switch, and `ToastService` behind `tl-toast-region`). Feature screens not built yet are inventoried below
 with their states and marked **not yet composed**; each is composed when its journey is
 implemented, and the catalogue grows in the same change.
 
@@ -56,8 +57,28 @@ implemented, and the catalogue grows in the same change.
 
 ### Email settings — `/account/emails` (`pages/notification-settings`: default, submitting, success, loading, error)
 
-- Library: not yet composed
-- Local: not yet composed
+App shell. `@12l/accounts` `NotificationSettingsPage` (`src/lib/notification-settings/`), built by
+manage-notification-preferences. The account sub-navigation of the mocks is composed with the
+account overview journey.
+
+- Library: `tl-switch` (4 rows: "Account security emails, always on" and "Order emails, always
+  on" checked and disabled; "Review emails" and "Marketing emails", disabled while saving),
+  `tlButton` (primary "Save" with `busy`; primary "Try again"), `tl-alert` (success "Email
+  settings saved", `live="polite"`), `tl-empty-state` (error tone "Couldn’t load email settings"
+  with the reference), `tl-icon` (`refresh`), `ToastService` (danger "Something went wrong" with
+  the reference and "Try again" when a save fails; warning when the settings changed elsewhere)
+- Local: the page header with its subtitle, the `.settings-list` rows with title and
+  description, the `.form-actions` row, and the loading skeleton rows
+
+### Unsubscribe — `/emails/unsubscribe?token=…` (not mocked: working, unsubscribed, invalid, error)
+
+Auth shell. `@12l/accounts` `UnsubscribePage` (`src/lib/unsubscribe/`), built by
+manage-notification-preferences; the mocks have no screen for it, so it follows the verify-email
+layout.
+
+- Library: `tl-spinner` (working), `tlButton` ("Back to shop", "Manage your emails", "Try again"),
+  `tl-icon` (`refresh`)
+- Local: the `h1` and lead of each state and the `.stack` of actions
 
 ### Member profile — `/members/{displayName}` (`pages/profile`: default, own, empty, loading, error, unavailable, long)
 

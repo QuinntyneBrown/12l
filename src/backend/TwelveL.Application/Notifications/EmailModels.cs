@@ -34,3 +34,9 @@ public sealed record ProblemReportedEmail(Guid OrderId, string OrderReference, s
 
 /// <summary>An administrator decided a problem; <paramref name="Decision"/> and <paramref name="Reason"/> go to both members (L2-036).</summary>
 public sealed record ProblemResolvedEmail(Guid OrderId, string OrderReference, string ItemTitle, string Decision, string Reason, bool ToSeller);
+
+/// <summary>
+/// A marketing email (L2-043): sent only to members who opted in, always with the one-click
+/// unsubscribe the dispatcher adds. Nothing queues it until marketing campaigns are built.
+/// </summary>
+public sealed record MarketingEmail(string Subject, string Text);

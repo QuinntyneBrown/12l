@@ -223,9 +223,13 @@ messages from a crashed worker. `Sent`, `Suppressed` and `Failed` are terminal.
 
 ### Deferred
 
-- The notification preference check (`L2-043`) and the marketing unsubscribe headers arrive
-  with [manage-notification-preferences](../manage-notification-preferences/README.md); every
-  type built here is in the Account security or Orders category, which is always sent.
+- Built by [manage-notification-preferences](../manage-notification-preferences/README.md):
+  before rendering, `DispatchEmailsHandler` asks `INotificationPreferenceReader` about the
+  message's category (`NotificationCategories.Of`) and suppresses it with the reason
+  `preference_off` when the member turned it off (`L2-043`). Every `Marketing` email gets the
+  one-click unsubscribe link in its body and the `List-Unsubscribe` and
+  `List-Unsubscribe-Post` headers through `EmailMessage.Headers`. `NotificationType.Marketing`
+  exists; marketing campaigns that queue it are deferred.
 - The real provider adapter, the from address and the API key wait for the provider choice.
 - HTML bodies with the shared layout and logo wait for the final copy.
 - `OutboxRetentionJob`, the dispatch metrics and the delay alert (`L2-069`) wait for the

@@ -39,7 +39,15 @@ export { SkipLinkComponent } from './lib/skip-link/skip-link';
 export { SpinnerComponent } from './lib/spinner/spinner';
 export { StatusComponent, type StatusTone } from './lib/status/status';
 export { StatComponent } from './lib/stat/stat';
+export { SwitchComponent } from './lib/switch/switch';
 export { ThreadComponent, type ThreadEntry } from './lib/thread/thread';
 export { ToastRegionComponent } from './lib/toast-region/toast-region';
+export {
+  TOAST_DURATION_MS,
+  ToastService,
+  type Toast,
+  type ToastOptions,
+  type ToastTone,
+} from './lib/toast-region/toast-service';
 export { TrackingLinkComponent } from './lib/tracking-link/tracking-link';
 export { TopBarComponent, type TopBarMember } from './lib/top-bar/top-bar';

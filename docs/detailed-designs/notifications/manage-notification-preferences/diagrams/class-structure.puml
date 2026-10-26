@@ -27,11 +27,11 @@ class NotificationPreferences {
   +Guid MemberId
   +bool ReviewEmails
   +bool MarketingEmails
-  +DateTimeOffset? MarketingOptedInAt
-  +DateTimeOffset? MarketingOptedOutAt
+  +DateTime? MarketingOptedInAt
+  +DateTime? MarketingOptedOutAt
   +MarketingChangeSource? LastMarketingChangeSource
-  +DateTimeOffset UpdatedAt
-  +byte[] RowVersion
+  +DateTime UpdatedAt
+  +int Version
   +{static} CreateDefault(memberId, now): NotificationPreferences
   +Update(reviewEmails: bool, marketingEmails: bool, now): void
   +UnsubscribeMarketing(now): void
@@ -39,10 +39,10 @@ class NotificationPreferences {
 }
 
 class NotificationPreferencesDto {
-  +IReadOnlyList<CategorySettingDto> Categories
+  +IReadOnlyList<NotificationCategoryDto> Categories
 }
 
-class CategorySettingDto {
+class NotificationCategoryDto {
   +string Key
   +bool Enabled
   +bool Locked
@@ -50,12 +50,11 @@ class CategorySettingDto {
 
 class UpdateNotificationPreferencesCommand {
   +Guid MemberId
-  +bool ReviewEmails
-  +bool MarketingEmails
-  +byte[] ExpectedRowVersion
+  +bool? ReviewEmails
+  +bool? MarketingEmails
+  +int? ExpectedVersion
 }
 
-class UpdateNotificationPreferencesCommandValidator
 class UpdateNotificationPreferencesCommandHandler {
   +Handle(command): Task<Result<NotificationPreferencesDto>>
 }
@@ -65,28 +64,26 @@ class UnsubscribeCommand {
 }
 
 class UnsubscribeCommandHandler {
-  +Handle(command): Task<Result>
+  +Handle(command): Task<Result<UnsubscribeResult>>
 }
 
 class GetNotificationPreferencesQueryHandler {
   +Handle(query): Task<NotificationPreferencesDto>
 }
 
-class CreateDefaultNotificationPreferencesHandler {
-  +Handle(event: MemberRegistered): Task
+class UnsubscribeTokens {
+  +Issue(memberId: Guid, category: NotificationCategory, now): string
+  +Read(token: string?): UnsubscribeToken?
 }
 
-interface IUnsubscribeTokenService {
-  +Issue(memberId: Guid, category: NotificationCategory): string
-  +TryValidate(token: string, out claims: UnsubscribeClaims): bool
-}
-
-class HmacUnsubscribeTokenService
-class UnsubscribeClaims {
+class UnsubscribeToken {
   +Guid MemberId
   +NotificationCategory Category
-  +DateTimeOffset IssuedAt
-  +string KeyId
+  +DateTime IssuedAt
+}
+
+class NotificationCategories {
+  +{static} Of(type: NotificationType): NotificationCategory
 }
 
 interface INotificationPreferenceReader {
@@ -95,16 +92,14 @@ interface INotificationPreferenceReader {
 
 NotificationPreferences ..> NotificationCategory : evaluates
 NotificationPreferences --> MarketingChangeSource : has
-NotificationPreferencesDto *-- "4" CategorySettingDto
-UpdateNotificationPreferencesCommandValidator ..> UpdateNotificationPreferencesCommand : validates
+NotificationPreferencesDto *-- "4" NotificationCategoryDto
 UpdateNotificationPreferencesCommandHandler ..> UpdateNotificationPreferencesCommand : handles
 UpdateNotificationPreferencesCommandHandler --> NotificationPreferences : updates
 UnsubscribeCommandHandler ..> UnsubscribeCommand : handles
-UnsubscribeCommandHandler ..> IUnsubscribeTokenService : validates
+UnsubscribeCommandHandler ..> UnsubscribeTokens : reads
 UnsubscribeCommandHandler --> NotificationPreferences : unsubscribes
 GetNotificationPreferencesQueryHandler ..> NotificationPreferencesDto : builds
-CreateDefaultNotificationPreferencesHandler ..> NotificationPreferences : creates
-HmacUnsubscribeTokenService ..|> IUnsubscribeTokenService
-HmacUnsubscribeTokenService ..> UnsubscribeClaims : produces
+UnsubscribeTokens ..> UnsubscribeToken : produces
+NotificationCategories ..> NotificationCategory : maps to
 INotificationPreferenceReader ..> NotificationPreferences : reads
 @enduml

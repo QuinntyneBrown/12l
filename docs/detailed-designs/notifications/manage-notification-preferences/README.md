@@ -27,18 +27,19 @@ preferences at send time, so a change applies to every email not yet sent.
 The slice runs from the "Emails" page and the unsubscribe page of `12L Web`, through
 `12L API`, to the `NotificationPreferences` table in `12L database`. Screens, states and
 copy come from `docs/mocks/pages/notification-settings/` (states *default*, *loading*,
-*error*, *submitting* and *success*). The unsubscribe page and the marketing emails are not
-mocked (`docs/mocks/README.md`), so their copy is `<TO SUPPLY>`.
+*error*, *submitting* and *success*). The unsubscribe page is not mocked
+(`docs/mocks/README.md`); its copy was written with the implementation and is listed below.
 
-### Frontend (`src/frontend/src/app/accounts/notification-settings/`)
+### Frontend (`@12l/accounts`, `src/frontend/projects/accounts/src/lib/`)
 
-The page sits in the `accounts` feature area, because it renders inside the account shell
-next to "Profile" and "Settings". It requires a signed-in member; a guest is sent to
-`/sign-in` with a return URL.
+The pages sit in the `accounts` feature library, because the settings page renders in the
+account area next to "Profile" and "Settings". Composition follows
+[screen-composition](../../../screen-composition.md).
 
-- **Route** `account/emails` → **`NotificationSettingsPageComponent`** — heading "Emails"
-  with the lead "Security and order emails are always on." A form holds a settings list of
-  4 rows. Each row has a title, a description and a switch (`role="switch"`):
+- **Route** `account/emails` (app shell) → **`NotificationSettingsPage`**
+  (`notification-settings/`) — heading "Emails" with the lead "Security and order emails are
+  always on." A form holds a `.settings-list` of 4 rows. Each row has a title, a description and
+  a `tl-switch`:
 
   | Row | Description | Switch |
   |-----|-------------|--------|
@@ -48,29 +49,35 @@ next to "Profile" and "Settings". It requires a signed-in member; a guest is sen
   | News from 12L | New arrivals in your size, now and then | bound to `marketingEmails`, labelled "Marketing emails" |
 
   A primary "Save" button submits the form. States:
-  - *loading* — 4 skeleton rows.
+  - *loading* — 4 skeleton rows in a `.settings-list` with `aria-busy="true"`.
   - *default* — values from the API.
   - *submitting* — "Save" carries `aria-busy="true"` and both optional switches are
     disabled.
-  - *success* — status alert "Email settings saved" above the list, announced through
+  - *success* — `tl-alert` success "Email settings saved" above the list, announced through
     `role="status"`.
-  - *error* — compact error state "Couldn’t load email settings" with "Something went
+  - *error* — `tl-empty-state` (error tone) "Couldn’t load email settings" with "Something went
     wrong on our side.", the reference "Ref {correlationId}" and a "Try again" button
     (`L2-068`).
-  - *save failed* — not mocked. The shared error toast shows "Something went wrong" with
-    "Try again" and the correlation ID (`L2-068`), and the switches keep the member's
-    unsaved choice.
-- **`NotificationPreferencesApiService`** — typed `HttpClient` wrapper with `get()` and
-  `update(request)`. It sends the `ETag` it received as `If-Match`.
-- **Route** `emails/unsubscribe` → **`UnsubscribePageComponent`** — public page, no sign-in.
-  On load it reads `token` from the query string and calls
-  `POST /api/notifications/unsubscribe` once. The call runs from script on page load
-  because mail scanners prefetch links with `GET`; a `GET` alone never changes state.
-  States, all with copy `<TO SUPPLY>`:
-  - *working*.
-  - *unsubscribed* — includes a link to `/account/emails` to opt back in after signing in.
-  - *invalid link*.
-  - *error* — includes "Try again".
+  - *save failed* — not mocked. A danger toast from `ToastService` shows "Something went wrong"
+    with the reference and "Try again", and the switches keep the member's unsaved choice.
+  - *changed elsewhere* — not mocked. A 412 shows a warning toast with the API's title and
+    "Check them and save again.", and reloads the values and the ETag.
+  - A visitor (401) is sent to `/sign-in?returnUrl=/account/emails`.
+- **`NotificationPreferencesApi`** (`@12l/api`, `src/lib/accounts/`) — typed `HttpClient`
+  wrapper with `get()`, `update(update, etag)` and `unsubscribe(token)`. It sends the `ETag` it
+  received as `If-Match`.
+- **Route** `emails/unsubscribe` (auth shell, public) → **`UnsubscribePage`** (`unsubscribe/`).
+  On load it reads `token` from the query string and calls `POST /api/notifications/unsubscribe`
+  once. The call runs from script on page load because mail scanners prefetch links with `GET`;
+  a `GET` alone never changes state. States:
+  - *working* — "Unsubscribing" with the spinner "Turning off news from 12L…".
+  - *unsubscribed* — "You’re unsubscribed", "You won’t get news from 12L any more. Account
+    security and order emails still arrive.", "Back to shop" and "Manage your emails"
+    (`/account/emails`, to opt back in after signing in).
+  - *invalid link* — "This link doesn’t work", "It may be incomplete. You can turn off news
+    from 12L in your email settings." and "Manage your emails".
+  - *error* — "Couldn’t unsubscribe you", "Something went wrong on our side.", the reference
+    and "Try again".
 
 ### API (`TwelveL.Api`)
 
@@ -80,86 +87,116 @@ with a correlation ID (`L2-068`).
 
 | Verb and path | Policy | Purpose | Responses |
 |---------------|--------|---------|-----------|
-| `GET /api/me/notification-preferences` | `MemberPolicy` | Read the 4 categories | 200 `NotificationPreferencesDto` with `ETag`; 401 |
-| `PUT /api/me/notification-preferences` | `MemberPolicy`, anti-forgery (`L2-050`) | Save the two optional settings | 200 `NotificationPreferencesDto`; 400 `notifications.invalid`; 401; 412 `notifications.stale` when `If-Match` is out of date |
-| `POST /api/notifications/unsubscribe` | anonymous, rate limited (`L2-051`) | One-click marketing unsubscribe, from the page or a mail client's RFC 8058 POST | 200 `{ "category": "Marketing", "unsubscribed": true }`; 400 `notifications.unsubscribe_invalid` |
+| `GET /api/me/notification-preferences` | any signed-in member | Read the 4 categories | 200 `NotificationPreferencesDto` with `ETag`; 401 |
+| `PUT /api/me/notification-preferences` | any signed-in member | Save the two optional settings | 200 `NotificationPreferencesDto` with the new `ETag`; 401; 412 `NOTIFICATION_PREFERENCES_CHANGED` when `If-Match` is out of date; 422 `NOTIFICATION_PREFERENCES_INVALID` when a value is missing; 428 `PRECONDITION_REQUIRED` without `If-Match` |
+| `POST /api/notifications/unsubscribe` | anonymous | One-click marketing unsubscribe, from the page or a mail client's RFC 8058 POST | 200 `{ "category": "Marketing", "unsubscribed": true }`; 400 `UNSUBSCRIBE_LINK_INVALID` |
 
-- `NotificationPreferencesDto` lists the 4 categories as
-  `{ key, enabled, locked }`. `accountSecurity` and `orders` always carry
-  `enabled: true, locked: true` (`L2-043`).
+- The settings endpoints accept unverified members too, because account security email
+  reaches them. Responses carry `Cache-Control: no-store`.
+- `NotificationPreferencesDto` lists the 4 categories as `{ key, enabled, locked }` with the
+  keys `accountSecurity`, `orders`, `reviews` and `marketing`. `accountSecurity` and `orders`
+  always carry `enabled: true, locked: true` (`L2-043`). The `ETag` is the row's version, `"0"`
+  for a member who never saved.
 - `UpdateNotificationPreferencesRequest` carries only `reviewEmails` and
   `marketingEmails`. The contract has no field for the always-on categories, so no request
-  can turn them off.
-- The unsubscribe endpoint accepts the token in the query string
-  (`?token=…`, for RFC 8058 clients) or in a JSON body. It is exempt from anti-forgery
-  because it uses no cookie authentication. It always answers 200 for a valid token, even
-  when the member was already unsubscribed, so the call is idempotent. The response never
-  names the member or the email address.
+  can turn them off; unknown fields are ignored (`L2-049`).
+- The unsubscribe endpoint accepts the token in the query string (`?token=…`, for RFC 8058
+  clients, whose body is the form `List-Unsubscribe=One-Click`) or in a JSON body. It needs no
+  anti-forgery token because it uses no cookie authentication. It answers 200 for every valid
+  token, even when the member was already unsubscribed or no longer exists, so the call is
+  idempotent. The response never names the member or the email address.
 
 ### Application and domain (`TwelveL.Application`, `TwelveL.Domain`)
 
+- **`NotificationCategory`** (`AccountSecurity`, `Orders`, `Reviews`, `Marketing`) and
+  **`NotificationCategories.Of(NotificationType)`**: `EmailVerification` is account security,
+  `Marketing` is marketing, and every order email is orders. No notification type is a review
+  email yet, because review authoring is deferred (ADR general/0001); the Reviews setting is
+  stored and honoured as soon as such a type exists.
 - **`NotificationPreferences`** (entity, one per member):
   - Fields: `Guid MemberId`, `bool ReviewEmails`, `bool MarketingEmails`,
-    `DateTimeOffset? MarketingOptedInAt`, `DateTimeOffset? MarketingOptedOutAt`,
+    `DateTime? MarketingOptedInAt`, `DateTime? MarketingOptedOutAt`,
     `MarketingChangeSource? LastMarketingChangeSource` (`Settings`, `Unsubscribe`),
-    `DateTimeOffset UpdatedAt`, `byte[] RowVersion`.
+    `DateTime UpdatedAt`, `int Version`.
   - `CreateDefault(memberId, now)` sets `ReviewEmails = true` (mock *default*) and
     `MarketingEmails = false` (`L2-043`).
-  - `Update(reviewEmails, marketingEmails, now)` records the opt-in or opt-out time
-    when marketing changes.
-  - `UnsubscribeMarketing(now)` sets `MarketingEmails = false` and the source
-    `Unsubscribe`.
+  - `Update(reviewEmails, marketingEmails, now)` records the opt-in or opt-out time and the
+    source `Settings` when marketing changes, and increments `Version`.
+  - `UnsubscribeMarketing(now)` sets `MarketingEmails = false` with the source `Unsubscribe`.
   - `IsAllowed(NotificationCategory)` returns `true` for `AccountSecurity` and `Orders`
     always, and returns the stored flag for `Reviews` and `Marketing`.
-- **`CreateDefaultNotificationPreferencesHandler`** — handles `MemberRegistered` from
-  `accounts`. It inserts the default row in the registration transaction, so a new member
-  starts with marketing off (`L2-043`).
+- **No row at registration.** Every reader treats a missing row as `CreateDefault`, so a new
+  member starts with marketing off (`L2-043`), and the first save inserts the row
+  ([ADR notifications/0002](../../../adr/notifications/0002-notification-preferences-defaults-and-unsubscribe-tokens.md)).
 - **`GetNotificationPreferencesQuery`** and its handler — return the DTO for the calling
-  member. When the row is missing, the handler returns the defaults.
-- **`UpdateNotificationPreferencesCommand`** (`MemberId`, `ReviewEmails`,
-  `MarketingEmails`, `ExpectedRowVersion`), **`UpdateNotificationPreferencesCommandValidator`**
-  (both values required booleans) and **`UpdateNotificationPreferencesCommandHandler`** —
-  load the row, check the row version, call `Update` and save.
-- **`UnsubscribeCommand`** (`Token`) and **`UnsubscribeCommandHandler`** — validate the
-  token through `IUnsubscribeTokenService`, load the member's preferences, call
-  `UnsubscribeMarketing` and save. A token for a closed or erased member returns success
-  and changes nothing.
-- **`INotificationPreferenceReader`** — read port used by the email dispatcher. It loads
-  the row and calls `IsAllowed`. A missing row is treated as the defaults.
-- **`IUnsubscribeTokenService`** / **`HmacUnsubscribeTokenService`** — issues and
-  validates tokens.
-  - A token is the base64url form of `memberId | category | issuedAt` plus an
-    HMAC-SHA256 signature.
+  member, the defaults when the row is missing.
+- **`UpdateNotificationPreferencesCommand`** (`MemberId`, `ReviewEmails`, `MarketingEmails`,
+  `ExpectedVersion`) and its handler — refuse a missing value (422) or version (428), load or
+  create the row, compare the version (412), call `Update` and save with `Version` as the
+  concurrency token, so a race also ends in 412.
+- **`UnsubscribeCommand`** (`Token`) and its handler — read the token through
+  `UnsubscribeTokens`, load the member's row and, when marketing is on, call
+  `UnsubscribeMarketing` and save. A missing row (defaults, so marketing is already off) or a
+  member who no longer exists changes nothing and still succeeds.
+- **`INotificationPreferenceReader`** / **`NotificationPreferenceReader`** — read port used by
+  the email dispatcher. It loads the row and calls `IsAllowed`; a missing row is the defaults.
+- **`UnsubscribeTokens`** — issues and reads tokens.
+  - A token is the base64url of `memberId (16 bytes) | category (1 byte) | issuedAt (Unix
+    seconds, 8 bytes)`, a dot, and the base64url HMAC-SHA256 of those bytes.
   - The signing key `Notifications:UnsubscribeSigningKey` lives in the secret store
-    (`L2-052`). It supports key rotation through a key ID.
-  - Comparison runs in constant time.
-  - The token holds no email address. Token lifetime is `<TO SUPPLY>`; until it is
-    decided, tokens do not expire, so an old marketing email still unsubscribes.
-- **Marketing email integration.** The template layout in
-  [send-email-notifications](../send-email-notifications/README.md) calls
-  `IUnsubscribeTokenService.Issue(memberId, Marketing)`. It renders the unsubscribe
-  link `{App:PublicBaseUrl}/emails/unsubscribe?token=…` in the footer of every
-  `Marketing` email. It also sets the `List-Unsubscribe` header to the API URL, with
-  `List-Unsubscribe-Post: List-Unsubscribe=One-Click` (`L2-043`). How marketing
-  campaigns are authored and scheduled is `<TO SUPPLY>`.
+    (`L2-052`); development settings carry a development-only key.
+  - The signature is compared in constant time.
+  - The token holds no email address. Tokens do not expire, so an old marketing email still
+    unsubscribes; a lifetime and key rotation are open questions.
+- **Marketing email integration.** `NotificationType.Marketing` with the model
+  `MarketingEmail(Subject, Text)` exists so that the dispatcher honours the setting; nothing
+  queues it until marketing campaigns are built (deferred). For every `Marketing` email the
+  dispatcher in [send-email-notifications](../send-email-notifications/README.md) issues a
+  token and:
+  - appends "Unsubscribe from news from 12L in one click:
+    `{App:BaseUrl}/emails/unsubscribe?token=…`" to the body;
+  - sets `List-Unsubscribe: <{App:BaseUrl}/api/notifications/unsubscribe?token=…>` and
+    `List-Unsubscribe-Post: List-Unsubscribe=One-Click` through `EmailMessage.Headers`
+    (`L2-043`). 12L Web serves `12L API` under the same origin.
+- **Dispatcher check.** Before rendering, the dispatcher asks
+  `INotificationPreferenceReader` about the message's category. When the member turned it off,
+  the outbox message is `Suppressed` with the reason `preference_off` and nothing is sent.
 
 ### Infrastructure and data (`TwelveL.Infrastructure`)
 
-- Table **`NotificationPreferences`**:
+- Table **`NotificationPreferences`** (migration `NotificationPreferences`):
   - Primary key `MemberId`, also a foreign key to `Members` with cascade delete.
-  - `ReviewEmails bit NOT NULL DEFAULT 1` and `MarketingEmails bit NOT NULL DEFAULT 0`.
-  - The two marketing timestamps, `LastMarketingChangeSource tinyint NULL` and
+  - `ReviewEmails bit NOT NULL` and `MarketingEmails bit NOT NULL`, written from the domain
+    defaults rather than column defaults.
+  - The two marketing timestamps, `LastMarketingChangeSource nvarchar(16) NULL` and
     `UpdatedAt`.
-  - `RowVersion rowversion` as the concurrency token. The API exposes it as the `ETag`.
+  - `Version int` as the concurrency token. The API exposes it as the `ETag`.
 - Erasure of a closed account (`L2-005`) deletes the row with the member.
 
 ### Configuration
 
 | Setting | Value | Source |
 |---------|-------|--------|
-| `Notifications:UnsubscribeSigningKey` | secret store | `L2-052` |
-| `Notifications:UnsubscribeTokenLifetime` | `<TO SUPPLY>` | |
-| Unsubscribe rate limit | 120 per minute per IP (anonymous) | `L2-051` |
+| `Notifications:UnsubscribeSigningKey` | secret store; a development-only value in `appsettings.Development.json` of the API and the worker | `L2-052` |
+| Unsubscribe token lifetime | none: tokens do not expire (open question) | |
+
+### Tests
+
+- `tests/TwelveL.Domain.Tests/NotificationPreferencesTests.cs` — defaults, `IsAllowed`,
+  opt-in and unsubscribe, and the category of every notification type.
+- `tests/TwelveL.Api.Tests/NotificationPreferencesTests.cs` — the endpoints, If-Match, the
+  dispatcher check, the unsubscribe link and headers, and the anonymous unsubscribe through
+  JSON and the RFC 8058 form POST, on SQLite in-memory with the captured email sender.
+- `src/frontend/e2e/tests/manage-notification-preferences.spec.ts` and
+  `src/frontend/e2e/tests/unsubscribe.spec.ts`, with the page objects `email-settings.page.ts`
+  and `unsubscribe.page.ts`; every API call is a `page.route` fixture.
+
+### Open questions
+
+- Unsubscribe token lifetime and signing key rotation (a key ID in the token).
+- Rate limiting the anonymous unsubscribe endpoint (`L2-051`) waits for the shared rate
+  limiter; no endpoint has one yet.
+- How marketing campaigns are authored and scheduled (deferred).
 
 ## Requirements
 
@@ -198,7 +235,7 @@ the entity through `INotificationPreferenceReader`.
 ### Class structure
 
 `NotificationPreferences` owns the two optional flags and the always-on rule in
-`IsAllowed`. `HmacUnsubscribeTokenService` issues and validates unsubscribe tokens.
+`IsAllowed`. `UnsubscribeTokens` issues and reads unsubscribe tokens.
 
 ![Class diagram for managing notification preferences](diagrams/class-structure.png)
 
