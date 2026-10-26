@@ -98,6 +98,9 @@ public sealed class Listing
 
     public DateTime? PublishedAt { get; private set; }
 
+    /// <summary>When the seller was warned that this draft is about to be deleted (L2-019); cleared by every save.</summary>
+    public DateTime? DraftReminderSentAt { get; private set; }
+
     /// <summary>The checkout holding a Reserved listing (L2-028); set by a conditional update so one checkout wins (L2-029).</summary>
     public Guid? ReservedByCheckoutId { get; private set; }
 
@@ -257,7 +260,43 @@ public sealed class Listing
         Flaws = Condition == ItemCondition.UsedFair ? Clean(details.Flaws) : null;
         Price = details.Price;
         ShippingCost = details.ShippingCost;
+        DraftReminderSentAt = null;
         Touch(now);
+    }
+
+    /// <summary>A draft not edited for this many days is deleted (L2-019).</summary>
+    public const int DraftRetentionDays = 90;
+
+    /// <summary>How many days before deletion the seller is reminded, and the least time a reminder stands before deletion.</summary>
+    public const int DraftReminderDaysBefore = 7;
+
+    public bool IsDueForDraftReminder(DateTime now) =>
+        Status == ListingStatus.Draft && DraftReminderSentAt is null
+        && UpdatedAt <= now.AddDays(-(DraftRetentionDays - DraftReminderDaysBefore));
+
+    /// <summary>Old enough and reminded long enough ago: a draft that missed its reminder gets 7 more days.</summary>
+    public bool IsExpiredDraft(DateTime now) =>
+        Status == ListingStatus.Draft && DraftReminderSentAt is { } remindedAt
+        && UpdatedAt <= now.AddDays(-DraftRetentionDays) && remindedAt <= now.AddDays(-DraftReminderDaysBefore);
+
+    /// <summary>The day the draft is deleted when nothing changes: 90 days after the last edit, and never under 7 days after the reminder.</summary>
+    public DateTime DraftDeleteOn(DateTime remindedAt)
+    {
+        var byAge = UpdatedAt.AddDays(DraftRetentionDays);
+        var byReminder = remindedAt.AddDays(DraftReminderDaysBefore);
+        return byAge > byReminder ? byAge : byReminder;
+    }
+
+    /// <summary>Records the reminder without touching UpdatedAt; the version bump makes a racing edit win.</summary>
+    public void MarkDraftReminderSent(DateTime now)
+    {
+        if (!IsDueForDraftReminder(now))
+        {
+            throw new InvalidOperationException("The draft is not due for a reminder.");
+        }
+
+        DraftReminderSentAt = now;
+        Version++;
     }
 
     /// <summary>Draft rules (L2-019): an accepted category and size, and every present field within its limits.</summary>

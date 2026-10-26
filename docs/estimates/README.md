@@ -8,7 +8,7 @@
 | [platform](platform.md) | 29 days | 10% |
 | [accounts](accounts.md) | 4 days | 100% |
 | [privacy](privacy.md) | 7 days | 43% |
-| [listings](listings.md) | 17 days | 85% |
+| [listings](listings.md) | 17 days | 88% |
 | [catalog](catalog.md) | 12 days | 98% |
 | [orders](orders.md) | 30 days | 93% |
 | [reviews](reviews.md) | 3 days | 95% |

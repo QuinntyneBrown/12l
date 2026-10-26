@@ -10,6 +10,7 @@ export class MyListingsPage {
   readonly loading: Locator;
   readonly empty: Locator;
   readonly tryAgain: Locator;
+  readonly draftToast: Locator;
 
   constructor(private readonly page: Page) {
     const main = page.locator('main');
@@ -21,6 +22,7 @@ export class MyListingsPage {
     this.loading = main.locator('[aria-busy="true"]');
     this.empty = main.locator('.empty');
     this.tryAgain = main.getByRole('button', { name: 'Try again' });
+    this.draftToast = page.locator('.toast-region .toast').filter({ hasText: 'Drafts older than 90 days are deleted' });
   }
 
   async goto(query = ''): Promise<void> {

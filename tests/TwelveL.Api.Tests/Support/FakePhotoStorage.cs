@@ -27,4 +27,16 @@ public sealed class FakePhotoStorage : IPhotoStorage
 
     public Task<StoredObject?> ReadOriginalAsync(string key, CancellationToken cancellationToken) =>
         Task.FromResult(Originals.TryGetValue(key, out var stored) ? stored : null);
+
+    public Task DeleteOriginalAsync(string key, CancellationToken cancellationToken)
+    {
+        Originals.TryRemove(key, out _);
+        return Task.CompletedTask;
+    }
+
+    public Task DeletePublicAsync(string key, CancellationToken cancellationToken)
+    {
+        Public.TryRemove(key, out _);
+        return Task.CompletedTask;
+    }
 }

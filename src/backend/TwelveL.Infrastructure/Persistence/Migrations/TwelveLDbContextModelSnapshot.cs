@@ -48,6 +48,9 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
 
+                    b.Property<DateTime?>("DraftReminderSentAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("Flaws")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
@@ -121,6 +124,10 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                     b.HasIndex("Reference")
                         .IsUnique()
                         .HasDatabaseName("UX_Listings_Reference");
+
+                    b.HasIndex("UpdatedAt")
+                        .HasDatabaseName("IX_Listings_Draft_UpdatedAt")
+                        .HasFilter("Status = 'Draft'");
 
                     b.HasIndex("SellerId", "CreatedAt")
                         .HasDatabaseName("IX_Listings_SellerId_CreatedAt");

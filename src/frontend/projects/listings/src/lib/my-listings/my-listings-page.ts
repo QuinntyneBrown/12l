@@ -9,9 +9,12 @@ import {
   IconComponent,
   ItemRowComponent,
   StatusComponent,
+  ToastService,
 } from '@12l/components';
 
 import {
+  draftExpiryText,
+  draftExpiryTitle,
   filterOptions,
   listingsSubtitle,
   rowDate,
@@ -25,7 +28,8 @@ import {
 /**
  * The seller's "Your listings" at /account/listings (mocks pages/my-listings, L2-021): every
  * listing newest first, filtered by the status in the URL query so the filter survives a reload
- * and back navigation.
+ * and back navigation. A seller with drafts is told once per visit that drafts older than 90 days
+ * are deleted (mocks notifications/toast info, L2-019).
  */
 @Component({
   selector: 'tl-my-listings-page',
@@ -45,6 +49,8 @@ import {
 export class MyListingsPage {
   private readonly api = inject(ListingsApi);
   private readonly router = inject(Router);
+  private readonly toasts = inject(ToastService);
+  private draftNoticeShown = false;
   private readonly query = toSignal(inject(ActivatedRoute).queryParamMap, { requireSync: true });
 
   readonly status = computed(() => statusFromQuery(this.query().get('status')));
@@ -98,6 +104,10 @@ export class MyListingsPage {
       return;
     }
     this.listings.set(result.value);
+    if (!this.draftNoticeShown && result.value.counts.draft > 0) {
+      this.draftNoticeShown = true;
+      this.toasts.show({ tone: 'info', title: draftExpiryTitle, text: draftExpiryText });
+    }
     this.view.set('loaded');
   }
 }

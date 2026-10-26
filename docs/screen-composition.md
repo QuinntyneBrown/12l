@@ -318,7 +318,9 @@ The status is kept in the URL query (`?status=sold`). The payout banner stays in
 (ADR orders/0005, ADR listings/0002). The account sub-navigation of the mocks is composed with
 the account overview journey.
 
-- Library: `tl-button` (primary "Sell an item" with icon `plus`), `tl-filter-chips` ("Filter by
+- Library: `ToastService` (info "Drafts older than 90 days are deleted", "We’ll email you a
+  week before.", once per visit for a seller with drafts), `tl-button` (primary "Sell an item"
+  with icon `plus`), `tl-filter-chips` ("Filter by
   status": All, Draft, Active, Reserved, Sold, Removed with counts), `tl-item-row` (title or
   "Untitled draft · {category}", thumbnail, with `tl-status` projected under the title in the
   tone of the listing status), `tl-icon` (`image` placeholder for a listing without photo),

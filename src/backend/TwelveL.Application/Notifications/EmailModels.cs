@@ -40,3 +40,6 @@ public sealed record ProblemResolvedEmail(Guid OrderId, string OrderReference, s
 /// unsubscribe the dispatcher adds. Nothing queues it until marketing campaigns are built.
 /// </summary>
 public sealed record MarketingEmail(string Subject, string Text);
+
+/// <summary>A seller's draft is deleted on <paramref name="DeleteOn"/> unless they edit it (L2-019).</summary>
+public sealed record DraftExpiryReminderEmail(string ListingReference, string Title, DateTime DeleteOn);

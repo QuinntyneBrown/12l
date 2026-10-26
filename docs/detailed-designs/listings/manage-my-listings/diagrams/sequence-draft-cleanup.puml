@@ -21,9 +21,10 @@ end box
 box "Backend — TwelveL Infrastructure" #FFF4E5
   database "12L database" as db
   participant "Email provider adapter" as email
+  participant "IPhotoStorage" as storage
 end box
-job -> job : Run daily on Listings:DraftCleanup:Schedule
-job -> db : Select drafts with UpdatedAt <= now - 83 days and DraftReminderSentAt null (batch)
+job -> job : Run daily (Listings:DraftCleanup:Interval)
+job -> db : Select drafts with UpdatedAt <= now - 83 days and DraftReminderSentAt null
 db --> job : Drafts due a reminder
 loop each draft
   job -> db : Set DraftReminderSentAt, insert DraftExpiryReminderEmail outbox message, one transaction
@@ -38,10 +39,11 @@ end
 job -> db : Select drafts with UpdatedAt <= now - 90 days and DraftReminderSentAt <= now - 7 days
 db --> job : Expired drafts
 loop each expired draft
-  job -> db : Delete Listings row (status still Draft, RowVersion check); photos become unattached
+  job -> db : Delete Listings and ListingPhotos rows (status still Draft, Version check)
   alt draft edited meanwhile
     db --> job : Concurrency conflict, skip
+  else deleted
+    job -> storage : DeleteOriginalAsync, and DeletePublicAsync for versions no other photo shares
   end
 end
-note over job, db : PhotoCleanupJob (upload-listing-photos) deletes the unattached photos and their files
 @enduml
