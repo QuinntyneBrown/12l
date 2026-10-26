@@ -213,3 +213,47 @@ export async function serveCatalog(page: Page, total: number): Promise<URLSearch
   await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
   return requests;
 }
+
+/** A listing as GET /api/catalog/listings/{reference} returns it, seen by another member. */
+export function listingDetail(fields: Record<string, unknown> = {}, photos = 3): Record<string, unknown> {
+  const photo = (i: number) => {
+    const hash = String(i).padStart(64, 'd');
+    const srcset = (ext: string) =>
+      `/photos/${hash}/400.${ext} 400w, /photos/${hash}/800.${ext} 800w, /photos/${hash}/1600.${ext} 1200w`;
+    return {
+      width: 1200,
+      height: 1600,
+      alt: `Photo ${i} of Nike Air Max 90, white`,
+      src: `/photos/${hash}/400.jpg`,
+      webp: srcset('webp'),
+      jpeg: srcset('jpg'),
+    };
+  };
+  return {
+    id: '00000000-0000-0000-0000-000000010001',
+    reference: 'L-10001',
+    title: 'Air Max 90, white',
+    brand: 'Nike',
+    category: 'Shoes',
+    subcategory: 'Sneakers',
+    sizeLabel: 'US 12',
+    condition: 'Used - Excellent',
+    flaws: null,
+    description: 'Worn a handful of times. No creases on the toe box, soles clean. Original box included.',
+    price: '85.00',
+    shippingCost: '9.00',
+    total: '94.00',
+    status: 'Active',
+    publishedAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+    photos: Array.from({ length: photos }, (_, i) => photo(i + 1)),
+    seller: { displayName: 'kicks_12', completedSalesCount: 0, ratingAverage: null, publishedReviewCount: 0 },
+    viewer: { relation: 'OtherMember' },
+    ...fields,
+  };
+}
+
+/** Answers GET /api/catalog/listings/L-10001 with this body and serves the photos. */
+export async function serveListing(page: Page, body: Record<string, unknown>): Promise<void> {
+  await page.route('**/api/catalog/listings/L-10001', (route) => route.fulfill({ json: body }));
+  await page.route('**/photos/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
+}

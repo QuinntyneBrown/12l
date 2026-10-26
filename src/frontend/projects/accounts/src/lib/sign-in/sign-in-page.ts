@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { AuthState, shortRef } from '@12l/api';
@@ -18,6 +18,8 @@ export class SignInPage {
 
   /** Where to go after signing in, bound from the query string; only same-site paths are followed. */
   readonly returnUrl = input<string>('');
+  /** Buy now on a listing sends a visitor here with the listing as returnUrl (L2-026). */
+  readonly toBuy = computed(() => /^\/items\/[^/]+$/.test(this.returnUrl()));
 
   readonly form = inject(NonNullableFormBuilder).group({ email: '', password: '' });
   readonly busy = signal(false);
