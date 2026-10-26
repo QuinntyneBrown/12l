@@ -3,13 +3,21 @@ using TwelveL.Application.Abstractions;
 
 namespace TwelveL.Api.Tests.Support;
 
-/// <summary>Records every email instead of sending it.</summary>
+/// <summary>Records every email instead of sending it, or fails every send with <see cref="FailWith"/>.</summary>
 public sealed class CapturingEmailSender : IEmailSender
 {
     public ConcurrentQueue<EmailMessage> Sent { get; } = new();
 
+    /// <summary>When set, every send throws it, as the provider would.</summary>
+    public Exception? FailWith { get; set; }
+
     public Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
     {
+        if (FailWith is not null)
+        {
+            return Task.FromException(FailWith);
+        }
+
         Sent.Enqueue(message);
         return Task.CompletedTask;
     }

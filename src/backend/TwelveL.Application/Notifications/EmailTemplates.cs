@@ -1,0 +1,84 @@
+using System.Globalization;
+using System.Text.Json;
+using TwelveL.Domain.Notifications;
+
+namespace TwelveL.Application.Notifications;
+
+/// <summary>
+/// A rendered email before it gets its recipient address. <paramref name="Identifiers"/> are the
+/// values the template put in that are known not to be secrets, such as a tracking number, which
+/// the content guard skips.
+/// </summary>
+public sealed record RenderedEmail(string Subject, string Body, IReadOnlyList<string> Identifiers);
+
+/// <summary>
+/// The plain-text template of each notification type (L2-042). Every email greets the member,
+/// says what happened and links to the related page in 12L, built from <c>App:BaseUrl</c>.
+/// Final copy is still to be supplied; the subject "You made a sale" comes from L2-042.
+/// </summary>
+public static class EmailTemplates
+{
+    private const string Footer = "\n\n12L, the marketplace for size 12 shoes and size L clothing.\nManage your emails: {0}/account/emails";
+
+    public static Type ModelType(NotificationType type) => type switch
+    {
+        NotificationType.EmailVerification => typeof(EmailVerificationEmail),
+        NotificationType.SaleMade => typeof(SaleMadeEmail),
+        NotificationType.OrderShipped => typeof(OrderShippedEmail),
+        NotificationType.OrderDelivered => typeof(OrderDeliveredEmail),
+        NotificationType.ShipByReminder => typeof(ShipByReminderEmail),
+        NotificationType.OrderCancelled => typeof(OrderCancelledEmail),
+        NotificationType.OrderRefunded => typeof(OrderRefundedEmail),
+        _ => throw new ArgumentOutOfRangeException(nameof(type), type, "No template for this notification type."),
+    };
+
+    public static RenderedEmail Render(NotificationType type, string payload, string displayName, string baseUrl)
+    {
+        var root = baseUrl.TrimEnd('/');
+        var model = JsonSerializer.Deserialize(payload, ModelType(type), EmailOutbox.Json)
+            ?? throw new InvalidOperationException("The outbox message has no model.");
+        var (subject, text) = model switch
+        {
+            EmailVerificationEmail m => (
+                "Verify your email for 12L",
+                $"Open this link to verify your email and start buying and selling:\n{m.Link}\n\nThe link works for 24 hours."),
+            SaleMadeEmail m => (
+                "You made a sale",
+                $"{m.ItemTitle} sold for {Money(m.Total)} (order {m.OrderReference}).\n\nShip it by {Day(m.ShipBy)} and add the tracking number:\n{root}/sales/{m.OrderId}"),
+            OrderShippedEmail m => (
+                $"Your order {m.OrderReference} has shipped",
+                $"{m.ItemTitle} is on its way with {m.Carrier}, tracking number {m.TrackingNumber}.\nTrack it: {m.TrackingUrl}\n\nSee your order:\n{root}/orders/{m.OrderId}"),
+            OrderDeliveredEmail m => (
+                $"Your order {m.OrderReference} was delivered",
+                $"{m.ItemTitle} was delivered. Confirm you received it, or report a problem within 3 days:\n{root}/orders/{m.OrderId}"),
+            ShipByReminderEmail m => (
+                $"Ship order {m.OrderReference} by {Day(m.ShipBy)}",
+                $"{m.ItemTitle} has not shipped yet. Add the tracking number by {Day(m.ShipBy)}, or the order is cancelled and the buyer refunded:\n{root}/sales/{m.OrderId}"),
+            OrderCancelledEmail { ToSeller: true } m => (
+                $"Order {m.OrderReference} was cancelled",
+                $"Order {m.OrderReference} for {m.ItemTitle} was cancelled because it was not shipped in time. The buyer gets a full refund.\n{root}/sales/{m.OrderId}"),
+            OrderCancelledEmail m => (
+                $"Your order {m.OrderReference} was cancelled",
+                $"The seller did not ship {m.ItemTitle} in time, so your order was cancelled. You get a full refund.\n{root}/orders/{m.OrderId}"),
+            OrderRefundedEmail m => (
+                $"Your refund for order {m.OrderReference}",
+                $"We refunded {Money(m.Amount)} to {Card(m.CardBrand, m.CardLast4)}. It can take 5 to 10 business days to show.\n{root}/orders/{m.OrderId}"),
+            _ => throw new InvalidOperationException($"No template for {type}."),
+        };
+
+        IReadOnlyList<string> identifiers = model switch
+        {
+            EmailVerificationEmail m => [m.Link],
+            OrderShippedEmail m => [m.TrackingNumber, m.TrackingUrl],
+            _ => [],
+        };
+        return new RenderedEmail(subject, $"Hi {displayName},\n\n{text}{string.Format(CultureInfo.InvariantCulture, Footer, root)}", identifiers);
+    }
+
+    private static string Money(decimal amount) => "$" + amount.ToString("0.00", CultureInfo.InvariantCulture);
+
+    private static string Day(DateTime at) => at.ToString("dddd, MMMM d", CultureInfo.InvariantCulture);
+
+    private static string Card(string? brand, string? last4) =>
+        brand is null || last4 is null ? "your card" : $"{brand} ending {last4}";
+}

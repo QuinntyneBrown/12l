@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using TwelveL.Domain.Listings;
 using TwelveL.Domain.Members;
+using TwelveL.Domain.Notifications;
 using TwelveL.Domain.Orders;
 using TwelveL.Domain.Payouts;
 
@@ -37,6 +38,8 @@ public interface ITwelveLDbContext
 
     DbSet<SellerPayoutAccount> SellerPayoutAccounts { get; }
 
+    DbSet<OutboxMessage> OutboxMessages { get; }
+
     /// <summary>Transactions, for the steps of checkout that must commit together.</summary>
     DatabaseFacade Database { get; }
 
@@ -60,13 +63,21 @@ public interface IBreachedPasswords
     bool Contains(string password);
 }
 
-/// <summary>Sends one email. The send-email-notifications feature replaces the logging adapter.</summary>
+/// <summary>
+/// The external email provider (L2-042), still to be chosen; tests use a fake. A send throws
+/// <see cref="HttpRequestException"/> or <see cref="TimeoutException"/> for a failure worth
+/// retrying (timeout, 429, 5xx) and <see cref="EmailRejectedException"/> for one that is not.
+/// </summary>
 public interface IEmailSender
 {
     Task SendAsync(EmailMessage message, CancellationToken cancellationToken);
 }
 
-public sealed record EmailMessage(string To, string Subject, string Body);
+/// <summary>One email; the provider sends a repeated key once.</summary>
+public sealed record EmailMessage(string To, string Subject, string Body, Guid IdempotencyKey);
+
+/// <summary>The provider refused the email for good, for example a rejected address (HTTP 4xx other than 429).</summary>
+public sealed class EmailRejectedException(string reason) : Exception(reason);
 
 /// <summary>Reads whether a seller finished payout onboarding (L2-031). Owned by seller-payouts.</summary>
 public interface ISellerPayoutAccountReader

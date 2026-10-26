@@ -29,8 +29,8 @@ A Paid order has a ship-by date. The seller adds tracking before it, the order b
 Shipped and the buyer sees the tracking link on their order page. Without tracking by the
 ship-by date, a background job cancels the order and refunds the buyer in full. When the
 carrier reports delivery, the order becomes Delivered and the completion clock of
-[complete-order](../complete-order/README.md) starts. The tracking, reminder and
-cancellation emails, and the reminder job that only sends email, are built with
+[complete-order](../complete-order/README.md) starts. The tracking, delivery, reminder,
+cancellation and refund emails, and the reminder job that only sends email, are built with
 [send-email-notifications](../../notifications/send-email-notifications/README.md).
 
 ## Description
@@ -68,10 +68,11 @@ Each transition into a terminal status also sets
 the deadline job cancels) cannot both commit. No `RowVersion` column is used, because the tests
 run on SQLite in memory ([ADR orders/0003](../../../adr/orders/0003-ship-order-status-token-weekday-deadline-and-carrier-port.md)).
 
-Domain events (`OrderShipped`, `OrderDelivered`, `OrderCancelled` and the others) and their
-email through `INotificationPublisher` arrive with
-[send-email-notifications](../../notifications/send-email-notifications/README.md); until then
-the handlers call the payment provider for refunds directly, as checkout-and-pay does.
+The handlers queue their emails through `IEmailOutbox` in the same save as the change
+([send-email-notifications](../../notifications/send-email-notifications/README.md)): add
+tracking emails the buyer the carrier and number, a carrier delivery emails the buyer, and the
+deadline job emails the cancellation to both and, once the provider issues the refund, the
+refund to the buyer. Refunds still go to the payment provider directly, as checkout-and-pay does.
 
 ### Frontend (`@12l/orders`, `@12l/api`, `@12l/components`)
 
@@ -103,7 +104,8 @@ the handlers call the payment provider for refunds directly, as checkout-and-pay
 ### Worker jobs (`TwelveL.Worker`)
 
 - **`ShipDeadlineJob`** — every `Orders:DeadlineJobInterval` (5 minutes) sends `CancelUnshippedOrdersCommand` in its own scope (`L2-033` criterion 2).
-- **Deferred:** `ShipByReminderJob` (`L2-033` criterion 3) only sends email and is built with send-email-notifications, with its `ShipReminderDue` and `ShipReminderSentAt` columns. `DeliveryPollingJob` waits for the carrier tracking service.
+- **`ShipReminderJob`** — built with send-email-notifications: every `Notifications:ShipReminderJobInterval` (15 minutes) sends `SendShipRemindersCommand`, which emails the seller of each Paid order 3 business days after payment once, recorded in `ShipReminderDue` and `ShipReminderSentAt` (`L2-033` criterion 3).
+- **Deferred:** `DeliveryPollingJob` waits for the carrier tracking service.
 
 ### Data (`TwelveL.Infrastructure`, migration `AddShipOrder`)
 

@@ -32,7 +32,7 @@ public sealed class RegistrationTests : IDisposable
             Assert.Null(member.EmailVerifiedAt);
             Assert.NotEqual(Members.Password, member.PasswordHash);
         });
-        var email = Assert.Single(_factory.Email.Sent);
+        var email = Assert.Single(await _factory.DispatchEmailsAsync());
         Assert.Equal("marcus.bell@example.com", email.To);
         Assert.Contains("https://12l.test/verify?token=", email.Body);
     }
@@ -108,6 +108,7 @@ public sealed class RegistrationTests : IDisposable
     public async Task Verification_link_marks_the_member_verified_once()
     {
         await _client.RegisterAsync();
+        await _factory.DispatchEmailsAsync();
         var token = _factory.Email.LastVerificationToken("marcus.bell@example.com");
 
         using var first = await _client.PostAsJsonAsync("/api/auth/verify-email", new { token });
@@ -123,6 +124,7 @@ public sealed class RegistrationTests : IDisposable
     public async Task Verification_link_older_than_24_hours_has_expired()
     {
         await _client.RegisterAsync();
+        await _factory.DispatchEmailsAsync();
         var token = _factory.Email.LastVerificationToken("marcus.bell@example.com");
         _factory.Clock.Advance(TimeSpan.FromHours(24) + TimeSpan.FromSeconds(1));
 
@@ -139,6 +141,7 @@ public sealed class RegistrationTests : IDisposable
     public async Task Requesting_a_new_link_stops_earlier_links_working()
     {
         await _client.RegisterAsync();
+        await _factory.DispatchEmailsAsync();
         var first = _factory.Email.LastVerificationToken("marcus.bell@example.com");
 
         using var resend = await _client.PostAsJsonAsync("/api/auth/verification-email", new { email = "marcus.bell@example.com" });
@@ -172,7 +175,7 @@ public sealed class RegistrationTests : IDisposable
         using var response = await _client.PostAsJsonAsync("/api/auth/verification-email", new { email = "nobody@example.com" });
 
         Assert.Equal(HttpStatusCode.Accepted, response.StatusCode);
-        Assert.Empty(_factory.Email.Sent);
+        Assert.Empty(await _factory.DispatchEmailsAsync());
     }
 
     public void Dispose()

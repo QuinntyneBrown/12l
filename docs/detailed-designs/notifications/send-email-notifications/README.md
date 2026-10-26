@@ -70,84 +70,107 @@ two are always sent.
 review and marketing email. Administrator alerts for a reported problem (`L2-036`) go to
 an operations address, `Notifications:OperationsInbox`, whose value is `<TO SUPPLY>`. The ship-by reminder schedule belongs to `orders`.
 
+### What is built
+
+The types that `L2-042` names and whose events exist in the code are built:
+`EmailVerification`, `SaleMade`, `OrderShipped`, `OrderDelivered`, `ShipByReminder`,
+`OrderCancelled` and `OrderRefunded`. The `NotificationType` enumeration in
+`TwelveL.Domain` holds only these. The other rows of the table above are added, each with its
+model and template, by the feature that raises the event (password reset, lockout, draft
+expiry, cancel-order, resolve-order-problems, reviews and marketing). See
+[ADR notifications/0001](../../../adr/notifications/0001-email-outbox-plain-text-templates-and-provider-port.md).
+
+| Event in the code | Raised by | Recipients |
+|-------------------|-----------|------------|
+| Member registers or asks for a new link | `VerificationEmails` | new member |
+| Payment webhook creates the Paid order | `PaymentWebhookHandler` | seller (`SaleMade`, subject "You made a sale") |
+| Seller adds tracking | `AddTrackingCommandHandler` | buyer, with carrier, number and tracking link |
+| Carrier reports delivery | `CarrierWebhookHandler` | buyer |
+| No tracking 3 business days after payment | `SendShipRemindersHandler` (`ShipReminderJob`) | seller, once |
+| Ship deadline passes | `CancelUnshippedOrdersHandler` | buyer and seller (`OrderCancelled`), then buyer (`OrderRefunded`) when the provider issues the refund |
+
+A buyer who confirms receipt of a Shipped order gets no delivery email, because they made the
+change themselves.
+
 ### Producing a notification (`TwelveL.Application`)
 
-- **`INotificationPublisher`** — application port with one method:
+- **`IEmailOutbox`** — application port with one method:
   `Enqueue<TModel>(NotificationType type, Guid recipientMemberId, TModel model)`.
-  `TModel` is a closed record per type, for example `SaleMadeEmailModel(OrderNumber,
-  ItemTitle, Total, ShipBy, OrderId)`. Handlers in every subsystem call it before
-  `SaveChangesAsync`.
-- **`OutboxNotificationPublisher`** (in `TwelveL.Infrastructure`) — implements the port. It
-  serializes an `EmailNotificationRequested` payload (`NotificationType`,
-  `RecipientMemberId`, `ModelJson`, `CorrelationId`, `OccurredAt`) and adds an
-  `OutboxMessage` to the current `TwelveLDbContext`. The message commits or rolls back with
-  the business change.
+  `TModel` is the closed record of the type, for example `SaleMadeEmail(OrderId,
+  OrderReference, ItemTitle, Total, ShipBy)`; `Enqueue` refuses any other model. Handlers call
+  it before `SaveChangesAsync`. The design first named it `INotificationPublisher`, which
+  clashes with MediatR's interface of the same name in every handler file.
+- **`EmailOutbox`** (in `TwelveL.Application.Notifications`) — implements the port. It
+  serializes the model as JSON and adds an `OutboxMessage` to the current `ITwelveLDbContext`.
+  The message commits or rolls back with the business change.
 - **Template models carry no secrets.** No model type has a property for a password, a
   card number or a security code. Card details appear only as brand and last 4 digits,
   for example `Visa ending 4242` (`L2-042`). Single-use tokens appear only inside the
-  verification and reset URLs that `L2-002` and `L2-009` require.
-- **Recipient addresses are resolved at dispatch**, not at enqueue. The payload stores the
-  member ID only, so the outbox holds no email addresses. A closed or erased member
-  (`L2-005`) therefore receives nothing.
+  verification link that `L2-002` requires.
+- **Recipient addresses are resolved at dispatch**, not at enqueue. The message stores the
+  member ID only, so the outbox holds no email addresses.
 
-### Dispatching (`TwelveL.Worker`, `TwelveL.Infrastructure`)
+### Dispatching (`TwelveL.Worker`, `TwelveL.Application`)
 
-- **`OutboxEmailDispatcher`** — hosted service. Every `Notifications:Outbox:PollInterval`
-  (10 seconds) it claims up to `Notifications:Outbox:BatchSize` (50) due messages. It
-  claims them with one `UPDATE … OUTPUT` statement that uses `READPAST` and `UPDLOCK`
-  hints, sets `Status = Processing` and `LockedUntil = now + 2 minutes`, and so lets
-  any number of worker instances share the work without sending a message twice. It dispatches
-  claimed messages with a parallelism of `Notifications:Outbox:Parallelism` (8).
-  The 10-second poll leaves most of the 2-minute delivery SLA for rendering, the provider
-  call and one quick retry.
-- **`SendEmailNotificationHandler`** — handles one claimed message:
-  1. Loads the recipient through `IRecipientResolver`, which returns the email address,
-     the display name, the status and the `NotificationPreferences`.
-  2. Marks the message `Suppressed` with reason `recipient_unavailable` when the member is
-     closed or erased.
-  3. Calls `INotificationPreferenceReader.IsAllowed(memberId, category)` (owned by
-     [manage-notification-preferences](../manage-notification-preferences/README.md)) and
-     marks the message `Suppressed` with reason `opted_out` when the category is turned
-     off (`L2-043`).
-  4. Renders the template through `IEmailTemplateRenderer`.
-  5. Runs `EmailContentGuard` over the rendered subject and bodies.
-  6. Sends through `IEmailSender` with the idempotency key `OutboxMessage.Id`.
-  7. Records the outcome.
-- **`IEmailTemplateRenderer`** / **`FluidEmailTemplateRenderer`** — renders embedded
-  resources `Templates/{NotificationType}.subject.liquid`, `.html.liquid` and
-  `.txt.liquid` with the Fluid (Liquid) engine. HTML encoding is on by default. A shared
-  layout adds the 12L logo, the footer and the link to `/account/emails`. Marketing
-  templates also include the one-click unsubscribe link from
-  [manage-notification-preferences](../manage-notification-preferences/README.md).
-- **`DeepLinkBuilder`** — builds absolute links from `App:PublicBaseUrl` plus the route in
-  the table above, for example `https://{host}/sales/{orderId}` (`L2-042`). Every
-  template uses it; a template test fails when a type renders without a link to 12L.
-- **`EmailContentGuard`** — scans the rendered content for a 13- to 19-digit sequence
-  that passes the Luhn check and for the keywords `password:` and `CVV`/`CVC` followed by
-  digits. A hit fails the message permanently, without sending it, and logs an error
-  with the notification type and correlation ID but not the content (`L2-042`, `L2-069`).
-- **`IEmailSender`** / **`ProviderEmailSender`** — adapter for the external `Email
-  provider` (provider `<TO SUPPLY>`). It sends from `Notifications:FromAddress`
-  (`<TO SUPPLY>`) over the provider's HTTPS API, with the API key read from the secret
-  store (`L2-052`). Marketing sends add `List-Unsubscribe` and
-  `List-Unsubscribe-Post: List-Unsubscribe=One-Click` headers. The adapter classifies
-  the result:
-  - *Sent* — the provider accepted the message.
-  - *Transient* — timeout, HTTP 429 or HTTP 5xx.
-  - *Permanent* — any other HTTP 4xx, such as a rejected address.
+- **`EmailDispatchJob`** — hosted service. Every `Notifications:PollInterval` (10 seconds) it
+  sends one `DispatchEmailsCommand`, and sends it again at once while a pass returns a full
+  batch, so a backlog drains between ticks. The 10-second poll leaves most of the 2-minute
+  delivery SLA for the provider call and one quick retry.
+- **`DispatchEmailsHandler`** — one pass. It selects up to 50 due message IDs (Pending with
+  `NextAttemptAt <= now`, or Processing with a lapsed `LockedUntil`) and handles them one at a
+  time:
+  1. Claims the message: `Status = Processing`, `LockedUntil = now + 2 minutes` and a new
+     `ClaimToken`, saved with a check on the old token. A worker that loses the race gets a
+     concurrency conflict and skips the message, so any number of workers can share the work
+     without sending a message twice.
+  2. Reads the recipient's email and display name from `Members`; marks the message
+     `Suppressed` with reason `recipient_unavailable` when the member no longer exists.
+  3. Renders the template through `EmailTemplates.Render`.
+  4. Runs `EmailContentGuard` over the rendered subject and body.
+  5. Sends through `IEmailSender` with the idempotency key `OutboxMessage.Id`.
+  6. Records the outcome.
+- **`EmailTemplates`** — plain-text subject and body per notification type, written in C#
+  with string interpolation. Each body greets the member by display name, says what happened,
+  links to the related page and ends with the footer link to `/account/emails`. Final copy is
+  `<TO SUPPLY>`; HTML bodies, the logo layout and Liquid templates wait for that copy.
+- **Deep links** are built from `App:BaseUrl` plus the route in the table above, for example
+  `https://{host}/sales/{orderId}` (`L2-042`). A template test fails when a type renders
+  without its link.
+- **`EmailContentGuard`** — scans the rendered content for a 13- to 19-digit number, written
+  with or without single spaces or dashes, that passes the Luhn check, for `password:` or
+  `password=` followed by a value, and for `CVV`, `CVC` or "security code" followed by 3 or 4
+  digits. It first blanks out IDs (GUIDs) and the identifiers the template names (the
+  tracking number and URL, the verification link), whose digits could otherwise pass the Luhn
+  check. A hit fails the message permanently, without sending it, and logs an error with the
+  message ID and type but not the content (`L2-042`).
+- **`IEmailSender`** — port for the external `Email provider` (provider `<TO SUPPLY>`). A
+  send that throws `HttpRequestException`, `TimeoutException` or a timeout
+  `TaskCanceledException` is *transient*; one that throws `EmailRejectedException` (any HTTP
+  4xx other than 429, such as a rejected address) is *permanent*. Until a provider is chosen,
+  `LoggingEmailSender` writes each email to the log, as before; tests use a capturing fake.
+
+### Ship-by reminder (`L2-033` criterion 3)
+
+`Orders.ShipReminderDue` is set at payment to 3 US business days later, and
+`Orders.ShipReminderSentAt` records the reminder. `ShipReminderJob` sends
+`SendShipRemindersCommand` every `Notifications:ShipReminderJobInterval` (15 minutes); the
+handler queues one `ShipByReminder` email for each Paid order that is due and not yet
+reminded, and saves the mark with the email. Status is the order's concurrency token, so an
+order shipped or cancelled meanwhile gets no reminder. The migration marks orders paid before
+it as already reminded.
 
 ### Retry with back-off (`L2-042`)
 
-`OutboxMessage.RecordFailure(error, now)` increments `AttemptCount` and sets
+`OutboxMessage.RecordFailure(error, now, jitter)` increments `AttemptCount` and sets
 `NextAttemptAt` to `now + min(2^(AttemptCount − 1) minutes, 60 minutes)`, plus random
 jitter of up to 20 percent. The resulting schedule is 1, 2, 4, 8, 16, 32 and then every
-60 minutes. Once `now` passes `CreatedAt + Notifications:Outbox:RetryWindow` (24 hours),
-the message becomes `Failed`. A *Permanent* result fails the message at once.
+60 minutes. When the next attempt would fall after `CreatedAt + 24 hours`, the message
+becomes `Failed`. A permanent result fails the message at once.
 
-Each failure is logged as a warning with `OutboxMessageId`, `NotificationType`,
-`AttemptCount`, the provider status and the correlation ID. A final failure is logged as
-an error and increments the job-failure metric (`L2-069`). The recipient address and the
-content are never logged.
+Each transient failure is logged as a warning with the message ID, the notification type,
+`AttemptCount`, the provider status (for example `http_503`) and the next attempt time. A
+final failure is logged as an error. The recipient address and the content are never logged
+by the dispatcher.
 
 ### State machine
 
@@ -163,54 +186,51 @@ messages from a crashed worker. `Sent`, `Suppressed` and `Failed` are terminal.
 
 ### Data (`TwelveL.Infrastructure`)
 
-- Table **`OutboxMessages`** (shared outbox from the architecture baseline; this feature
-  defines the email message type and its dispatcher). Columns:
+- Table **`OutboxMessages`**, for email requests only. Columns:
   - `Id uniqueidentifier` primary key.
-  - `Type nvarchar(100)`, for example `EmailNotificationRequested`.
-  - `Payload nvarchar(max)` JSON.
-  - `CreatedAt datetimeoffset`.
-  - `Status tinyint`.
+  - `NotificationType nvarchar(40)`.
+  - `RecipientMemberId uniqueidentifier`.
+  - `Payload nvarchar(max)`, the model as JSON.
+  - `CreatedAt datetime2`.
+  - `Status nvarchar(16)`.
   - `AttemptCount int`.
-  - `NextAttemptAt datetimeoffset`.
-  - `LockedUntil datetimeoffset NULL`.
-  - `LastError nvarchar(1000) NULL`, provider status and code only.
-  - `SentAt datetimeoffset NULL`.
+  - `NextAttemptAt datetime2`.
+  - `LockedUntil datetime2 NULL`.
+  - `LastError nvarchar(1000) NULL`, provider status or reason only.
+  - `SentAt datetime2 NULL`.
   - `SuppressionReason nvarchar(50) NULL`.
-  - `CorrelationId nvarchar(64)`.
-  - `RowVersion rowversion`.
+  - `ClaimToken uniqueidentifier`, the concurrency token.
 - Index **`IX_OutboxMessages_Due`** on (`Status`, `NextAttemptAt`), filtered to
-  `Status IN (Pending, Processing)`.
-- **`OutboxRetentionJob`** deletes `Sent` and `Suppressed` rows after
-  `Notifications:Outbox:RetentionDays` (`<TO SUPPLY>`). It keeps `Failed` rows for the same
-  period for investigation.
-
-### Observability (`L2-069`)
-
-The dispatcher emits these metrics:
-
-- `twelvel_email_sent_total{type}`
-- `twelvel_email_failed_total{type,final}`
-- `twelvel_email_suppressed_total{type,reason}`
-- `twelvel_email_dispatch_delay_seconds`, the time from `CreatedAt` to `SentAt`.
-
-An alert on the 95th percentile of dispatch delay above 120 seconds is recommended; its
-threshold and channel are `<TO SUPPLY>`. Each log entry carries the correlation ID of the
-request that enqueued the message.
+  `Status IN ('Pending', 'Processing')`.
+- `Orders` gains `ShipReminderDue datetime2` and `ShipReminderSentAt datetime2 NULL`, with
+  `IX_Orders_Status_ShipReminderDue`.
 
 ### Configuration
 
 | Setting | Value | Source |
 |---------|-------|--------|
-| `Notifications:Outbox:PollInterval` | 10 seconds | design, sized for the 2-minute SLA |
-| `Notifications:Outbox:BatchSize` | 50 | design |
-| `Notifications:Outbox:Parallelism` | 8 | design |
-| `Notifications:Outbox:RetryWindow` | 24 hours | `L2-042` |
-| `Notifications:Outbox:MaxBackoff` | 60 minutes | design |
-| `Notifications:Outbox:RetentionDays` | `<TO SUPPLY>` | |
-| `Notifications:FromAddress` | `<TO SUPPLY>` | |
-| `Notifications:OperationsInbox` | `<TO SUPPLY>` | |
-| `App:PublicBaseUrl` | `<TO SUPPLY>` | hosting |
-| Email provider API key | secret store | `L2-052` |
+| `Notifications:PollInterval` | 10 seconds | design, sized for the 2-minute SLA |
+| `Notifications:ShipReminderJobInterval` | 15 minutes | design |
+| Batch size | 50 | `DispatchEmailsCommand.BatchSize` |
+| Retry window | 24 hours | `L2-042`, `OutboxMessage.RetryWindow` |
+| Maximum back-off | 60 minutes | design, `OutboxMessage.MaxBackoff` |
+| `App:BaseUrl` | `<TO SUPPLY>` | hosting |
+| `Notifications:FromAddress` | `<TO SUPPLY>` | with the provider |
+| Email provider API key | secret store | `L2-052`, with the provider |
+
+### Deferred
+
+- The notification preference check (`L2-043`) and the marketing unsubscribe headers arrive
+  with [manage-notification-preferences](../manage-notification-preferences/README.md); every
+  type built here is in the Account security or Orders category, which is always sent.
+- The real provider adapter, the from address and the API key wait for the provider choice.
+- HTML bodies with the shared layout and logo wait for the final copy.
+- `OutboxRetentionJob`, the dispatch metrics and the delay alert (`L2-069`) wait for the
+  observability work of the platform subsystem.
+- Parallel dispatch within one pass: one pass sends one message at a time, and several worker
+  instances share the work through the claim.
+- A refund email for a duplicate payment (`L2-029` criterion 2): that buyer has no order to
+  link to, and the email waits for its copy.
 
 ## Requirements
 
@@ -239,16 +259,15 @@ business change. `12L Worker` claims and sends them through the email provider.
 
 ### Components
 
-A handler in any subsystem calls `INotificationPublisher`. In `12L Worker`,
-`OutboxEmailDispatcher` claims messages. `SendEmailNotificationHandler` then checks
-preferences, renders, guards and sends each one.
+A handler in any subsystem calls `IEmailOutbox`. In `12L Worker`, `EmailDispatchJob`
+runs `DispatchEmailsHandler`, which claims, renders, guards and sends each message.
 
 ![C4 component view for sending email notifications](diagrams/c4-component.png)
 
 ### Class structure
 
-`OutboxMessage` owns the retry state machine. `SendEmailNotificationHandler` uses one
-port each for the recipient, preferences, templates, the content guard and the provider.
+`OutboxMessage` owns the retry state machine. `DispatchEmailsHandler` uses the templates,
+the content guard and the `IEmailSender` port.
 
 ![Class diagram for sending email notifications](diagrams/class-structure.png)
 
@@ -262,7 +281,7 @@ sends no email and a committed purchase cannot lose its "You made a sale" email
 
 ### Behaviour — dispatch with retry and back-off
 
-The dispatcher claims due messages, drops opted-out ones, renders and guards the content,
+The dispatcher claims due messages, drops those without a recipient, renders and guards the content,
 and sends. Transient failures are retried with back-off until 24 hours after creation
 (`L2-042`).
 

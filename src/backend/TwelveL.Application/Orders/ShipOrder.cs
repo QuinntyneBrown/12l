@@ -4,6 +4,8 @@ using Microsoft.Extensions.Options;
 using TwelveL.Application.Abstractions;
 using TwelveL.Application.Common;
 using TwelveL.Application.Listings;
+using TwelveL.Application.Notifications;
+using TwelveL.Domain.Notifications;
 using TwelveL.Domain.Orders;
 
 namespace TwelveL.Application.Orders;
@@ -33,7 +35,7 @@ public sealed class GetSaleQueryHandler(ITwelveLDbContext db, IOptions<PhotoOpti
 /// <summary>The seller adds a carrier and tracking number to a Paid order, which becomes Shipped (L2-033 AC1, AC5).</summary>
 public sealed record AddTrackingCommand(Guid SellerId, Guid OrderId, string? Carrier, string? TrackingNumber) : IRequest<Result<SaleDto>>;
 
-public sealed class AddTrackingCommandHandler(ITwelveLDbContext db, TimeProvider clock, IOptions<PhotoOptions> photoOptions) :
+public sealed class AddTrackingCommandHandler(ITwelveLDbContext db, IEmailOutbox notifications, TimeProvider clock, IOptions<PhotoOptions> photoOptions) :
     IRequestHandler<AddTrackingCommand, Result<SaleDto>>
 {
     public async Task<Result<SaleDto>> Handle(AddTrackingCommand command, CancellationToken cancellationToken)
@@ -63,6 +65,10 @@ public sealed class AddTrackingCommandHandler(ITwelveLDbContext db, TimeProvider
         try
         {
             order.MarkShipped(carrier, number, clock.GetUtcNow().UtcDateTime);
+            notifications.Enqueue(
+                NotificationType.OrderShipped,
+                order.BuyerId,
+                new OrderShippedEmail(order.Id, order.Reference, await OrderEmails.ItemTitleAsync(db, order, cancellationToken), carrier.ToString(), number, TrackingNumbers.Url(carrier, number)));
             await db.SaveChangesAsync(cancellationToken);
         }
         catch (Exception exception) when (exception is InvalidOrderTransitionException or DbUpdateConcurrencyException)
@@ -91,7 +97,7 @@ public enum CarrierWebhookOutcome
 /// </summary>
 public sealed record HandleCarrierWebhookCommand(string Body, string? Signature) : IRequest<Result<CarrierWebhookOutcome>>;
 
-public sealed class CarrierWebhookHandler(ITwelveLDbContext db, ICarrierTracking carriers) :
+public sealed class CarrierWebhookHandler(ITwelveLDbContext db, ICarrierTracking carriers, IEmailOutbox notifications) :
     IRequestHandler<HandleCarrierWebhookCommand, Result<CarrierWebhookOutcome>>
 {
     public static readonly Error InvalidSignature = new(400, "WEBHOOK_SIGNATURE_INVALID", "The webhook signature is not valid");
@@ -118,6 +124,10 @@ public sealed class CarrierWebhookHandler(ITwelveLDbContext db, ICarrierTracking
         try
         {
             order.MarkDelivered(OrderActor.Carrier, carrierEvent.OccurredAt);
+            notifications.Enqueue(
+                NotificationType.OrderDelivered,
+                order.BuyerId,
+                new OrderDeliveredEmail(order.Id, order.Reference, await OrderEmails.ItemTitleAsync(db, order, cancellationToken)));
             await db.SaveChangesAsync(cancellationToken);
             return CarrierWebhookOutcome.Delivered;
         }
@@ -135,7 +145,7 @@ public sealed class CarrierWebhookHandler(ITwelveLDbContext db, ICarrierTracking
 /// </summary>
 public sealed record CancelUnshippedOrdersCommand : IRequest<int>;
 
-public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, IPaymentProvider provider, TimeProvider clock) :
+public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, IPaymentProvider provider, IEmailOutbox notifications, TimeProvider clock) :
     IRequestHandler<CancelUnshippedOrdersCommand, int>
 {
     public async Task<int> Handle(CancelUnshippedOrdersCommand command, CancellationToken cancellationToken)
@@ -153,6 +163,9 @@ public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, IPaymentP
                 order.Cancel(OrderActor.System, now);
                 refund = Refund.ForMissedShipDeadline(payment, now);
                 db.Refunds.Add(refund);
+                var title = await OrderEmails.ItemTitleAsync(db, order, cancellationToken);
+                notifications.Enqueue(NotificationType.OrderCancelled, order.BuyerId, new OrderCancelledEmail(order.Id, order.Reference, title, ToSeller: false));
+                notifications.Enqueue(NotificationType.OrderCancelled, order.SellerId, new OrderCancelledEmail(order.Id, order.Reference, title, ToSeller: true));
                 await db.SaveChangesAsync(cancellationToken);
             }
             catch (Exception exception) when (exception is InvalidOrderTransitionException or DbUpdateConcurrencyException)
@@ -163,18 +176,25 @@ public sealed class CancelUnshippedOrdersHandler(ITwelveLDbContext db, IPaymentP
             }
 
             cancelled++;
-            await IssueAsync(refund, payment, cancellationToken);
+            await IssueAsync(order, refund, payment, cancellationToken);
         }
 
         return cancelled;
     }
 
-    /// <summary>Refunds through the provider with the refund ID as key; a failure leaves it Pending for a retry.</summary>
-    private async Task IssueAsync(Refund refund, Payment payment, CancellationToken cancellationToken)
+    /// <summary>
+    /// Refunds through the provider with the refund ID as key and emails the buyer the refund; a
+    /// failure leaves it Pending for a retry.
+    /// </summary>
+    private async Task IssueAsync(Order order, Refund refund, Payment payment, CancellationToken cancellationToken)
     {
         try
         {
             refund.Issued(await provider.RefundAsync(payment.ProviderPaymentId!, refund.Amount, refund.Id, cancellationToken));
+            notifications.Enqueue(
+                NotificationType.OrderRefunded,
+                order.BuyerId,
+                new OrderRefundedEmail(order.Id, order.Reference, refund.Amount, payment.CardBrand, payment.CardLast4));
             await db.SaveChangesAsync(cancellationToken);
         }
         catch (HttpRequestException)

@@ -19,19 +19,17 @@ box "Backend — 12L API application" #D1FADF
   participant "Payment webhook endpoint" as controller
 end box
 box "Backend — TwelveL Application and Domain" #ECFDF3
-  participant "Order creation handler (orders)" as handler
-  participant "INotificationPublisher" as publisher
+  participant "PaymentWebhookHandler (checkouts)" as handler
+  participant "IEmailOutbox / EmailOutbox" as publisher
 end box
 box "Backend — TwelveL Infrastructure" #FFF4E5
-  participant "OutboxNotificationPublisher" as outbox
   database "12L database" as db
 end box
 provider -> controller : Signed webhook: buyer's payment succeeded
 controller -> handler : Send command to create the Paid order
 handler -> handler : Apply order state change
-handler -> publisher : Enqueue(SaleMade, sellerId, SaleMadeEmailModel) (L2-042)
-publisher -> outbox : Serialize EmailNotificationRequested (member ID, no address, no card data)
-outbox -> db : Add OutboxMessage Pending, NextAttemptAt = now
+handler -> publisher : Enqueue(SaleMade, sellerId, SaleMadeEmail) (L2-042)
+publisher -> db : Add OutboxMessage Pending, NextAttemptAt = now (member ID and model JSON, no address, no card data)
 handler -> db : SaveChanges: order and outbox in one transaction
 alt transaction rolls back
   db --> handler : Error
@@ -41,7 +39,7 @@ else committed
   handler --> controller : Order created
   controller --> provider : 200
   note right of db
-    OutboxEmailDispatcher picks the row up
+    EmailDispatchJob picks the row up
     within 10 s (2-minute SLA, L2-042)
   end note
 end
