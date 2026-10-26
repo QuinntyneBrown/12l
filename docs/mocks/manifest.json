@@ -452,7 +452,10 @@
         "invalid",
         "submitting",
         "success",
-        "locked"
+        "locked",
+        "changed",
+        "sold",
+        "withdrawn"
       ],
       "not_applicable": {
         "empty": "Only existing listings can be edited; a missing one is the listing's 'unavailable' page."

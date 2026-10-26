@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, untracked } from '@angular/core';
 import { Title } from '@angular/platform-browser';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import {
   AlertComponent,
   ButtonDirective,
   BuyBarComponent,
   CenterStateComponent,
+  DialogService,
   GalleryComponent,
   IconComponent,
   ListingGridComponent,
@@ -14,6 +15,7 @@ import {
 } from '@12l/components';
 
 import { toCardView } from '../card-view';
+import { WithdrawListingData, WithdrawListingDialog } from '../withdraw-listing/withdraw-listing-dialog';
 import { ListingDetailStore } from './listing-detail-store';
 
 /** "$85.00": the detail page always shows cents (mocks pages/listing-detail). */
@@ -35,6 +37,7 @@ export function listedAgo(iso: string, now = Date.now()): string {
 /**
  * The listing detail page at /items/{reference} (mocks pages/listing-detail): gallery, details,
  * seller summary and the buy bar for the viewer, with the loading, unavailable and error states.
+ * The seller of an Active listing gets "Edit listing" and "Withdraw" (edit-and-withdraw-listing).
  * One column with a sticky buy bar below 992 px, two columns from 992 px (L2-025, L2-063).
  * All listing text is bound as text, never as HTML.
  */
@@ -60,6 +63,8 @@ export function listedAgo(iso: string, now = Date.now()): string {
 export class ListingDetailPage {
   readonly store = inject(ListingDetailStore);
   private readonly title = inject(Title);
+  private readonly dialogs = inject(DialogService);
+  private readonly router = inject(Router);
 
   /** From the route parameter. */
   readonly reference = input.required<string>();
@@ -75,6 +80,17 @@ export class ListingDetailPage {
     const label = this.store.listing()?.sizeLabel ?? '';
     return `Men's ${label}`;
   });
+
+  /** Confirms, then takes the listing off the catalog and goes to the seller's listings (L2-020). */
+  async withdraw(): Promise<void> {
+    const listing = this.store.listing();
+    if (!listing) return;
+    const ref = this.dialogs.open<WithdrawListingDialog, WithdrawListingData, boolean>(WithdrawListingDialog, {
+      reference: listing.reference,
+      title: listing.title,
+    });
+    if (await ref.closed) await this.router.navigate(['/account/listings']);
+  }
 
   constructor() {
     effect(() => {

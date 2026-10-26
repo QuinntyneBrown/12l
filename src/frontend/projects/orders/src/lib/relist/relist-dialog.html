@@ -19,6 +19,7 @@
   </tl-item-row>
   <ng-container ngProjectAs="[footer]">
     <button tlButton type="button" [disabled]="state() === 'busy'" (click)="ref.close()">Not now</button>
+    <a tlButton [routerLink]="['/items', data.item.reference, 'edit']" (click)="ref.close()">Edit first</a>
     <button tlButton="primary" type="button" data-autofocus [busy]="state() === 'busy'" (click)="submit()">
       {{ state() === 'failed' ? 'Try again' : 'Relist' }}
     </button>
