@@ -13,82 +13,67 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md)
 
-12L is an open marketplace for new and used men's clothing in two sizes only: **size 12 shoes** and **size large (L) clothing**. Anyone can join, list what they no longer wear, and buy from people who wear the same size.
+12L is an open marketplace for new and used men's clothing in two sizes only: **US size 12 shoes** and **size large (L) clothing**. Members list what they no longer wear and buy from people who wear the same size.
 
-The name says it all: **12** for the shoes, **L** for the clothes.
+12L is a responsive web application built with [Angular](https://angular.dev) and [ASP.NET Core](https://dotnet.microsoft.com).
 
-12L is a full-stack, responsive web application with an [Angular](https://angular.dev) frontend and a [.NET](https://dotnet.microsoft.com) backend.
+> [!NOTE]
+> 12L is in active development. Every journey in `docs/journeys.md` is built end to end; payment, payout, carrier, email and analytics providers are still placeholders. See [Project status](#project-status).
 
-## Table of contents
+## Contents
 
-- [Why 12L](#why-12l)
-- [How it works](#how-it-works)
-- [What you can sell](#what-you-can-sell)
-- [Features](#features)
-- [Architecture](#architecture)
+- [Overview](#overview)
+- [Project status](#project-status)
 - [Getting started](#getting-started)
-  - [Prerequisites](#prerequisites)
   - [Load demo data](#load-demo-data)
-- [Project structure](#project-structure)
+- [Configuration](#configuration)
+- [Testing](#testing)
+- [API reference](#api-reference)
+- [Architecture](#architecture)
+- [Repository structure](#repository-structure)
 - [Documentation](#documentation)
 - [Contributing](#contributing)
-- [Code of conduct](#code-of-conduct)
 - [Security](#security)
 - [Support](#support)
 - [License](#license)
 
-## Why 12L
+## Overview
 
-General marketplaces make you filter through thousands of listings that will never fit. 12L removes the guesswork. Every listing on 12L is either a size 12 shoe or a size large garment, so every item a buyer sees is one they can wear.
+General marketplaces make buyers filter thousands of listings that will never fit. On 12L every listing is a men's US 12 shoe or a men's L garment, so every item a buyer sees is one they can wear. The API enforces the size rules whatever the client sends.
 
-## How it works
+| Category                                      | Accepted size | Condition   |
+| --------------------------------------------- | ------------- | ----------- |
+| Shoes (sneakers, boots, dress shoes, sandals) | Men's US 12   | New or used |
+| Tops (shirts, t-shirts, sweaters, hoodies)    | Men's L       | New or used |
+| Outerwear (jackets, coats)                    | Men's L       | New or used |
+| Bottoms (pants, shorts)                       | Men's L       | New or used |
 
-1. **Join.** Anyone can create an account. There is no seller approval step.
-2. **List.** Sellers photograph an item, describe its condition, and set a price.
-3. **Browse.** Buyers browse a catalog where everything is already in their size.
-4. **Buy.** Buyers purchase the item and the seller ships it.
-5. **Complete.** The buyer confirms receipt and the seller is paid. (Reviews between buyers and sellers are deferred; see `docs/adr/`.)
+## Project status
 
-## What you can sell
+| Area          | Status    | What works today                                                                                                                               |
+| ------------- | --------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts      | Available | Join, email verification, sign in and sign out with session cookies and rotating refresh tokens                                                |
+| Listings      | Available | Sell page with drafts, publishing, photo upload and processing, and a daily publish limit                                                      |
+| Catalog       | Available | Home and category pages (`/shoes`, `/tops`, `/outerwear`, `/bottoms`), paged newest first, and the listing detail page at `/items/{reference}` |
+| Orders        | Available | Checkout, shipping, receipt confirmation, payouts and order problems                                                                           |
+| Privacy       | Partial   | Cookie consent; account closure and erasure are planned                                                                                        |
+| Reviews       | Available | Public seller profile; ratings show "No reviews yet"                                                                                           |
+| Notifications | Available | Transactional email through an outbox, email preferences and one-click unsubscribe                                                             |
 
-| Category | Accepted size | Condition |
-| --- | --- | --- |
-| Shoes (sneakers, boots, dress shoes, sandals) | Men's US 12 | New or used |
-| Tops (shirts, t-shirts, sweaters, hoodies) | Men's L | New or used |
-| Outerwear (jackets, coats) | Men's L | New or used |
-| Bottoms (pants, shorts) | Men's L | New or used |
-
-Listings in any other size are out of scope for 12L and are not accepted.
-
-## Features
-
-- **Open to everyone.** Any member can buy and sell.
-- **Size-locked catalog.** Only men's size 12 shoes and size large clothing can be listed.
-- **New and used.** Sellers mark each item as new, new with tags, or used, with a condition grade.
-- **Seller profiles.** Each seller has a public profile with their listings and ratings.
-- **Search and filters.** Filter by category, brand, condition and price.
-- **Responsive.** One web app that works on phones, tablets and desktops.
-
-## Architecture
-
-| Layer | Technology | Responsibility |
-| --- | --- | --- |
-| Frontend | Angular (TypeScript) | Responsive single-page app for browsing, listing, buying and managing an account |
-| Backend | .NET (C#, ASP.NET Core Web API) | REST API for members, listings, orders and reviews, and enforcement of the size rules |
-
-The Angular app calls the ASP.NET Core API over HTTPS. The backend is the source of truth for the size rules: it rejects any listing that is not a men's size 12 shoe or a men's size large garment, whatever the client sends.
+Overall progress and effort are tracked in [docs/estimates](docs/estimates/README.md). Moderation, writing reviews and personal data export are deferred by [ADR-0001](docs/adr/general/0001-defer-moderation-reviews-and-data-export.md).
 
 ## Getting started
 
 ### Prerequisites
 
 - [Git](https://git-scm.com)
-- [.NET SDK 10](https://dotnet.microsoft.com/download) (pinned in `src/backend/global.json`)
+- [.NET SDK 10.0.402 or later](https://dotnet.microsoft.com/download) (pinned in `src/backend/global.json`)
 - [Node.js 22 LTS](https://nodejs.org) and npm
+- [SQL Server Express LocalDB](https://learn.microsoft.com/sql/database-engine/configure-windows/sql-server-express-localdb) or another SQL Server instance, to run the API locally
 
-No database, Docker or other service is needed: the tests fake every external system.
+The automated tests don't need a database. They fake every external system.
 
-### Clone, install and verify
+### Clone and verify
 
 ```bash
 git clone https://github.com/QuinntyneBrown/12l.git
@@ -98,17 +83,49 @@ npx playwright install chromium
 npm run verify
 ```
 
-`npm run verify` restores, format-checks, builds and tests the backend solution, then
-lints both Prettier and ESLint, builds every Angular library and the application, and runs
-the Playwright tests. It stops at the first failure. CI runs the same command.
+`npm run verify` is the same command CI runs. It restores, format-checks, builds and tests the backend, lints the frontend with Prettier and ESLint, builds every Angular library and the application, and runs the Playwright tests. It stops at the first failure.
 
-### Run the apps
+### Run locally
 
-```bash
-# from src/frontend
-npm start                                   # Angular app on http://localhost:4200
-dotnet run --project ../backend/TwelveL.Api # API; GET /api/health returns 200
-```
+1. Set the connection string. The API and the migrator read `ConnectionStrings__TwelveL`.
+
+   ```powershell
+   $env:ConnectionStrings__TwelveL = 'Server=(localdb)\MSSQLLocalDB;Database=TwelveL;Trusted_Connection=True;TrustServerCertificate=True'
+   ```
+
+2. Apply the database migrations.
+
+   ```powershell
+   dotnet run --project src/backend/TwelveL.Migrator
+   ```
+
+3. Start the API on `http://localhost:5045`.
+
+   ```powershell
+   dotnet run --project src/backend/TwelveL.Api --launch-profile http
+   ```
+
+4. In a second terminal, start the Angular app.
+
+   ```powershell
+   cd src/frontend
+   npm start
+   ```
+
+5. Open [http://localhost:4200](http://localhost:4200). The development server proxies `/api` and `/photos` to the API.
+
+To check that the API is up, send `GET http://localhost:5045/api/health`. It returns `200`.
+
+> [!IMPORTANT]
+> **Windows on Arm:** LocalDB ships only as x64, so an arm64 process can't load its client and fails with SQL error 193. Build with your usual SDK, then run the built assemblies with the x64 host:
+>
+> ```powershell
+> dotnet build src/backend/TwelveL.sln
+> & "C:\Program Files\dotnet\x64\dotnet.exe" src/backend/TwelveL.Migrator/bin/Debug/net10.0/TwelveL.Migrator.dll
+> & "C:\Program Files\dotnet\x64\dotnet.exe" src/backend/TwelveL.Api/bin/Debug/net10.0/TwelveL.Api.dll --urls http://localhost:5045
+> ```
+>
+> This requires the x64 .NET 10 runtime under `C:\Program Files\dotnet\x64`.
 
 ### Load demo data
 
@@ -130,55 +147,110 @@ On Windows on Arm, LocalDB is x64 only: build with the normal SDK, then run the 
 with the x64 host, `"C:\Program Files\dotnet\x64\dotnet.exe" TwelveL.Cli\bin\Debug\net10.0\TwelveL.Cli.dll seed --reset`
 (the arm64 host fails with error 193). Run the API the same way.
 
-### Individual checks
+## Configuration
 
-| Command (from `src/frontend`) | Does |
-|---|---|
-| `npm run backend:verify` | Backend restore, format check, build, tests |
-| `npm run lint` | Prettier check and ESLint |
-| `npm run build:all` | Every library, then the application |
-| `npm run test:e2e` | Playwright (Chromium) against the production build |
+The API reads standard ASP.NET Core configuration: `appsettings.json`, `appsettings.{Environment}.json` and environment variables.
 
-## Project structure
+| Setting                      | Environment variable          | Description                                                                                                  |
+| ---------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `ConnectionStrings:TwelveL`  | `ConnectionStrings__TwelveL`  | SQL Server connection string. Required to run the API and the migrator.                                      |
+| `Auth:SigningKey`            | `Auth__SigningKey`            | Key that signs access tokens. The development value in `appsettings.Development.json` is for local use only. |
+| `App:BaseUrl`                | `App__BaseUrl`                | Public URL of the frontend, used in links such as email verification.                                        |
+| `Selling:PlatformFeePercent` | `Selling__PlatformFeePercent` | Fee shown to sellers when they price an item.                                                                |
+| `Selling:PublishesPerDay`    | `Selling__PublishesPerDay`    | Maximum number of listings a member can publish per day.                                                     |
+
+## Testing
+
+Run each check from `src/frontend`.
+
+| Command                  | Runs                                                 |
+| ------------------------ | ---------------------------------------------------- |
+| `npm run verify`         | Every check below, in order                          |
+| `npm run backend:verify` | Backend restore, format check, build and xUnit tests |
+| `npm run lint`           | Prettier check and ESLint                            |
+| `npm run build:all`      | Every library, then the application                  |
+| `npm run test:e2e`       | Playwright (Chromium) against the production build   |
+
+Backend tests use in-memory substitutes and never connect to a real database. Playwright tests serve the API through route fixtures and never start the backend. See [AGENTS.md](AGENTS.md#testing-rules-critical) for the full rules.
+
+## API reference
+
+Endpoints are served under `/api`, except processed photos under `/photos`. Endpoints marked _member_ need a signed-in session; listing and photo upload endpoints also need a verified email.
+
+| Method | Path                                | Description                                            |
+| ------ | ----------------------------------- | ------------------------------------------------------ |
+| `GET`  | `/api/health`                       | Liveness check                                         |
+| `POST` | `/api/auth/register`                | Create an account                                      |
+| `POST` | `/api/auth/verify-email`            | Confirm an email address                               |
+| `POST` | `/api/auth/verification-email`      | Resend the verification email                          |
+| `POST` | `/api/auth/sign-in`                 | Start a session                                        |
+| `POST` | `/api/auth/refresh`                 | Rotate the refresh token                               |
+| `POST` | `/api/auth/sign-out`                | End the session                                        |
+| `GET`  | `/api/auth/me`                      | Current member _(member)_                              |
+| `GET`  | `/api/categories`                   | Categories and their accepted sizes                    |
+| `GET`  | `/api/selling/options`              | Brands, conditions and fee for the sell page           |
+| `POST` | `/api/listings`                     | Create a draft listing _(member)_                      |
+| `PUT`  | `/api/listings/{reference}`         | Update a draft _(member)_                              |
+| `POST` | `/api/listings/{reference}/publish` | Publish a draft _(member)_                             |
+| `GET`  | `/api/me/listings/{reference}`      | One of your own listings _(member)_                    |
+| `POST` | `/api/photo-uploads`                | Upload a listing photo _(member)_                      |
+| `GET`  | `/api/photo-uploads/{id}`           | Photo upload status _(member)_                         |
+| `GET`  | `/api/catalog/listings`             | Active and reserved listings, newest first, paged      |
+| `GET`  | `/api/catalog/listings/{reference}` | Listing detail with photos, seller and viewer relation |
+| `GET`  | `/photos/{hash}/{file}`             | Processed photo files                                  |
+
+Detailed contracts and acceptance criteria are in [docs/specs/L2.md](docs/specs/L2.md).
+
+## Architecture
+
+| Layer          | Technology                                   | Responsibility                                                          |
+| -------------- | -------------------------------------------- | ----------------------------------------------------------------------- |
+| Frontend       | Angular 22, standalone components, signals   | Single-page app: one application shell and one library per feature area |
+| API            | ASP.NET Core 10 Web API                      | Controllers, authorization policies, middleware                         |
+| Application    | MediatR                                      | Commands, queries, validators, DTOs and ports                           |
+| Domain         | C#                                           | Entities, value objects, listing state machine and size rules           |
+| Infrastructure | Entity Framework Core, SQL Server, SkiaSharp | Persistence, repositories, outbox and photo processing                  |
+| Worker         | .NET hosted service                          | Background jobs                                                         |
+
+Architecture decisions are recorded in [docs/adr](docs/adr).
+
+## Repository structure
 
 ```text
 12l/
-├── .agents/skills/        Agent skills (shared, tool-agnostic copy)
-├── .claude/skills/        Agent skills for Claude Code
-├── .github/               Issue templates, pull request template, Copilot instructions
-├── docs/                  Journeys, specs, mocks, design system, designs, estimates, ADRs
-├── src/backend/           .NET solution (TwelveL.Api, Application, Domain, Infrastructure, Worker, Migrator, Cli)
-├── src/frontend/          Angular workspace (projects/twelvel plus api, components and feature libraries)
-├── tests/                 xUnit test project per backend project
-├── AGENTS.md              Working agreement for coding agents
-├── CLAUDE.md              Instructions for Claude Code
-├── GEMINI.md              Instructions for Gemini
-├── CHANGELOG.md           Release history
-├── CODE_OF_CONDUCT.md     Contributor Covenant
-├── CONTRIBUTING.md        How to contribute
-├── LICENSE                MIT License
-├── SECURITY.md            Security policy
-└── SUPPORT.md             How to get help
+├── .github/                 CI workflow, issue and pull request templates
+├── docs/                    Journeys, specs, mocks, design system, designs, estimates, ADRs
+├── src/
+│   ├── backend/             .NET solution: Api, Application, Domain, Infrastructure, Worker, Migrator, Cli
+│   └── frontend/            Angular workspace
+│       ├── e2e/             Playwright tests and fixtures
+│       └── projects/        twelvel app; api, components, accounts, catalog, listings,
+│                            orders, reviews and privacy libraries
+└── tests/                   xUnit test project per backend project
 ```
 
 ## Documentation
 
-- [docs/specs/L1.md](docs/specs/L1.md) and [docs/specs/L2.md](docs/specs/L2.md) are the high-level and detailed requirements, with acceptance criteria.
-- [CONTRIBUTING.md](CONTRIBUTING.md) explains how to propose changes.
-- [AGENTS.md](AGENTS.md) is the working agreement for AI coding agents.
-- [CHANGELOG.md](CHANGELOG.md) records notable changes.
+| Document                                       | Contents                                        |
+| ---------------------------------------------- | ----------------------------------------------- |
+| [docs/journeys.md](docs/journeys.md)           | User journeys and their effort                  |
+| [docs/specs](docs/specs)                       | L1 and L2 requirements with acceptance criteria |
+| [docs/mocks](docs/mocks)                       | HTML mocks for every screen and state           |
+| [docs/design-system](docs/design-system)       | Tokens and components                           |
+| [docs/detailed-designs](docs/detailed-designs) | Per-feature designs and diagrams                |
+| [docs/estimates](docs/estimates/README.md)     | Effort, progress and roadmap                    |
+| [AGENTS.md](AGENTS.md)                         | Working agreement for AI coding agents          |
+| [CHANGELOG.md](CHANGELOG.md)                   | Notable changes                                 |
 
 ## Contributing
 
-Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) before opening an issue or a pull request.
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) before you open an issue or a pull request, and run `npm run verify` before every commit.
 
-## Code of conduct
-
-This project has adopted the [Contributor Covenant](CODE_OF_CONDUCT.md). By participating you are expected to uphold it.
+This project has adopted the [Contributor Covenant](CODE_OF_CONDUCT.md). By participating, you're expected to uphold it.
 
 ## Security
 
-Please do not report security vulnerabilities through public issues. See [SECURITY.md](SECURITY.md) for how to report them privately.
+Don't report security vulnerabilities through public issues. See [SECURITY.md](SECURITY.md) for how to report them privately.
 
 ## Support
 
