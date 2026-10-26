@@ -7,9 +7,9 @@ skinparam defaultFontName Arial
 skinparam ArrowColor #344054
 actor "Visitor or member" as actor
 box "Frontend — 12L Web application" #E0F2FE
-  participant "ListingDetailPageComponent" as page
+  participant "ListingDetailPage (@12l/catalog)" as page
   participant "ListingDetailStore" as store
-  participant "ListingDetailApiService" as client
+  participant "CatalogApi (@12l/api)" as client
 end box
 box "Backend — 12L API application" #D1FADF
   participant "CatalogController" as controller
@@ -19,20 +19,20 @@ box "Backend — TwelveL Application and Domain" #ECFDF3
   participant "ListingDetailVisibility" as vis
 end box
 box "Backend — TwelveL Infrastructure" #FFF4E5
-  participant "ListingDetailReadStore" as rs
+  participant "ITwelveLDbContext (EF Core)" as rs
   database "12L database" as db
 end box
 actor -> page : Open /items/L-20931
 page -> store : load("L-20931")
 store --> page : loading skeleton
-store -> client : getListing("L-20931")
+store -> client : listing("L-20931")
 client -> controller : GET /api/catalog/listings/L-20931 (cookie if signed in)
-controller -> controller : PublicRead policy, resolve viewer or anonymous
+controller -> controller : [AllowAnonymous], viewer from session cookie or anonymous
 controller -> handler : Send GetListingDetailQuery(reference, viewerId?)
-handler -> rs : GetAsync(reference)
-rs -> db : Listing, photos, seller, reputation by UX_Listings_Reference
+handler -> rs : Listing by reference, then seller and photos
+rs -> db : Queries by unique Reference
 db --> rs : Row or nothing
-rs --> handler : ListingDetailRow?
+rs --> handler : Listing?
 alt no row, or Draft/Removed and viewer is not seller
   handler -> vis : CanView(status, sellerId, viewerId)
   vis --> handler : false
@@ -42,8 +42,7 @@ alt no row, or Draft/Removed and viewer is not seller
   store --> page : unavailable
   page --> actor : "This item isn't available", "Shop similar items"
 else visible
-  handler -> handler : DisplayStatus (expired reservation shows Active, L2-028)
-  handler -> handler : Viewer relation, total = price + shipping, CDN URLs
+    handler -> handler : Viewer relation, total = price + shipping, photo srcsets
   handler --> controller : ListingDetailDto
   controller --> client : 200 OK, Cache-Control private, no-store
   client --> store : ListingDetailDto
@@ -51,11 +50,11 @@ else visible
   alt Active and OtherMember
     page --> actor : Gallery, details, seller, "Buy now" (L2-025)
   else Active and Seller
-    page --> actor : "Edit listing" and "Withdraw" instead of "Buy now" (L2-026)
+    page --> actor : "Edit listing" instead of "Buy now" (L2-026)
   else Reserved
     page --> actor : "Reserved" stamp, "In someone's checkout", no "Buy now" (L2-028)
   else Sold
-    store -> client : Similar items, same category, 4 cards
+    store -> client : listings(1, category), 4 other cards
     page --> actor : "Sold" stamp, no "Buy now", "More in size 12"
   end
 else server failure

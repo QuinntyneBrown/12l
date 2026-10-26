@@ -21,77 +21,75 @@ The page shows the same listing differently depending on its status and on who v
 
 A seller with no completed sales shows "New seller" in place of a rating. A Used - Fair listing shows its flaws (`L2-016`). On viewports narrower than 992 px the page uses one column with a swipeable gallery and a "Buy now" bar fixed to the bottom of the screen; from 992 px it uses two columns with the gallery on the left (`L2-063`).
 
-The `Listing` entity, editing and withdrawing belong to the [listings](../../listings/) subsystem; checkout and the reservation itself belong to [orders](../../orders/). This feature reads the listing, decides what the page shows, and supplies the domain guard that stops a member from buying their own listing.
+The `Listing` entity, editing and withdrawing belong to the [listings](../../listings/) subsystem; checkout and the reservation itself belong to [orders](../../orders/). This feature reads the listing and decides what the page shows; the guard that refuses a checkout of one's own listing is built with checkout.
 
 ## Description
 
-Screens and copy come from `docs/mocks/pages/listing-detail/` (states `default`, `guest`, `own`, `new-seller`, `reserved`, `sold`, `loading`, `error`, `unavailable`). The the guest return flow ends on `docs/mocks/pages/sign-in/return.html`.
+Screens and copy come from `docs/mocks/pages/listing-detail/` (states `default`, `guest`, `own`, `new-seller`, `reserved`, `sold`, `loading`, `error`, `unavailable`). The guest return flow ends on `docs/mocks/pages/sign-in/return.html`.
 
-### Frontend — `12L Web`, feature area `src/frontend/src/app/catalog/`
+### Frontend — `12L Web`, feature library `@12l/catalog` (`src/frontend/projects/catalog/src/lib/listing-detail/`)
 
-- **Route** — `items/:reference` in `CATALOG_ROUTES`, no guard, component `ListingDetailPageComponent`. The route resolver is not used, so the skeleton paints at once.
-- **`ListingDetailPageComponent`** — reads `reference` from the route, calls `ListingDetailStore.load(reference)`, sets the document title to "{title} · {brand} · 12L", and renders one view state:
+- **Route** — `items/:reference` in the catalog library's `routes`, no guard, component `ListingDetailPage`. The reference arrives as a component input (router input binding), so the skeleton paints at once.
+- **`ListingDetailPage`** — calls `ListingDetailStore.load(reference)`, sets the document title to "{title} · {brand} · 12L" and renders one view:
   - `loading` — skeleton matching the gallery and info columns (`aria-busy="true"`, label "Loading listing", visually hidden heading "Loading listing").
-  - `loaded` — breadcrumb "Shop › {category} › {subcategory}", `ListingGalleryComponent`, `ListingInfoComponent`, and for a Sold listing the section "More in size 12" with 4 cards.
-  - `unavailable` — API returned 404: "404" graphic, heading "This item isn’t available", text "It may have been sold or taken down.", primary action "Shop similar items" to `/`.
+  - `loaded` — breadcrumb "Shop / {category} / {subcategory}", `tl-gallery`, the info column, and for a Sold listing the section "More in size 12" (or "More in size L") with up to 4 cards in `tl-listing-grid`.
+  - `unavailable` — API returned 404: `tl-center-state` with code "404", heading "This item isn’t available", text "It may have been sold or taken down.", primary action "Shop similar items" to `/`.
   - `error` — any other failure: heading "Couldn’t load this item", text "It’s us, not you. Try again in a moment.", "Ref {correlationId}", actions "Try again" and "Back to shop".
-- **`ListingDetailStore`** — signal store: `listing: Signal<ListingDetailDto | null>`, `viewState`, `correlationId`, and the computed `primaryAction: 'buy' | 'sign-in-to-buy' | 'manage' | 'none'`, derived from `ListingDetailDto.viewer` and `displayStatus`:
+- **Info column** (local markup on the kit classes) — "Reserved" or "Sold" stamp; brand eyebrow; title as `<h1>`; `tl-size-tag` and condition; price "$85.00" and the line "{shipping} · {total} total before tax", where shipping reads "$9.00 shipping" or "Free shipping" when 0 (`L2-018`); the buy bar; for Reserved the warning `tl-alert` "In someone’s checkout" with "If they don’t finish within 10 minutes, it’s back on sale."; the flaws block "Flaws: {flaws}" for Used - Fair; the description; the facts "Size" ("Men's US 12"), "Category" ("Shoes · Sneakers"), "Condition", "Listed" (relative time inside `<time datetime>`); and `tl-seller-summary`. All listing text is bound as text and never as HTML (`L2-015`).
+- **`ListingDetailStore`** — signal store: `listing`, `view`, `errorRef`, `similar`, and the computed `primaryAction: 'buy' | 'sign-in-to-buy' | 'manage' | 'none'`:
 
-  | `displayStatus` | `viewer.relation` | `primaryAction` |
-  |-----------------|-------------------|-----------------|
+  | `status` | `viewer.relation` | `primaryAction` |
+  |----------|-------------------|-----------------|
   | `Active` | `OtherMember` | `buy` |
   | `Active` | `Anonymous` | `sign-in-to-buy` |
   | `Active` | `Seller` | `manage` |
   | `Reserved`, `Sold`, `Draft`, `Removed` | any | `none` |
 
-- **`ListingGalleryComponent`** — main photo through `ResponsivePhotoComponent` with `priority = true` and `sizes="(min-width: 992px) 50vw, 100vw"`, a row of thumbnail buttons labelled "Show photo {i} of {n}" with `aria-current` on the selected one, and dot indicators. Selecting a thumbnail shows that photo in the main view (`L2-025` acceptance criterion 4). Below 992 px the main view is a horizontal CSS scroll-snap track that changes photo on swipe; an `IntersectionObserver` keeps the selected index in step (`L2-063`). Arrow keys move between thumbnails.
-- **`ListingInfoComponent`** — status stamp ("Reserved" or "Sold") when applicable; brand eyebrow; title as `<h1>`; size tag and condition; price ("$85") and the line "{shipping} · {total} total before tax", where shipping reads "$9 shipping" or "Free shipping" when 0 (`L2-018`); the flaws block "Flaws: {flaws}" for Used - Fair; the description as plain text; the facts list "Size", "Category" ("Shoes · Sneakers"), "Condition", "Listed" (relative time inside `<time datetime>`); `SellerSummaryComponent`; and the "Report this listing" link. For Reserved listings it shows the warning alert "In someone’s checkout" with "If they don’t finish within 10 minutes, it’s back on sale." All listing text is bound as text and never as HTML (`L2-015`).
-- **`SellerSummaryComponent`** — avatar, display name linking to `/members/{displayName}`, "{n} sales · {city}" (the sales part omitted when 0), and either the rating summary "4.9 (128 reviews)" or the badge "New seller" when `completedSalesCount` is 0 (`L2-025` acceptance criterion 5).
-- **`BuyBarComponent`** — the total with caption "incl. shipping" and the actions for `primaryAction`:
+  For a Sold listing it calls `CatalogApi.listings(1, category)` and keeps up to 4 cards other than the listing itself.
+- **`tl-gallery`** (`@12l/components`) — a horizontal CSS scroll-snap track holding every photo (WebP and JPEG `srcset`, `sizes="(min-width: 992px) 50vw, 100vw"`, the first eager with `fetchpriority="high"`), dots below 992 px, and thumbnail buttons labelled "Show photo {i} of {n}" with `aria-current` on the selected one. Selecting a thumbnail scrolls the track to that photo (`L2-025` acceptance criterion 4); a swipe updates the selection from the scroll position (`L2-063`). Left and Right arrows move between thumbnails. Thumbnails are at least 44 × 44 px.
+- **`tl-seller-summary`** (`@12l/components`) — avatar with initials, display name linking to `/members/{displayName}`, "{n} sales" and the rating "4.9 (128 reviews)", or the badge "New seller" when `completedSalesCount` is 0 (`L2-025` acceptance criterion 5).
+- **`tl-buy-bar`** (`@12l/components`) — the total with caption "incl. shipping" and the projected actions:
   - `buy` — primary "Buy now" linking to `/checkout/{reference}` (orders subsystem).
-  - `sign-in-to-buy` — primary "Buy now" linking to `/sign-in?returnUrl=%2Fitems%2F{reference}`. The accounts sign-in page shows "Sign in to buy" and, after sign-in, navigates to the validated relative `returnUrl`, so the member lands back on the listing (`L2-026` acceptance criterion 3).
-  - `manage` — primary "Edit listing" linking to `/items/{reference}/edit` and secondary "Withdraw" opening `WithdrawListingDialogComponent` (listings subsystem). On success the store reloads and the page shows the Removed listing to its seller.
+  - `sign-in-to-buy` — primary "Buy now" linking to `/sign-in?returnUrl=%2Fitems%2F{reference}`. The accounts sign-in page shows "Sign in to buy" with "You’ll go straight back to the item." and, after sign-in, navigates to the validated relative `returnUrl` (`L2-026` acceptance criterion 3).
+  - `manage` — primary "Edit listing" linking to `/items/{reference}/edit`. "Withdraw" and its dialog are added by `listings/edit-and-withdraw-listing`, which also builds the edit route.
   - `none` — the bar is not rendered.
-  Below 992 px the bar is `position: sticky; bottom: 0` with safe-area padding, so "Buy now" stays visible while scrolling (`L2-063`). Every control in the bar and gallery is at least 44 × 44 CSS px below 992 px.
-- **Similar items** — for a Sold listing the store calls `CatalogApiService.getListings({ category, sort: 'newest' }, 1, 4)` from browse-catalog and renders the cards under "More in size 12".
-- **`ListingDetailApiService`** — `getListing(reference): Observable<ListingDetailDto>` calling `GET /api/catalog/listings/{reference}` with credentials, so a signed-in viewer is recognised.
-- **Layout** — `.detail` uses one column below 992 px (gallery above the info) and `grid-template-columns: minmax(0, 1fr) minmax(0, 1fr)` from 992 px with the gallery on the left (`L2-063`).
+  Below 992 px the bar is `position: sticky; bottom: 0` with safe-area padding, so "Buy now" stays visible while scrolling (`L2-063`).
+- **`CatalogApi.listing(reference)`** (`@12l/api`) — `GET /api/catalog/listings/{reference}`; the session interceptor sends credentials, so a signed-in viewer is recognised.
+- **Layout** — `.detail` uses one column below 992 px (gallery above the info) and two columns from 992 px with the gallery on the left (`L2-063`).
 
 ### API — `TwelveL.Api`
 
-- `GET /api/catalog/listings/{reference}` on `CatalogController`, `[AllowAnonymous]`, policy `PublicRead`. The access-token cookie is read when present, so the handler knows the viewer; an expired or missing token is treated as anonymous rather than as 401.
+- `GET /api/catalog/listings/{reference}` on `CatalogController`, `[AllowAnonymous]`. The JWT bearer scheme authenticates the access-token cookie when present, so the handler knows the viewer; a missing or expired token means a visitor rather than 401.
   - `200 OK` `ListingDetailDto` with `Cache-Control: private, no-store` (the body depends on the viewer).
-  - `404 Not Found`, code `LISTING_NOT_FOUND`, when no listing has that reference, or when the listing is Draft or Removed and the viewer is not its seller (`L2-025` acceptance criterion 3, `L2-010`). Both cases return the identical body so a hidden listing cannot be told apart from a missing one.
+  - `404 Not Found`, code `LISTING_NOT_FOUND`, when no listing has that reference, or when the listing is Draft or Removed and the viewer is not its seller (`L2-025` acceptance criterion 3, `L2-010`). Both cases return the same body apart from the correlation ID, so a hidden listing cannot be told apart from a missing one.
   - `500` problem details with correlation ID (`L2-068`).
-- The SPA document for `/items/{reference}` is served by the static host with status 200; returning HTTP 404 on the document itself for an unavailable listing needs server-side rendering or an edge function and is `<TO SUPPLY>`.
+- The SPA document for `/items/{reference}` is served by the static host with status 200; returning HTTP 404 on the document itself needs server-side rendering and is not built.
 
 ### Application and domain — `TwelveL.Application`, `TwelveL.Domain`
 
-- **`GetListingDetailQuery`** — record `(string Reference, Guid? ViewerMemberId)`; the controller fills `ViewerMemberId` from `ICurrentMember`.
-- **`GetListingDetailQueryHandler`** — loads the row through `IListingDetailReadStore.GetAsync(reference)`, applies `ListingDetailVisibility`, computes `DisplayStatus` with `CatalogVisibility.DisplayStatus` (an expired reservation shows as Active, `L2-028`), computes the viewer relation, maps photos with `IPhotoUrlBuilder`, and returns `ListingDetailDto` or `NotFound`.
-- **`ListingDetailVisibility`** (domain specification) — `CanView(status, sellerId, viewerId)`: true for Active, Reserved and Sold; true for Draft and Removed only when `viewerId == sellerId`.
-- **`ListingDetailDto`** — `{ id, reference, title, brand, category, subcategory, size, condition, flaws?, description, price, shippingCost, total, displayStatus, publishedAt, photos: PhotoDto[] (ordered, cover first), seller: SellerSummaryDto, viewer: { relation: "Anonymous" | "Seller" | "OtherMember" } }`. Money values are decimal strings (`"85.00"`, `"9.00"`, `"94.00"`); `total = price + shippingCost` computed in C# `decimal`. No email address, phone number, real name or street address is present (`L2-054`).
-- **`SellerSummaryDto`** — `{ displayName, avatar?: PhotoDto, publicLocation, ratingAverage?: decimal (one place), publishedReviewCount: int, completedSalesCount: int }`. The rating figures follow `L2-040` and are read, not computed, here.
-- **`Listing.EnsureCanBePurchasedBy(Guid buyerId)`** — domain guard added by this feature to the `Listing` aggregate. It throws `DomainRuleException("CANNOT_BUY_OWN_LISTING")` when `buyerId == SellerId`. The checkout-start handler in `orders/checkout-and-pay` calls it before any reservation is written, and the API problem-details middleware maps the code to HTTP 422, so no order and no reservation is created (`L2-026` acceptance criterion 2). The Reserved conflict (HTTP 409, `L2-028`) is raised by the same handler and designed there.
+- **`GetListingDetailQuery`** — record `(string Reference, Guid? ViewerId)`; the controller fills `ViewerId` from the authenticated member, or null.
+- **`GetListingDetailQueryHandler`** — reads through `ITwelveLDbContext` with `AsNoTracking()` (as browse-catalog, [ADR catalog/0001](../../../adr/catalog/0001-catalog-reads-through-the-db-context-port.md)): the listing by its unique `Reference`, applies `ListingDetailVisibility`, then the seller's display name and the photos in position order; computes the viewer relation and `total = price + shippingCost` in `decimal`; maps photos with `CatalogPhotos.ToDto`, shared with browse-catalog.
+- **`ListingDetailVisibility`** (domain) — `CanView(status, sellerId, viewerId)`: true for Active, Reserved and Sold; true for Draft and Removed only when `viewerId == sellerId`.
+- **`ListingDetailDto`** — `{ id, reference, title, brand, category, subcategory, sizeLabel, condition, flaws, description, price, shippingCost, total, status, publishedAt, photos: CardPhotoDto[] (cover first), seller: SellerSummaryDto, viewer: { relation: "Anonymous" | "Seller" | "OtherMember" } }`. Money values are decimal strings (`"85.00"`, `"9.00"`, `"94.00"`). No email address, phone number, real name or street address is present (`L2-054`).
+- **`SellerSummaryDto`** — `{ displayName, completedSalesCount, ratingAverage?, publishedReviewCount }`. Completed sales are recorded by `orders/complete-order` and ratings by reviews, neither built yet, so the handler returns 0, null and 0 and every seller shows "New seller" ([ADR catalog/0002](../../../adr/catalog/0002-seller-reputation-defaults-until-orders-and-reviews.md)). The public location and avatar are added with `reviews/view-member-profile`.
+- **Purchase guard** — refusing a member's checkout of their own listing with HTTP 422 `CANNOT_BUY_OWN_LISTING` (`L2-026` acceptance criterion 2) is built by `orders/checkout-and-pay`, the first feature with a checkout request to refuse. This feature only keeps "Buy now" away from the seller. The Reserved conflict (HTTP 409, `L2-028`) and reservation expiry are designed there too; until then a Reserved listing shows as Reserved.
 
 ### Infrastructure and data — `TwelveL.Infrastructure`, `12L database`
 
-- **`ListingDetailReadStore`** — EF Core `AsNoTracking()` projection by `Reference`, joining `Listings`, `ListingPhotos` (all positions, ordered), `ListingPhotoVersions`, `Members` (`DisplayName`, `PublicLocation`, `AvatarPhotoId`) and the seller reputation figures (`RatingAverage`, `PublishedReviewCount`, `CompletedSalesCount`). Where the reputation figures are stored is decided by `reviews/view-member-profile` and `orders/complete-order`; this store reads them through the `MemberReputation` view `<TO SUPPLY>` until those designs fix the column names.
-- **Index used** — unique index `UX_Listings_Reference` on `Listings (Reference)`, introduced by `listings/create-listing`.
-- **Query count** — one round trip for the listing, photos and seller (split query disabled), which keeps the detail read to one round trip.
+- No new tables, columns, indexes or migrations. The read uses the unique index on `Listings (Reference)` from `listings/create-listing` and the existing `ListingPhotos` and `Members` tables.
 
 ### Error codes
 
 | Code | HTTP | Raised when |
 |------|------|-------------|
 | `LISTING_NOT_FOUND` | 404 | the reference is unknown, or the listing is Draft or Removed and the viewer is not its seller |
-| `CANNOT_BUY_OWN_LISTING` | 422 | a member's checkout-start request names their own listing |
-| `RATE_LIMITED` | 429 | the anonymous rate limit is exceeded |
+| `CANNOT_BUY_OWN_LISTING` | 422 | a member's checkout-start request names their own listing (built by `orders/checkout-and-pay`) |
 
 ### Open questions
 
-- What the buyer who holds the reservation sees on the detail page during their own checkout (for example a "Continue checkout" action) is not mocked and is `<TO SUPPLY>`; the design shows them the Reserved view.
+- What the buyer who holds the reservation sees on the detail page during their own checkout (for example a "Continue checkout" action) is not mocked; the design shows them the Reserved view.
 - What the seller sees on their own Reserved, Sold, Draft or Removed listing beyond the status stamp is not mocked; the design shows no actions, consistent with `L2-020`.
+- "Withdraw" on the seller's own listing waits for `listings/edit-and-withdraw-listing`; until then the own view shows "Edit listing" only.
 
 ## Requirements
 
@@ -122,19 +120,19 @@ Visitors and members view listings in 12L and load the photos from the CDN. Buyi
 
 ### Components
 
-`ListingDetailPageComponent` composes the gallery, info, seller summary and buy bar from `ListingDetailStore`. `GetListingDetailQueryHandler` applies `ListingDetailVisibility` and the viewer relation; the checkout handler from orders calls `Listing.EnsureCanBePurchasedBy`.
+`ListingDetailPage` in `@12l/catalog` composes `tl-gallery`, `tl-seller-summary` and `tl-buy-bar` from `@12l/components` with `ListingDetailStore`, which calls `CatalogApi` in `@12l/api`. `GetListingDetailQueryHandler` applies `ListingDetailVisibility` and the viewer relation, reading through `ITwelveLDbContext`.
 
 ![C4 component view for viewing a listing's detail](diagrams/c4-component.png)
 
 ### Class structure
 
-`ListingDetailDto` composes the photos and `SellerSummaryDto`; `GetListingDetailQueryHandler` depends on `IListingDetailReadStore`, `ListingDetailVisibility` and `IPhotoUrlBuilder`. `Listing` carries the purchase guard.
+`ListingDetailDto` composes the photos, `SellerSummaryDto` and `ViewerDto`; `GetListingDetailQueryHandler` depends on `ITwelveLDbContext`, `ListingDetailVisibility` and `CatalogPhotos`.
 
 ![Class diagram for viewing a listing's detail](diagrams/class-structure.png)
 
 ### Behaviour — open a listing
 
-The handler hides Draft and Removed listings from everyone except the seller with HTTP 404, reports an expired reservation as Active, and returns the viewer relation from which the page chooses "Buy now", "Edit listing" and "Withdraw", or no action (`L2-025`, `L2-028`).
+The handler hides Draft and Removed listings from everyone except the seller with HTTP 404 and returns the viewer relation from which the page chooses "Buy now", "Edit listing", or no action (`L2-025`, `L2-028`).
 
 ![Sequence diagram for opening a listing](diagrams/sequence-open-listing.png)
 
@@ -146,6 +144,6 @@ The handler hides Draft and Removed listings from everyone except the seller wit
 
 ### Behaviour — refuse buying one's own listing
 
-The page never offers "Buy now" to the seller; a direct checkout request is still refused by the domain guard with HTTP 422 and nothing is written (`L2-026`).
+The page never offers "Buy now" to the seller; a direct checkout request is refused with HTTP 422 and nothing is written (`L2-026`). The refusal is built by `orders/checkout-and-pay`.
 
 ![Sequence diagram for refusing a purchase of one's own listing](diagrams/sequence-refuse-own-purchase.png)
