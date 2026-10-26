@@ -20,7 +20,7 @@ actor "Administrator" as actor
 box "Frontend — 12L Web application" #E0F2FE
   participant "ProblemDetailPage" as page
   participant "ResolveProblemDialog" as dlg
-  participant "AdminProblemsApiService" as client
+  participant "AdminProblemsApi (@12l/api)" as client
 end box
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
   participant "AdminProblemsController" as ctrl
@@ -47,10 +47,10 @@ else
   ctrl -> h : ResolveProblemCommand
   h -> db : Load problem, order, payout
   alt problem already resolved
-    h --> ctrl : 409 "problem.already_resolved"
+    h --> ctrl : 409 "PROBLEM_ALREADY_RESOLVED"
   else FullRefund (L2-036 criterion 3)
-    h -> order : Refund(Administrator, now) Shipped/Delivered to Refunded
-    h -> db : Refund for Total + IssueRefund outbox, Payout.Cancel()
+    h -> order : RefundForProblem(now) Shipped/Delivered to Refunded
+    h -> db : Refund for Total (ProblemResolved), Payout.Cancel(), save; then IPaymentProvider.RefundAsync keyed by refund ID
   else ReleaseToSeller (L2-036 criterion 4)
     h -> order : Complete(Administrator, now) Delivered to Completed
     h -> db : Payout.MarkReleasable() via OrderCompleted

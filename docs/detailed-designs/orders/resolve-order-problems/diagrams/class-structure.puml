@@ -24,7 +24,6 @@ enum ProblemStatus {
 }
 enum ProblemOutcome {
   FullRefund
-  PartialRefund
   ReleaseToSeller
 }
 class OrderProblem <<aggregate root>> {
@@ -56,11 +55,11 @@ class ProblemPhoto {
 }
 class Order <<see ship-order>> {
   +bool CanReportProblem(now): bool
-  +Refund(actor, at): void
+  +RefundForProblem(at): void
   +Complete(actor, at): void
 }
 class Payout <<see seller-payouts>> {
-  +Hold(reason): void
+  +HoldForProblem(): void
   +MarkReleasable(at): void
   +Cancel(): void
 }
@@ -94,13 +93,13 @@ Order "1" -- "0..1" OrderProblem
 ReportProblemCommandHandler ..> ReportProblemCommand : handles
 ReportProblemCommandValidator ..> ReportProblemCommand : validates
 ReportProblemCommandHandler --> OrderProblem : Open
-ReportProblemCommandHandler --> Payout : Hold(OpenProblem)
+ReportProblemCommandHandler --> Payout : HoldForProblem()
 RespondToProblemCommandHandler ..> RespondToProblemCommand : handles
 RespondToProblemCommandHandler --> OrderProblem : RecordSellerResponse
 ResolveProblemCommandHandler ..> ResolveProblemCommand : handles
 ResolveProblemCommandValidator ..> ResolveProblemCommand : validates
 ResolveProblemCommandHandler --> OrderProblem : Resolve
 ResolveProblemCommandHandler --> Order : Refund / Complete
-ResolveProblemCommandHandler --> Payout : Cancel / MarkReleasable
+ResolveProblemCommandHandler --> Payout : Cancel (refund); OrderCompleted makes it Releasable (release)
 GetProblemDetailQueryHandler ..> OrderProblem
 @enduml

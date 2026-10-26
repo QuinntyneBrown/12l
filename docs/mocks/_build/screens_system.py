@@ -52,10 +52,10 @@ def problem_main(resolved: bool) -> str:
     o = ORDERS["12L-48140"]
     photos = '<ul class="uploader" role="list">' + "".join(
         f'<li>{photo("better-sweater", tag=False, alt=f"Buyer photo {i} of the fleece", tone=t)}</li>' for i, t in [(1, 1), (2, 3)]) + "</ul>"
-    claim = (f'<section class="stack"><div class="review__head">{avatar("marcus_12", "avatar--sm")}<span class="text-sm"><b>marcus_12</b> · buyer · Sun 25 Oct</span></div>'
-             '<p>Pilling all over the front and a small hole by the left cuff. Listing said excellent.</p>' + photos + "</section>")
-    reply = (f'<section class="stack"><div class="review__head">{avatar("vintage_lou", "avatar--sm")}<span class="text-sm"><b>vintage_lou</b> · seller · Sun 25 Oct</span></div>'
-             '<p>It left here without the hole. Happy to take it back.</p></section>')
+    claim = ('<div class="thread__item"><span class="text-caption">marcus_12 · buyer · Sun 25 Oct</span>'
+             '<p>Pilling all over the front and a small hole by the left cuff. Listing said excellent.</p>' + photos + "</div>")
+    reply = ('<div class="thread__item"><span class="text-caption">vintage_lou · seller · Sun 25 Oct</span>'
+             '<p>It left here without the hole. Happy to take it back.</p></div>')
     if resolved:
         top = alert("success", "Refunded in full", f"{money(o['total'])} back to the buyer. No payout. Today 11:05 ET.")
         action = ""
@@ -65,7 +65,7 @@ def problem_main(resolved: bool) -> str:
     side = (f'<aside class="panel panel--sunken stack"><span class="eyebrow">Order 12L-48140</span>{item_row("better-sweater")}'
             f'<dl class="facts"><dt>Status</dt><dd>{status("Refunded" if resolved else "Delivered")}</dd><dt>Total</dt><dd class="num">{money(o["total"])}</dd>'
             f'<dt>Delivered</dt><dd>{o["delivered"]}</dd><dt>Payout</dt><dd>{"Not paid" if resolved else "Held"}</dd></dl>{action}</aside>')
-    body = f'<div class="stack stack--lg">{top}{claim}<hr class="divider">{reply}</div>'
+    body = f'<div class="stack stack--lg">{top}<div class="thread">{claim}{reply}</div></div>'
     return head("Not as described", "Order problem P-0912 · opened yesterday") + f'<div class="split">{body}{side}</div>'
 
 

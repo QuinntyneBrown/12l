@@ -13,8 +13,8 @@ Completion is the hinge between three other features. It is a transition of the
 order state machine defined in [ship-order](../ship-order/README.md). It makes the
 payout releasable in [seller-payouts](../seller-payouts/README.md) through the
 `OrderCompleted` event. An open problem from
-[resolve-order-problems](../resolve-order-problems/README.md) will block automatic
-completion once that feature introduces problems.
+[resolve-order-problems](../resolve-order-problems/README.md) blocks automatic
+completion and confirming receipt.
 
 Terms used in this design:
 
@@ -31,7 +31,7 @@ Terms used in this design:
   - `default` (Shipped) and `delivered` — primary "I received it", opening the Confirm receipt dialog through `DialogService`, because `L2-034` permits confirming a Shipped order.
   - `delivered` — "Completes automatically on {date} unless you report a problem.", from `autoCompletesAt`.
   - `completed` — heading "Completed", the full timeline and no actions. Review authoring is deferred ([ADR 0001](../../../adr/general/0001-defer-moderation-reviews-and-data-export.md)), so no review panel is shown.
-  - "Report a problem" is not shown until resolve-order-problems builds its dialog.
+  - "Report a problem" sits beside "I received it" while `canReportProblem`; resolve-order-problems builds its dialog.
 - **`ConfirmReceiptDialog`** (`confirm-receipt/`, mock `docs/mocks/dialogs/confirm-receipt/`) — `tl-dialog` with `size="sm"`, titled "Got it and all good?", showing the item in `tl-item-row`. The description reads "This completes the order and pays {seller}. You can't report a problem afterwards." Buttons are "Not yet" and primary "Yes, complete order". States: `default`; `busy` (primary `aria-busy`, "Not yet" disabled); `failed` ("That didn't go through", primary becomes "Try again"). It has no `invalid` state because it has no inputs. It closes with the completed order, which the page then shows.
 - **`OrdersApi`** (`@12l/api`, `src/lib/orders/orders-api.ts`) — `confirmReceipt(orderId)` returns `Purchase`. `Purchase` gains `autoCompletesAt`.
 
@@ -49,7 +49,7 @@ Terms used in this design:
 - **`ConfirmReceiptCommand`** / **`ConfirmReceiptCommandHandler`** — loads the order filtered by `BuyerId = caller`, calls `ConfirmReceipt`, saves, publishes `OrderCompleted` and returns the buyer's `PurchaseDto`. An invalid transition or a concurrency conflict on the status token answers `409`.
 - **`CompleteDeliveredOrdersCommand`** / **`CompleteDeliveredOrdersHandler`** — selects Delivered orders with `DeliveredAt <= now − 3 days`, completes each with `Complete(System, now)` and publishes `OrderCompleted` for each (`L2-034` criterion 2). An order whose status changed meanwhile is skipped. Returns how many were completed.
 - **`OrderCompleted`** (MediatR notification: `OrderId`, `BuyerId`, `SellerId`, `CompletedAt`) — published once after the save. seller-payouts' `OrderCompletedPayoutHandler` marks the payout releasable, and its release job also catches up on a completed order whose event was lost ([ADR orders/0005](../../../adr/orders/0005-seller-payouts-payout-port-fee-snapshot-and-shell-banner.md)).
-- The open-problem guard (`L2-034` criterion 3, `409` `ORDER_PROBLEM_OPEN`) is added by resolve-order-problems together with `OrderProblem`.
+- The open-problem guard (`L2-034` criterion 3): the completion job skips Delivered orders with an open `OrderProblem`, and confirming receipt answers `409` `ORDER_PROBLEM_OPEN` (resolve-order-problems).
 - No completion email is sent: `L2-042` does not list one.
 
 ### Worker (`TwelveL.Worker`)
@@ -78,7 +78,7 @@ One migration (`AddCompleteOrder`) adds the nullable `Orders.CompletedAt` column
 
 | L2 ID | Refines (L1) | Requirement |
 |-------|--------------|-------------|
-| `L2-034` | `L1-008` | The buyer shall be able to confirm receipt of a Shipped or Delivered order. An order shall complete automatically 3 days after it becomes Delivered unless the buyer has reported a problem. Criterion 3 (open problem) is built with resolve-order-problems. |
+| `L2-034` | `L1-008` | The buyer shall be able to confirm receipt of a Shipped or Delivered order. An order shall complete automatically 3 days after it becomes Delivered unless the buyer has reported a problem. Criterion 3 (open problem) came with resolve-order-problems. |
 
 ## Diagrams
 

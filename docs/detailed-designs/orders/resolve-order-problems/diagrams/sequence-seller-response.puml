@@ -19,7 +19,7 @@ skinparam maxMessageSize 260
 actor "Seller" as actor
 box "Frontend — 12L Web application" #E0F2FE
   participant "SaleDetailPage" as page
-  participant "OrdersApiService" as client
+  participant "ProblemsApi (@12l/api)" as client
 end box
 box "Backend — 12L API application (TwelveL.Api)" #D1FADF
   participant "OrderProblemsController" as ctrl
@@ -41,7 +41,7 @@ alt not the seller
 else problem resolved or already answered
   h -> prob : RecordSellerResponse
   prob --> h : Rejected
-  h --> ctrl : 409 "problem.response_not_allowed"
+  h --> ctrl : 409 "PROBLEM_RESPONSE_NOT_ALLOWED"
 else open, no reply yet
   h -> prob : RecordSellerResponse(message, now)
   h -> db : Save

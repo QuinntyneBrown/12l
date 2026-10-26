@@ -61,23 +61,24 @@ two are always sent.
 | `OrderCancelled` | buyer or seller | Orders | `L2-035`, `L2-033` | `/orders/{orderId}` or `/sales/{orderId}` |
 | `CancellationRequested` | seller | Orders | `L2-035` | `/sales/{orderId}` |
 | `OrderRefunded` | buyer | Orders | `L2-042` | `/orders/{orderId}` |
-| `ProblemReported` | seller | Orders | `L2-036` | `/sales/{orderId}` |
+| `ProblemReported` | seller and every administrator | Orders | `L2-036` | `/sales/{orderId}`, or `/admin/problems/{reference}` for administrators |
 | `ProblemResolved` | buyer and seller | Orders | `L2-036` | `/orders/{orderId}` or `/sales/{orderId}` |
 | `ReviewReceived` | reviewed member | Reviews | `L2-042` | `/members/{displayName}` |
 | `Marketing` | opted-in member | Marketing | `L2-043` | per campaign, `<TO SUPPLY>` |
 
 `DraftExpiring` falls under AccountSecurity because `L2-043` permits turning off only
 review and marketing email. Administrator alerts for a reported problem (`L2-036`) go to
-an operations address, `Notifications:OperationsInbox`, whose value is `<TO SUPPLY>`. The ship-by reminder schedule belongs to `orders`.
+every member holding the Administrator role through the same outbox ([ADR orders/0007](../../../adr/orders/0007-order-problems-administrator-flag-private-photos-and-two-outcomes.md)). The ship-by reminder schedule belongs to `orders`.
 
 ### What is built
 
 The types that `L2-042` names and whose events exist in the code are built:
 `EmailVerification`, `SaleMade`, `OrderShipped`, `OrderDelivered`, `ShipByReminder`,
-`OrderCancelled`, `OrderRefunded` and (added by cancel-order) `CancellationRequested`. The `NotificationType` enumeration in
+`OrderCancelled`, `OrderRefunded`, (added by cancel-order) `CancellationRequested` and (added by
+resolve-order-problems) `ProblemReported` and `ProblemResolved`. The `NotificationType` enumeration in
 `TwelveL.Domain` holds only these. The other rows of the table above are added, each with its
 model and template, by the feature that raises the event (password reset, lockout, draft
-expiry, cancel-order, resolve-order-problems, reviews and marketing). See
+expiry, reviews and marketing). See
 [ADR notifications/0001](../../../adr/notifications/0001-email-outbox-plain-text-templates-and-provider-port.md).
 
 | Event in the code | Raised by | Recipients |

@@ -9,7 +9,9 @@ the join, verify-email, sign-in and sell screens and the verify-email-prompt dia
 upload-listing-photos added the photo uploader and the camera icon; browse-catalog added the
 empty state, listing card and load more; view-listing-detail added the gallery, buy bar,
 seller summary, the edit and star icons and the status code of the center state;
-cancel-order added the quote, the radio group and the danger tone of the dialog.
+cancel-order added the quote, the radio group and the danger tone of the dialog;
+resolve-order-problems added the thread, facts and status, the flag icon, the admin variant of
+the top bar and the no-cover mode of the photo uploader.
 
 ## Foundations
 
@@ -48,7 +50,7 @@ cancel-order added the quote, the radio group and the danger tone of the dialog.
 | [Earnings](components/earnings.html) | one | unknown, known | sell/filled |
 | [Error summary](components/error-summary.html) | one | shown and focused | sell/invalid, register/invalid |
 | [Fixed size](components/fixed-size.html) | men's US 12, men's L | absent, shown | sell/filled |
-| [Icon](components/icon.html) | 18 glyphs (search added by search-and-filter-catalog) | static | every page |
+| [Icon](components/icon.html) | 19 glyphs (search added by search-and-filter-catalog, flag by resolve-order-problems) | static | every page |
 | [Input group](components/input-group.html) | leading addon | default, invalid | sell price and shipping |
 | [Item row](components/item-row.html) | with or without thumbnail | default, truncated | sell/success |
 | [Empty state](components/empty-state.html) | default, error (compact) | static | catalog/empty, catalog/error |
@@ -61,13 +63,16 @@ cancel-order added the quote, the radio group and the danger tone of the dialog.
 | [Reservation timer](components/reservation-timer.html) | info, warning, danger | counting, last minute, ended | checkout/default, reservation-timer/warning, reservation-timer/danger |
 | [Order timeline](components/order-timeline.html) | paid, shipped, delivered | done, current, to come | sale-detail/shipped, order-detail/default, order-detail/paid |
 | [Tracking link](components/tracking-link.html) | USPS, UPS, FedEx, DHL | link states | sale-detail/shipped, order-detail/default |
-| [Photo uploader](components/photo-uploader.html) | one | empty, uploading, filled, rejected, invalid, full | sell/default, sell/filled, sell/invalid |
+| [Photo uploader](components/photo-uploader.html) | listing (cover, reorder), evidence (`[cover]="false"`, report-problem) | empty, uploading, filled, rejected, invalid, full | sell/default, sell/filled, sell/invalid |
 | [Segmented control](components/segmented.html) | one | empty, chosen, invalid | sell condition |
 | [Size tag](components/size-tag.html) | US 12, L; default, large | static | sell, catalog |
 | [Spinner](components/spinner.html) | with message | running | verify-email/loading |
 | [Stat](components/stat.html) | in a `.stats` row | static, loading skeleton | payouts/default, payouts/loading |
 | [Quote](components/quote.html) | one | static | order-detail/cancelled, sale-detail/cancel-requested, respond-cancellation |
 | [Radio group](components/radio-group.html) | one | nothing chosen, chosen, invalid | cancel-order/default, cancel-order/invalid |
+| [Thread](components/thread.html) | one | static, with photos | order-detail/problem, sale-detail/problem, problem-detail/default |
+| [Facts](components/facts.html) | one | static | problem-detail/default, problem-detail/resolved |
+| [Status](components/status.html) | draft, active, reserved, sold, removed, info | static | problem-detail/default, problem-detail/resolved |
 
 ## Patterns
 
