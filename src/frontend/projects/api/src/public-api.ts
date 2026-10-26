@@ -2,6 +2,8 @@ export { AccountsApi, type Registration } from './lib/accounts/accounts-api';
 export {
   CatalogApi,
   type CardPhoto,
+  type CatalogBrand,
+  type CatalogFilterParams,
   type CatalogPage,
   type ListingCard,
   type ListingDetail,

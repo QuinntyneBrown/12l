@@ -98,9 +98,11 @@ Per `AGENTS.md`, the application project holds `AppComponent`, the four shell co
   so no page scrolls horizontally at 320 px. Catalog grid: 2 columns XS/SM,
   3 MD, 4 LG/XL (`L2-061` AC2), implemented by `tl-listing-grid` in `@12l/components`. The mock `ui.css` shows 3 columns at LG when the
   filter sidebar is present; the implementation follows `L2-061` with 4.
-- **`SheetComponent` and `SheetService`** — CDK `Overlay`-based sheet with
-  variants `full` (below 768 px) and `side` (768–991 px). The catalog filter
-  panel opens through it from the "Filters" button with "Clear" and "Show {n}
+- **`SheetComponent` and `SheetService`** — built by search-and-filter-catalog
+  in `@12l/components` (`src/lib/sheet/`): `SheetService` opens a component whose
+  template is a `tl-sheet` through `DialogService` (inert page, Escape closes,
+  focus returns to the opener). The sheet fills the screen; with `side` it is a
+  24rem left panel from 768 px. The catalog filter panel opens through it from the "Filters" button with "Clear" and "Show {n}
   items" actions; from 992 px the catalog renders the same filter form as a
   permanent sidebar and hides the "Filters" button (`L2-062`).
 - **`DialogService`** — wraps CDK `Dialog` for every modal in the app:

@@ -41,12 +41,13 @@ seller summary, the edit and star icons and the status code of the center state.
 | [Form field](components/form-field.html) | input, textarea, select | default, hover, focus, invalid, disabled, read only | sign-in, sell |
 | [Alert](components/alert.html) | info, success, warning, danger; banner without title; projected actions; dismissible | static, polite, assertive | sign-in/invalid, sell/draft-saved, verify-email-prompt, payout-banner |
 | [Center state](components/center-state.html) | blocked, limited, error, success; icon or status code | static | sell/unverified, sell/limited, sell/error, sell/success, listing-detail/unavailable, listing-detail/error |
+| [Chip](components/chip.html) | selected, with remove button | default, hover, focus | catalog/filtered, catalog/no-results |
 | [Choice](components/choice.html) | plain, with links | unticked, ticked, invalid | register, sell |
 | [Dialog](components/dialog.html) | default, with top alert | default, busy, sent, limited | dialogs/verify-email-prompt |
 | [Earnings](components/earnings.html) | one | unknown, known | sell/filled |
 | [Error summary](components/error-summary.html) | one | shown and focused | sell/invalid, register/invalid |
 | [Fixed size](components/fixed-size.html) | men's US 12, men's L | absent, shown | sell/filled |
-| [Icon](components/icon.html) | 17 glyphs | static | every page |
+| [Icon](components/icon.html) | 18 glyphs (search added by search-and-filter-catalog) | static | every page |
 | [Input group](components/input-group.html) | leading addon | default, invalid | sell price and shipping |
 | [Item row](components/item-row.html) | with or without thumbnail | default, truncated | sell/success |
 | [Empty state](components/empty-state.html) | default, error (compact) | static | catalog/empty, catalog/error |

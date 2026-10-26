@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRouteSnapshot, ResolveEnd, Router, RouterOutlet } from '@angular/router';
+import { ActivatedRouteSnapshot, NavigationEnd, ResolveEnd, Router, RouterOutlet } from '@angular/router';
 import { filter, map } from 'rxjs';
 import { AuthState } from '@12l/api';
 import { FooterComponent, LogoComponent, TopBarComponent } from '@12l/components';
@@ -17,7 +17,7 @@ function shellOf(route: ActivatedRouteSnapshot): Shell {
 
 /**
  * App shell: the payout banner, top bar with the member from AuthState, main#main with the router
- * outlet and the footer. Routes with data.shell 'auth' render in the auth shell: large logo above a centred card.
+ * outlet and the footer; a top-bar search navigates to the catalog. Routes with data.shell 'auth' render in the auth shell: large logo above a centred card.
  */
 @Component({
   selector: 'tl-app-shell',
@@ -37,6 +37,24 @@ export class AppShellComponent {
     ),
     { initialValue: 'app' as Shell },
   );
+
+  /** The keyword of the catalog URL, so the top-bar box keeps it. */
+  readonly query = toSignal(
+    this.router.events.pipe(
+      filter((event) => event instanceof NavigationEnd),
+      map(() => this.router.parseUrl(this.router.url).queryParamMap.get('q') ?? ''),
+    ),
+    { initialValue: '' },
+  );
+
+  /** A keyword search goes to the catalog; on the catalog it keeps the filters (L2-023). */
+  search(term: string): void {
+    const onCatalog = this.router.parseUrl(this.router.url).root.children['primary'] === undefined;
+    void this.router.navigate(['/'], {
+      queryParams: { q: term || null },
+      queryParamsHandling: onCatalog ? 'merge' : '',
+    });
+  }
 
   constructor() {
     void this.auth.load();

@@ -58,7 +58,7 @@ export class ListingDetailStore {
   }
 
   private async loadSimilar(listing: ListingDetail): Promise<void> {
-    const result = await this.api.listings(1, listing.category);
+    const result = await this.api.listings(1, { category: listing.category.toLowerCase() });
     if (!result.ok) return;
     this.similar.set(result.value.items.filter((card) => card.reference !== listing.reference).slice(0, SIMILAR_COUNT));
   }

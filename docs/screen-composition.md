@@ -14,7 +14,8 @@ The catalogue holds the shell components (skip link, top bar, footer, toast, she
 link, form field) and the components create-listing added (alert, center state, choice,
 dialog with `DialogService`, earnings, error summary, fixed size, icon, input group, item row,
 segmented control, size tag, spinner) and the components browse-catalog added (empty
-state, listing card with listing grid, load more). Feature screens not built yet are inventoried below
+state, listing card with listing grid, load more) and the components search-and-filter-catalog
+added (chip, `tl-sheet` with `SheetService`, the `search` icon). Feature screens not built yet are inventoried below
 with their states and marked **not yet composed**; each is composed when its journey is
 implemented, and the catalogue grows in the same change.
 
@@ -104,21 +105,30 @@ Auth shell. `@12l/accounts` `VerifyEmailPage` reads `token` from the query strin
 
 ### Catalog — `/` (`pages/catalog`: default, guest, category, search, filtered, loading, empty, no-results, error, offline)
 
-Built by browse-catalog in `@12l/catalog` (`src/lib/catalog/`) for the states default, guest,
-category (`/shoes`, `/tops`, `/outerwear`, `/bottoms`), loading, empty, error and offline. The
-states search, filtered and no-results, the filter sidebar, the filters toggle, the sort select
-and the subcategory chips belong to search-and-filter-catalog and are not yet composed.
+Built in `@12l/catalog` (`src/lib/catalog/`, `src/lib/filters/`) by browse-catalog (default,
+guest, category at `/shoes`, `/tops`, `/outerwear`, `/bottoms`, loading, empty, error, offline)
+and search-and-filter-catalog (search, filtered, no-results, the filter sidebar, the filters
+toggle, the chips and the sort select). The URL holds the result set (`q`, `category`,
+`subcategory`, `brand`, `condition`, `min`, `max`, `sort`).
 
 - Library: `tl-listing-grid` (cards and the 8-card loading skeleton) with `tl-listing-card`,
   `tl-size-tag` (lg, category header), `tl-load-more`, `tl-empty-state` (empty: icon `tag`,
-  "Sell an item" as `tlButton="primary"`; error: tone error, icon `refresh`, "Try again"),
-  `tl-alert` (warning banner with icon `wifi-off` for offline; danger "Couldn’t load more items"
-  with a `tlButton="link"` Try again when a next page fails), `tlButton`, `tl-icon`
-- Local: the hero (`.hero`, h1 "Size 12. Size L. *Nothing else.*" and lead), the category
-  `.page-header`, the `.toolbar` with the polite item count and its text skeleton. The offline
-  banner renders at the top of `main`, not above the top bar as in the mock, until
-  `tl-system-banner` exists. A failed next page shows an inline danger alert instead of the
-  toast in the design, until `ToastService` exists (responsive-accessible-shell).
+  "Sell an item" as `tlButton="primary"`; no-results: icon `search`, "No items match", "Clear
+  search and filters"; error: tone error, icon `refresh`, "Try again"), `tl-alert` (warning
+  banner with icon `wifi-off` for offline; danger "Couldn’t load more items" with a
+  `tlButton="link"` Try again when a next page fails), `tl-chip` (one per active filter value),
+  `tlButton` (Filters toggle, "Clear all" link button), `tl-choice` and `tl-input-group` (inside
+  the filter form), `SheetService` (opens the Filters sheet below 992px), `tl-icon`
+- Local: the hero (`.hero`, h1 "Size 12. Size L. *Nothing else.*" and lead), the page header
+  (category name with size tag; eyebrow "Search" with “{q}”; "Shop" for other filters), the
+  `.catalog-layout` grid, the `.toolbar` with the polite item count and its text skeleton, the
+  `.sort` select, `FilterForm` (`tl-filter-form`, fieldsets Category, subcategories, Brand with
+  "All {n} brands", Condition, Price) and `FiltersSidebar` (`tl-filters-sidebar`,
+  `<aside class="filters" aria-label="Filters">`). The offline banner renders at the top of
+  `main`, not above the top bar as in the mock, until `tl-system-banner` exists. A failed next
+  page shows an inline danger alert instead of the toast in the design, until `ToastService`
+  exists (responsive-accessible-shell). The subcategory chips under a category header are not
+  built; the sidebar's subcategory group covers the same filter.
 
 ### Listing detail — `/items/{id}` (`pages/listing-detail`: default, guest, new-seller, reserved, sold, own, loading, error, unavailable)
 
@@ -300,7 +310,7 @@ uploads at once and a save sends the photo IDs in order. The footer stays visibl
 | Close account (`dialogs/close-account`: default, invalid, busy, blocked) | `DialogService` | not yet composed | not yet composed |
 | Sign out everywhere (`dialogs/sign-out-everywhere`: default, busy, failed) | `DialogService` | not yet composed | not yet composed |
 | Verify email prompt (`dialogs/verify-email-prompt`: default, busy, sent, limited) | `DialogService` | `tl-dialog` (mail icon, description with the email), `tl-alert` (sent success, limited warning) in the top slot, `tl-button` (Not now, Resend link with busy, Done) | `VerifyEmailPromptComponent` in `@12l/listings`; it moves to a shared place when checkout also opens it |
-| Filters (`dialogs/filters`: default, invalid, busy) | `tl-sheet` | not yet composed | not yet composed |
+| Filters (`dialogs/filters`: default, invalid, busy) | `SheetService` | `tl-sheet` (`side`, heading "Filters", close "Close filters"), `tl-error-summary` (heading "Check the price range"), `tl-choice`, `tl-input-group`, `tl-button` (Clear; primary "Show {n} items" with `aria-busy`, disabled when invalid) | `FiltersSheet` and `FilterForm` in `@12l/catalog` |
 | Menu (`dialogs/nav-menu`: default, guest) | `tl-sheet` | `tl-sheet`, `tl-button`, `tl-link` | not yet composed |
 | Add tracking (`dialogs/add-tracking`: default, invalid, busy, failed) | `DialogService` | `tl-dialog` (description "We’ll email {buyer} the tracking link."), `tl-form-field` (Carrier select, focused on open; Tracking number with the inline error), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` (Cancel, disabled while busy; primary "Mark as shipped" with busy, "Try again" after a failure) | `AddTrackingDialog` in `@12l/orders` |
 | Cancel order (`dialogs/cancel-order`: default, invalid, busy, failed) | `DialogService` | not yet composed | not yet composed |

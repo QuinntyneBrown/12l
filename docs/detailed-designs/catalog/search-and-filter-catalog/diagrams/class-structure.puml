@@ -11,27 +11,30 @@ skinparam class {
 }
 title Class structure — Search and filter the catalog
 
+class CatalogFilters <<record>> {
+  +string? Q
+  +string? Category
+  +IReadOnlyList<string>? Subcategories
+  +IReadOnlyList<string>? Brands
+  +IReadOnlyList<string>? Conditions
+  +string? MinPrice
+  +string? MaxPrice
+  +string? Sort
+}
+
 class CatalogCriteria <<record>> {
-  +SearchTerm? Term
-  +Category? Category
-  +IReadOnlyList<Subcategory> Subcategories
+  +IReadOnlyList<string> Words
+  +string? Category
+  +IReadOnlyList<string> Subcategories
   +IReadOnlyList<string> Brands
   +IReadOnlyList<ItemCondition> Conditions
-  +PriceRange? Price
+  +decimal? MinPrice
+  +decimal? MaxPrice
   +CatalogSort Sort
-}
-
-class SearchTerm <<value object>> {
-  +string Value
-  +IReadOnlyList<string> Words
-  +{static} From(raw: string, maxLength: int = 100): SearchTerm?
-  +ToFullTextCondition(): string
-}
-
-class PriceRange <<value object>> {
-  +decimal? Min
-  +decimal? Max
-  +{static} Create(min: decimal?, max: decimal?): Result<PriceRange>
+  +{static} MaxSearchTermLength = 100
+  +{static} From(filters: CatalogFilters): Result<CatalogCriteria>
+  +Apply(listings: IQueryable<Listing>): IQueryable<Listing>
+  +Order(listings: IQueryable<Listing>): IOrderedQueryable<Listing>
 }
 
 enum CatalogSort {
@@ -48,68 +51,55 @@ enum ItemCondition {
   UsedFair
 }
 
-class SearchCatalogQuery <<record>> {
+class CategoryCatalog <<static>> {
+  +{static} All: IReadOnlyList<CategoryDefinition>
+}
+
+class BrowseCatalogQuery <<record>> {
   +int Page
-  +int PageSize
-  +CatalogCriteria Criteria
+  +int? PageSize
+  +CatalogFilters Filters
 }
 
 class CountCatalogListingsQuery <<record>> {
-  +CatalogCriteria Criteria
+  +CatalogFilters Filters
 }
 
 class GetCatalogBrandsQuery <<record>>
 
-class SearchCatalogQueryValidator {
-  -ICategoryCatalog categories
-}
-
-interface ICategoryCatalog {
-  +IsValid(category: string, subcategory: string?): bool
-}
-
-class SearchCatalogQueryHandler {
-  +Handle(q: SearchCatalogQuery): Task<CatalogPageDto>
+class BrowseCatalogQueryHandler {
+  +Handle(q: BrowseCatalogQuery): Task<Result<CatalogPageDto>>
 }
 class CountCatalogListingsQueryHandler {
-  +Handle(q: CountCatalogListingsQuery): Task<int>
+  +Handle(q: CountCatalogListingsQuery): Task<Result<CatalogCountDto>>
 }
 class GetCatalogBrandsQueryHandler {
-  -IDistributedCache cache
-  +Handle(q: GetCatalogBrandsQuery): Task<BrandFacetDto[]>
+  +Handle(q: GetCatalogBrandsQuery): Task<IReadOnlyList<CatalogBrandDto>>
 }
 
-interface ICatalogReadStore {
-  +SearchAsync(criteria, skip, take, now, ct): Task<CatalogSearchResult>
-  +CountAsync(criteria, ct): Task<int>
-  +GetBrandsAsync(ct): Task<BrandFacetDto[]>
+interface ITwelveLDbContext {
+  +Listings: DbSet<Listing>
+  +ListingPhotos: DbSet<ListingPhoto>
 }
 
-class CatalogReadStore {
-  -TwelveLDbContext db
-  -Apply(query: IQueryable<Listing>, c: CatalogCriteria): IQueryable<Listing>
-  -Order(query, c: CatalogCriteria): IOrderedQueryable<Listing>
-}
-
-class BrandFacetDto {
+class CatalogBrandDto <<record>> {
   +string Name
   +int ListingCount
 }
 
-CatalogCriteria *-- SearchTerm
-CatalogCriteria *-- PriceRange
+CatalogCriteria ..> CatalogFilters : built from
 CatalogCriteria --> CatalogSort
 CatalogCriteria --> "0..5" ItemCondition
-SearchCatalogQuery --> CatalogCriteria
-CountCatalogListingsQuery --> CatalogCriteria
-SearchCatalogQueryValidator ..> SearchCatalogQuery : validates
-SearchCatalogQueryValidator --> ICategoryCatalog
-SearchCatalogQueryHandler ..> SearchCatalogQuery : handles
+CatalogCriteria ..> CategoryCatalog : checks category and subcategory
+BrowseCatalogQuery --> CatalogFilters
+CountCatalogListingsQuery --> CatalogFilters
+BrowseCatalogQueryHandler ..> BrowseCatalogQuery : handles
 CountCatalogListingsQueryHandler ..> CountCatalogListingsQuery : handles
 GetCatalogBrandsQueryHandler ..> GetCatalogBrandsQuery : handles
-SearchCatalogQueryHandler --> ICatalogReadStore
-CountCatalogListingsQueryHandler --> ICatalogReadStore
-GetCatalogBrandsQueryHandler --> ICatalogReadStore
-CatalogReadStore ..|> ICatalogReadStore
-ICatalogReadStore ..> BrandFacetDto : returns
+BrowseCatalogQueryHandler ..> CatalogCriteria
+CountCatalogListingsQueryHandler ..> CatalogCriteria
+BrowseCatalogQueryHandler --> ITwelveLDbContext
+CountCatalogListingsQueryHandler --> ITwelveLDbContext
+GetCatalogBrandsQueryHandler --> ITwelveLDbContext
+GetCatalogBrandsQueryHandler ..> CatalogBrandDto : returns
 @enduml
