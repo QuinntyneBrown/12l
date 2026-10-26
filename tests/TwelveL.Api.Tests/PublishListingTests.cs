@@ -1,5 +1,5 @@
 // Acceptance Test
-// Traces to: L2-014, L2-015, L2-016, L2-018, L2-019, L2-031, L2-051
+// Traces to: L2-014, L2-015, L2-017, L2-016, L2-018, L2-019, L2-031, L2-051
 // Description: A seller publishes a draft once the label is confirmed and every field is within
 // its limits; every failing field is reported together; 20 publishes a UTC day are allowed.
 
@@ -23,7 +23,7 @@ public sealed class PublishListingTests : IDisposable
     public async Task A_complete_confirmed_listing_becomes_active_and_prompts_for_payouts()
     {
         await _client.SignInVerifiedMemberAsync(_factory);
-        var reference = await _client.CreateDraftAsync(Listings.Complete("Tops", "Hoodies"));
+        var reference = await _client.CreateDraftWithPhotoAsync(Listings.Complete("Tops", "Hoodies"));
 
         using var response = await _client.PublishAsync(reference);
 
@@ -42,7 +42,7 @@ public sealed class PublishListingTests : IDisposable
     public async Task Publishing_without_the_confirmation_flag_is_422()
     {
         await _client.SignInVerifiedMemberAsync(_factory);
-        var reference = await _client.CreateDraftAsync(Listings.Complete());
+        var reference = await _client.CreateDraftWithPhotoAsync(Listings.Complete());
 
         using var response = await _client.PostAsJsonAsync($"/api/listings/{reference}/publish", new { });
 
@@ -64,8 +64,9 @@ public sealed class PublishListingTests : IDisposable
         var problem = await Problem.ReadAsync(response);
         Assert.Equal("LISTING_INVALID", problem.Code);
         Assert.Equal(
-            ["subcategory", "title", "description", "brand", "condition", "price", "shippingCost", "sizeConfirmed"],
+            ["photos", "subcategory", "title", "description", "brand", "condition", "price", "shippingCost", "sizeConfirmed"],
             problem.Errors!.Keys);
+        Assert.Equal("Add at least one photo", problem.Errors["photos"].Message);
         Assert.Equal("Title must be 5 to 80 characters", problem.Errors["title"].Message);
         Assert.Equal("Enter a price from $1.00 to $5,000.00", problem.Errors["price"].Message);
         Assert.Equal("Confirm the label shows men's L", problem.Errors["sizeConfirmed"].Message);
@@ -75,7 +76,7 @@ public sealed class PublishListingTests : IDisposable
     public async Task Used_fair_without_flaws_is_refused_with_describe_the_flaws()
     {
         await _client.SignInVerifiedMemberAsync(_factory);
-        var reference = await _client.CreateDraftAsync(Listings.Complete().With("condition", "Used - Fair"));
+        var reference = await _client.CreateDraftWithPhotoAsync(Listings.Complete().With("condition", "Used - Fair"));
 
         using var response = await _client.PublishAsync(reference);
 
@@ -87,7 +88,7 @@ public sealed class PublishListingTests : IDisposable
     public async Task A_brand_outside_the_suggested_list_and_script_text_are_stored_as_typed()
     {
         await _client.SignInVerifiedMemberAsync(_factory);
-        var reference = await _client.CreateDraftAsync(
+        var reference = await _client.CreateDraftWithPhotoAsync(
             Listings.Complete().With("brand", "  Small Batch Cobblers ").With("title", "<script>alert(1)</script>"));
 
         using var response = await _client.PublishAsync(reference);
@@ -102,7 +103,7 @@ public sealed class PublishListingTests : IDisposable
     public async Task A_listing_that_is_not_a_draft_cannot_be_published_again()
     {
         await _client.SignInVerifiedMemberAsync(_factory);
-        var reference = await _client.CreateDraftAsync(Listings.Complete());
+        var reference = await _client.CreateDraftWithPhotoAsync(Listings.Complete());
         using var first = await _client.PublishAsync(reference);
 
         using var second = await _client.PublishAsync(reference);
@@ -115,7 +116,7 @@ public sealed class PublishListingTests : IDisposable
     public async Task Another_member_cannot_publish_a_draft()
     {
         await _client.SignInVerifiedMemberAsync(_factory);
-        var reference = await _client.CreateDraftAsync(Listings.Complete());
+        var reference = await _client.CreateDraftWithPhotoAsync(Listings.Complete());
         using var other = _factory.CreateMemberClient();
         await other.SignInVerifiedMemberAsync(_factory, "kicks_12", "kicks@example.com");
 
@@ -130,12 +131,12 @@ public sealed class PublishListingTests : IDisposable
         await _client.SignInVerifiedMemberAsync(_factory);
         for (var i = 0; i < 20; i++)
         {
-            var draft = await _client.CreateDraftAsync(Listings.Complete());
+            var draft = await _client.CreateDraftWithPhotoAsync(Listings.Complete());
             using var published = await _client.PublishAsync(draft);
             Assert.Equal(HttpStatusCode.OK, published.StatusCode);
         }
 
-        var reference = await _client.CreateDraftAsync(Listings.Complete());
+        var reference = await _client.CreateDraftWithPhotoAsync(Listings.Complete());
         using var limited = await _client.PublishAsync(reference);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, limited.StatusCode);

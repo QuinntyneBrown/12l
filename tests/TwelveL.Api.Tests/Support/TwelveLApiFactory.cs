@@ -14,7 +14,7 @@ namespace TwelveL.Api.Tests.Support;
 
 /// <summary>
 /// Hosts TwelveL.Api in memory with SQLite in-memory in place of SQL Server, a captured email
-/// sender and a controllable clock. No real database or external system is touched (AGENTS.md).
+/// sender, in-memory photo storage and a controllable clock. No real database or external system is touched (AGENTS.md).
 /// </summary>
 public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
 {
@@ -30,6 +30,8 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
 
     public CapturingEmailSender Email { get; } = new();
 
+    public FakePhotoStorage Photos { get; } = new();
+
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         builder.UseEnvironment("Testing");
@@ -44,6 +46,8 @@ public sealed class TwelveLApiFactory : WebApplicationFactory<Program>
             services.AddSingleton<TimeProvider>(Clock);
             services.RemoveAll<IEmailSender>();
             services.AddSingleton<IEmailSender>(Email);
+            services.RemoveAll<IPhotoStorage>();
+            services.AddSingleton<IPhotoStorage>(Photos);
         });
     }
 

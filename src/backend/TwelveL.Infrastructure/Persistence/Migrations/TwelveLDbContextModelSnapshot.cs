@@ -130,6 +130,63 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                         });
                 });
 
+            modelBuilder.Entity("TwelveL.Domain.Listings.ListingPhoto", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Height")
+                        .HasColumnType("int");
+
+                    b.Property<Guid?>("ListingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<long>("OriginalBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("OriginalContentType")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("nvarchar(32)");
+
+                    b.Property<string>("OriginalHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nchar(64)")
+                        .IsFixedLength();
+
+                    b.Property<string>("OriginalKey")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("OwnerId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("Position")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Width")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ListingId", "Position")
+                        .HasDatabaseName("IX_ListingPhotos_ListingId_Position");
+
+                    b.HasIndex("OwnerId", "CreatedAt")
+                        .HasDatabaseName("IX_ListingPhotos_OwnerId_CreatedAt");
+
+                    b.ToTable("ListingPhotos", null, t =>
+                        {
+                            t.HasCheckConstraint("CK_ListingPhotos_Position", "Position IS NULL OR Position BETWEEN 0 AND 7");
+                        });
+                });
+
             modelBuilder.Entity("TwelveL.Domain.Members.EmailVerificationToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -268,6 +325,56 @@ namespace TwelveL.Infrastructure.Persistence.Migrations
                         .HasForeignKey("SellerId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("TwelveL.Domain.Listings.ListingPhoto", b =>
+                {
+                    b.HasOne("TwelveL.Domain.Listings.Listing", null)
+                        .WithMany()
+                        .HasForeignKey("ListingId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("TwelveL.Domain.Members.Member", null)
+                        .WithMany()
+                        .HasForeignKey("OwnerId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.OwnsMany("TwelveL.Domain.Listings.ListingPhotoVersion", "Versions", b1 =>
+                        {
+                            b1.Property<Guid>("PhotoId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<int>("Size")
+                                .HasColumnType("int");
+
+                            b1.Property<string>("Format")
+                                .HasMaxLength(8)
+                                .HasColumnType("nvarchar(8)");
+
+                            b1.Property<long>("Bytes")
+                                .HasColumnType("bigint");
+
+                            b1.Property<int>("Height")
+                                .HasColumnType("int");
+
+                            b1.Property<string>("Key")
+                                .IsRequired()
+                                .HasMaxLength(80)
+                                .HasColumnType("nvarchar(80)");
+
+                            b1.Property<int>("Width")
+                                .HasColumnType("int");
+
+                            b1.HasKey("PhotoId", "Size", "Format");
+
+                            b1.ToTable("ListingPhotoVersions", (string)null);
+
+                            b1.WithOwner()
+                                .HasForeignKey("PhotoId");
+                        });
+
+                    b.Navigation("Versions");
                 });
 
             modelBuilder.Entity("TwelveL.Domain.Members.EmailVerificationToken", b =>

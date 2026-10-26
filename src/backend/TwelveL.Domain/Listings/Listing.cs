@@ -182,9 +182,10 @@ public sealed class Listing
 
     /// <summary>
     /// Publishes a draft when the publish rules of L2-014 to L2-018 hold, reporting every failing
-    /// field together; otherwise leaves it unchanged.
+    /// field together; otherwise leaves it unchanged. <paramref name="photoCount"/> is the number
+    /// of attached photos; at most 8 can be attached, so only the minimum is checked here.
     /// </summary>
-    public IReadOnlyList<RuleViolation> Publish(bool sizeConfirmed, DateTime now)
+    public IReadOnlyList<RuleViolation> Publish(bool sizeConfirmed, DateTime now, int photoCount)
     {
         if (Status != ListingStatus.Draft)
         {
@@ -206,6 +207,7 @@ public sealed class Listing
             }
         }
 
+        Check("photos", photoCount < 1, new("photos", "PHOTOS_REQUIRED", "Add at least one photo"));
         Check("subcategory", Subcategory is null, new("subcategory", "SUBCATEGORY_REQUIRED", "Choose a type"));
         Check("title", Title is null || Title.Length < MinTitle, TitleLength);
         Check("description", Description is null || Description.Length < MinDescription, DescriptionLength);

@@ -19,7 +19,7 @@ public sealed class ListingsController(ISender sender) : ControllerBase
     [HttpPost("api/listings")]
     public async Task<IActionResult> Create(ListingDetailsRequest request, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new CreateListingDraftCommand(User.MemberId(), request.ToDetails()), cancellationToken);
+        var result = await sender.Send(new CreateListingDraftCommand(User.MemberId(), request.ToDetails(), request.PhotoIds), cancellationToken);
         return result.IsSuccess
             ? Created($"/api/me/listings/{result.Value!.Reference}", result.Value)
             : this.ToProblem(result.Error!);
@@ -28,7 +28,7 @@ public sealed class ListingsController(ISender sender) : ControllerBase
     [HttpPut("api/listings/{reference}")]
     public async Task<IActionResult> Update(string reference, ListingDetailsRequest request, CancellationToken cancellationToken)
     {
-        var result = await sender.Send(new UpdateListingDraftCommand(User.MemberId(), reference, request.ToDetails()), cancellationToken);
+        var result = await sender.Send(new UpdateListingDraftCommand(User.MemberId(), reference, request.ToDetails(), request.PhotoIds), cancellationToken);
         return result.IsSuccess ? Ok(result.Value) : this.ToProblem(result.Error!);
     }
 
@@ -49,7 +49,8 @@ public sealed class ListingsController(ISender sender) : ControllerBase
 
 /// <summary>
 /// The editable fields. There is no seller, status, confirmation time or timestamp member, so a
-/// client cannot set them (mass assignment, L2-049); unknown members are ignored.
+/// client cannot set them (mass assignment, L2-049); unknown members are ignored. PhotoIds lists
+/// uploaded photos in display order (L2-017); leaving it out keeps the current photos.
 /// </summary>
 public sealed record ListingDetailsRequest(
     string? Category,
@@ -61,7 +62,8 @@ public sealed record ListingDetailsRequest(
     string? Condition,
     string? Flaws,
     decimal? Price,
-    decimal? ShippingCost)
+    decimal? ShippingCost,
+    IReadOnlyList<Guid>? PhotoIds = null)
 {
     public ListingDetails ToDetails() => new(Category, Subcategory, Size, Title, Description, Brand, Condition, Flaws, Price, ShippingCost);
 }

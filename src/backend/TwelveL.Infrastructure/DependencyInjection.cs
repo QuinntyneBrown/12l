@@ -7,6 +7,7 @@ using TwelveL.Infrastructure.Accounts;
 using TwelveL.Infrastructure.Email;
 using TwelveL.Infrastructure.Listings;
 using TwelveL.Infrastructure.Persistence;
+using TwelveL.Infrastructure.Photos;
 
 namespace TwelveL.Infrastructure;
 
@@ -25,6 +26,11 @@ public static class DependencyInjection
         services.AddSingleton<ISellerPayoutAccountReader, NoPayoutAccountsReader>();
         services.Configure<AppOptions>(configuration.GetSection("App"));
         services.Configure<SellingOptions>(configuration.GetSection("Selling"));
+        services.Configure<PhotoOptions>(configuration.GetSection("Photos"));
+        services.Configure<PhotoStorageOptions>(configuration.GetSection("PhotoStorage"));
+        services.AddSingleton<IImageInspector, SkiaImageInspector>();
+        services.AddSingleton<IListingPhotoProcessor, SkiaPhotoProcessor>();
+        services.AddSingleton<IPhotoStorage, FileSystemPhotoStorage>();
         return services;
     }
 }
