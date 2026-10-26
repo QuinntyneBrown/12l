@@ -26,6 +26,8 @@ public static class NotificationCategories
     {
         NotificationType.EmailVerification => NotificationCategory.AccountSecurity,
         NotificationType.Marketing => NotificationCategory.Marketing,
+
+        // Listing notices, such as the draft expiry reminder (L2-019), are transactional and always on.
         _ => NotificationCategory.Orders,
     };
 }

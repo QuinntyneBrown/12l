@@ -2,7 +2,8 @@
 // Traces to: L2-019, L2-021
 // Description: "Your listings" shows every listing of the seller newest first with cover, title,
 // price, status and date, filters by status with a count on each chip, opens each listing where
-// its status belongs, and has loading, empty and error states.
+// its status belongs, and has loading, empty and error states. A seller with drafts is told once
+// per visit that drafts older than 90 days are deleted.
 
 import { Page } from '@playwright/test';
 
@@ -123,6 +124,30 @@ test.describe('manage my listings', () => {
     await expect(listings.rows).toHaveCount(2);
     await expect(listings.chip('Sold')).toHaveAttribute('aria-pressed', 'true');
     expect(queries).toEqual(['all', 'Sold', 'Sold']);
+  });
+
+  test('a seller with drafts is told once that drafts older than 90 days are deleted', async ({ page }) => {
+    await serve(page);
+    const listings = new MyListingsPage(page);
+    await listings.goto();
+
+    await expect(listings.draftToast).toHaveCount(1);
+    await expect(listings.draftToast).toHaveClass(/toast--info/);
+    await expect(listings.draftToast).toContainText('We’ll email you a week before.');
+    await listings.chip('Sold').click();
+    await expect(listings.rows).toHaveCount(2);
+    await expect(listings.draftToast).toHaveCount(1);
+  });
+
+  test('a seller without drafts gets no draft toast', async ({ page }) => {
+    await page.route('**/api/me/listings*', (route) =>
+      route.fulfill({ json: myListings([myListingRow()], { all: 1, active: 1 }) }),
+    );
+    const listings = new MyListingsPage(page);
+    await listings.goto();
+
+    await expect(listings.rows).toHaveCount(1);
+    await expect(listings.draftToast).toHaveCount(0);
   });
 
   test('a seller with no listings is asked to sell an item', async ({ page }) => {

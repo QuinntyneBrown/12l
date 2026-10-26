@@ -19,4 +19,5 @@ public enum NotificationType
     ProblemReported,
     ProblemResolved,
     Marketing,
+    DraftExpiryReminder,
 }

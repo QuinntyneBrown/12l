@@ -74,3 +74,7 @@ export function rowLink(row: MyListingRow): string[] {
 export function statusTone(status: ListingStatus): StatusTone {
   return status.toLowerCase() as StatusTone;
 }
+
+/** The info toast of mocks notifications/toast for a seller with drafts (L2-019). */
+export const draftExpiryTitle = 'Drafts older than 90 days are deleted';
+export const draftExpiryText = 'We’ll email you a week before.';

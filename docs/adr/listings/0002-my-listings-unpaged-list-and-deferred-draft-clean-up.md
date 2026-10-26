@@ -4,7 +4,8 @@ Date: 2026-10-26
 
 ## Status
 
-Accepted
+Accepted. The draft clean-up deferral is resolved by
+[ADR listings/0004](0004-draft-clean-up-deletes-photo-files-directly.md).
 
 ## Context
 

@@ -16,7 +16,7 @@ Terms used in this design:
 
 ## Description
 
-Screens, states and copy come from `docs/mocks/pages/my-listings/` and `docs/mocks/notifications/payout-banner/`. The info toast "Drafts older than 90 days are deleted" of `docs/mocks/notifications/toast/` waits for `ToastService` and the draft clean-up job (ADR listings/0002).
+Screens, states and copy come from `docs/mocks/pages/my-listings/` and `docs/mocks/notifications/payout-banner/`. The info toast "Drafts older than 90 days are deleted" of `docs/mocks/notifications/toast/` is shown through `ToastService`.
 
 ### Frontend (`12L Web`, `@12l/listings` in `src/frontend/projects/listings/src/lib/my-listings/`)
 
@@ -35,6 +35,7 @@ Screens, states and copy come from `docs/mocks/pages/my-listings/` and `docs/moc
   - the price as whole dollars when the cents are zero (for example "$60"), or "—" when no price is set;
   - the date first saved as "Today", "Yesterday" or "Sat 24 Oct", by UTC calendar day like the order pages.
   The row links by status: `Draft` to `/sell/{reference}`; `Sold` to `/sales/{saleOrderId}`; `Active`, `Reserved` and `Removed` to `/items/{reference}`.
+- **Draft expiry toast** — when the first load of a visit finds `counts.draft` above 0, the page shows one info toast through `ToastService`: "Drafts older than 90 days are deleted", "We’ll email you a week before." Changing the filter does not show it again.
 - **Payout banner** — stays in the app shell above the top bar ([ADR orders/0005](../../../adr/orders/0005-seller-payouts-payout-port-fee-snapshot-and-shell-banner.md)), so it shows on this page too. Moving it into the page would make `@12l/listings` import `@12l/orders`, which the workspace forbids ([ADR listings/0002](../../../adr/listings/0002-my-listings-unpaged-list-and-deferred-draft-clean-up.md)).
 - **`ListingsApi.mine(status?)`** in `@12l/api` — typed call to `GET /api/me/listings`.
 
@@ -54,17 +55,17 @@ Screens, states and copy come from `docs/mocks/pages/my-listings/` and `docs/moc
 - **`MyListingRowDto`** — `reference`, `status`, `title?`, `category`, `price?`, `photo?` (the catalog's `CardPhotoDto`: `width`, `height`, `src`, `webp` and `jpeg` srcsets), `createdAt`, `saleOrderId?`.
 - **`MyListingCountsDto`** — `all`, `draft`, `active`, `reserved`, `sold`, `removed`.
 - **Sort order** — "newest first" means by `CreatedAt`, the date the listing was first saved. The row shows the same date.
-- **Draft reminder reset** (deferred with the clean-up job) — `Listing.UpdateDetails` clears `DraftReminderSentAt` whenever a draft is saved, so an edited draft restarts its 90-day period and earns a fresh reminder.
+- **Draft reminder reset** — `Listing.UpdateDetails` clears `DraftReminderSentAt` whenever a draft is saved, so an edited draft restarts its 90-day period and earns a fresh reminder.
 
 ### Worker and infrastructure (`TwelveL.Worker`, `TwelveL.Infrastructure`)
 
-The draft clean-up below is deferred to a follow-up (ADR listings/0002): the page and API ship first. The indexes `IX_Listings_SellerId_CreatedAt` and `IX_Listings_SellerId_Status_CreatedAt` already exist from create-listing.
+The draft clean-up landed after the page as its own slice ([ADR listings/0004](../../../adr/listings/0004-draft-clean-up-deletes-photo-files-directly.md)). The indexes `IX_Listings_SellerId_CreatedAt` and `IX_Listings_SellerId_Status_CreatedAt` already exist from create-listing.
 
-- **`DraftCleanupJob`** — hosted service that runs once a day on `Listings:DraftCleanup:Schedule`, in batches of `Listings:DraftCleanup:BatchSize`. Each run:
-  1. **reminds** — selects drafts with `UpdatedAt` at or before now − (`RetentionDays` − `ReminderDaysBefore`), that is 83 days, and `DraftReminderSentAt` null. For each draft, one transaction sets `DraftReminderSentAt` and inserts a `DraftExpiryReminderEmail { memberId, reference, title, deleteOn }` outbox message;
-  2. **deletes** — selects drafts with `UpdatedAt` at or before now − 90 days and `DraftReminderSentAt` at or before now − 7 days. It deletes each `Listings` row with a `RowVersion` check and skips a draft edited meanwhile. `ListingPhotos.ListingId` is set to null by the foreign key, so `PhotoCleanupJob` of [upload-listing-photos](../upload-listing-photos/README.md) deletes the photos and their stored files.
+- **`DraftCleanupJob`** — hosted service that sends `CleanUpDraftsCommand` once every `Listings:DraftCleanup:Interval` (one day). `CleanUpDraftsHandler` (`TwelveL.Application/Listings/CleanUpDrafts.cs`):
+  1. **reminds** — selects drafts with `UpdatedAt` at or before now − (90 − 7) days, that is 83 days, and `DraftReminderSentAt` null. For each draft, one save sets `DraftReminderSentAt` (bumping `Version`, not `UpdatedAt`) and queues a `DraftExpiryReminderEmail { listingReference, title, deleteOn }` through `IEmailOutbox`; a draft edited meanwhile loses the race on `Version` and is skipped;
+  2. **deletes** — selects drafts with `UpdatedAt` at or before now − 90 days and `DraftReminderSentAt` at or before now − 7 days. One save deletes the `Listings` row and its `ListingPhotos` rows with the `Version` check, and skips a draft edited meanwhile. After the commit it deletes each photo's original through `IPhotoStorage.DeleteOriginalAsync` and its versions through `DeletePublicAsync`, unless another photo still shares them by content hash. A failed file delete is logged and leaves an orphan file, never a broken listing.
   The second condition guarantees that the email was sent at least 7 days before deletion, even after a missed run (`L2-019`).
-- **`OutboxDispatcher`** (shared, baseline) — sends `DraftExpiryReminderEmail` through the email provider adapter with retry and back-off (`L2-042`). The email template and its copy belong to the notifications subsystem and are `<TO SUPPLY>`. The reminder is transactional, so marketing preferences do not suppress it (`<TO SUPPLY>`: confirm with notification preferences, `L2-043`).
+- **`OutboxDispatcher`** (shared, baseline) — sends `DraftExpiryReminderEmail` through the email provider adapter with retry and back-off (`L2-042`). The template "Your draft {title} will be deleted on {day}" links to `/sell/{reference}`. `NotificationType.DraftExpiryReminder` falls in the always-on transactional category, so the dispatcher's preference check (`L2-043`) lets it through even with marketing off.
 - **Indexes on `Listings`** — `IX_Listings_SellerId_CreatedAt` (`SellerId`, `CreatedAt DESC`, `Id DESC`) including `Status`, `Title`, `Price`, `Category`, `Reference`; `IX_Listings_SellerId_Status_CreatedAt` (`SellerId`, `Status`, `CreatedAt DESC`, `Id DESC`) with the same included columns; and the filtered index `IX_Listings_Draft_UpdatedAt` (`UpdatedAt`) `WHERE Status = 'Draft'` for the clean-up job.
 - **Query safety** — EF Core LINQ only, so filter values are parameterised (`L2-049`).
 
@@ -72,10 +73,9 @@ The draft clean-up below is deferred to a follow-up (ADR listings/0002): the pag
 
 | Key | Value | Notes |
 |-----|-------|-------|
-| `Listings:DraftCleanup:RetentionDays` | 90 | `L2-019` |
-| `Listings:DraftCleanup:ReminderDaysBefore` | 7 | `L2-019` |
-| `Listings:DraftCleanup:Schedule` | `<TO SUPPLY>` | Daily cron expression |
-| `Listings:DraftCleanup:BatchSize` | `<TO SUPPLY>` | Rows per batch |
+| `Listing.DraftRetentionDays` | 90 | Domain constant, `L2-019` |
+| `Listing.DraftReminderDaysBefore` | 7 | Domain constant, `L2-019` |
+| `Listings:DraftCleanup:Interval` | `1.00:00:00` | How often the job runs |
 
 ## Requirements
 
@@ -122,17 +122,18 @@ The page shows skeleton rows, then the seller's listings newest first with per-s
 
 ### Behaviour — remind about and delete stale drafts
 
-The daily job first records and queues reminders for drafts 83 days old. It then deletes drafts at least 90 days old whose reminder is at least 7 days old, which leaves their photos to the photo clean-up job.
+The daily job first records and queues reminders for drafts 83 days old. It then deletes drafts at least 90 days old whose reminder is at least 7 days old, with their photos and stored files.
 
 ![Sequence diagram for reminding about and deleting stale drafts](diagrams/sequence-draft-cleanup.png)
 
 ## Testing
 
 - `tests/TwelveL.Api.Tests/MyListingsTests.cs` — xUnit acceptance tests through `TwelveLApiFactory` with the in-memory database and fakes: every status newest first with counts and the sale order, the Sold filter, the empty page, `400` for an unknown status and `401` for a visitor.
-- `src/frontend/e2e/tests/manage-my-listings.spec.ts` with `e2e/pages/my-listings.page.ts` — Playwright (Chromium) with every `12L API` call served by `page.route` fixtures: rows, dates and prices, links by status, the filter in the URL across a reload, empty, error with retry, and loading.
+- `tests/TwelveL.Api.Tests/DraftCleanupTests.cs` — the reminder at 83 days, once, linking to the draft; deletion at 90 days with photo rows and files; a missed reminder buys 7 more days; an edit restarts the period; versions shared by content are kept; the reminder is sent with marketing off.
+- `tests/TwelveL.Worker.Tests/DraftCleanupJobTests.cs` — each pass sends `CleanUpDraftsCommand`; the job runs at least daily.
+- `src/frontend/e2e/tests/manage-my-listings.spec.ts` with `e2e/pages/my-listings.page.ts` — Playwright (Chromium) with every `12L API` call served by `page.route` fixtures: rows, dates and prices, links by status, the filter in the URL across a reload, empty, error with retry, loading, and the draft expiry toast once per visit only for a seller with drafts.
 
 ## Open questions
 
 - Paging: page size and "Load more" copy are `<TO SUPPLY>`; the API returns every listing until then.
 - Copy for a filter that matches nothing is `<TO SUPPLY>`.
-- Draft clean-up job, reminder email template and the info toast are deferred (ADR listings/0002).

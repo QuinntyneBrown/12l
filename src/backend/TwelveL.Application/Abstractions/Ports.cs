@@ -131,6 +131,12 @@ public interface IPhotoStorage
 
     /// <summary>A private object, such as a problem photo (L2-036), which is never published to the CDN.</summary>
     Task<StoredObject?> ReadOriginalAsync(string key, CancellationToken cancellationToken);
+
+    /// <summary>Removes a private object; a missing key is not an error.</summary>
+    Task DeleteOriginalAsync(string key, CancellationToken cancellationToken);
+
+    /// <summary>Removes a public version; a missing key is not an error.</summary>
+    Task DeletePublicAsync(string key, CancellationToken cancellationToken);
 }
 
 /// <summary>A payment to create at the provider. The key makes a repeated request charge once (L2-030 AC6).</summary>

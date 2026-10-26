@@ -42,5 +42,6 @@ internal sealed class ListingConfiguration : IEntityTypeConfiguration<Listing>
         builder.HasIndex(l => new { l.SellerId, l.PublishedAt }).HasDatabaseName("IX_Listings_SellerId_PublishedAt");
         builder.HasIndex(l => new { l.Status, l.PublishedAt }).HasDatabaseName("IX_Listings_Status_PublishedAt");
         builder.HasIndex(l => new { l.Status, l.ReservedUntil }).HasDatabaseName("IX_Listings_Status_ReservedUntil");
+        builder.HasIndex(l => l.UpdatedAt).HasDatabaseName("IX_Listings_Draft_UpdatedAt").HasFilter("Status = 'Draft'");
     }
 }
