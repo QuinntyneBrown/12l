@@ -16,7 +16,7 @@ skinparam package {
 }
 actor "Visitor" as actor
 box "Frontend — 12L Web application" #E0F2FE
-  participant "Shell / CookieConsentBannerComponent" as banner
+  participant "CookieConsentComponent (tl-consent-banner)" as banner
   participant "CookieConsentService" as consent
   participant "AnalyticsService" as analytics
   participant "ToastService" as toast
@@ -47,6 +47,6 @@ else "Accept analytics"
   analytics -> provider : Load script (environment.analytics.scriptUrl)
   provider --> analytics : Script sets analytics cookies
   analytics -> provider : Page view
-  banner -> toast : "Cookie choice saved" (<TO SUPPLY> body)
+  banner -> toast : "Cookie choice saved" ("Analytics on. Change it any time in the footer.")
 end
 @enduml

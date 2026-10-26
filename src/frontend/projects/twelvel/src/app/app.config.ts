@@ -1,6 +1,7 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideApi } from '@12l/api';
+import { provideAnalytics } from '@12l/privacy';
 
 import { environment } from '../environments/environment';
 import { routes } from './app.routes';
@@ -10,5 +11,6 @@ export const appConfig: ApplicationConfig = {
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
     provideApi(environment.apiBaseUrl),
+    provideAnalytics(environment.analytics),
   ],
 };

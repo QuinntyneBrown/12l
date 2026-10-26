@@ -5,13 +5,13 @@ title Components — Manage cookie consent
 
 Person(visitor, "Visitor", "Browser user")
 Container_Boundary(web, "12L Web") {
-  Component(banner, "CookieConsentBannerComponent", "Angular component", "First-visit banner")
-  Component(dialog, "CookieSettingsDialogComponent", "Angular dialog", "Analytics switch, Cancel / Save")
-  Component(entry, "Entry points", "Footer link, Settings row, Privacy page link", "Open the dialog")
-  Component(consent, "CookieConsentService", "Angular service, signals", "Consent state and 12l_consent cookie")
-  Component(analyticsSvc, "AnalyticsService", "Angular service", "Starts, stops and tracks; deletes analytics cookies")
-  Component(toast, "ToastService", "Shared service", "Cookie choice saved")
-  Component(apis, "Typed API services", "Angular HttpClient", "Catalog, session and other API calls")
+  Component(banner, "CookieConsentComponent + tl-consent-banner", "@12l/privacy, @12l/components", "First-visit banner")
+  Component(dialog, "CookieSettingsDialog", "@12l/privacy dialog", "Analytics switch, Cancel / Save")
+  Component(entry, "Entry points", "tl-footer Cookie settings button, banner", "Open the dialog")
+  Component(consent, "CookieConsentService", "@12l/privacy service, signals", "Consent state and 12l_consent cookie")
+  Component(analyticsSvc, "AnalyticsService", "@12l/privacy service", "Starts, stops and tracks; deletes analytics cookies")
+  Component(toast, "ToastService", "@12l/components", "Cookie choice saved")
+  Component(apis, "Typed API services", "@12l/api", "Catalog, session and other API calls")
 }
 Container_Boundary(api, "12L API") {
   Component(mw, "CookieAllowListMiddleware", "ASP.NET Core middleware", "Drops non-allow-listed Set-Cookie headers")

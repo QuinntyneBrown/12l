@@ -4,6 +4,7 @@ export { ButtonDirective } from './lib/button/button';
 export { CenterStateComponent } from './lib/center-state/center-state';
 export { ChipComponent } from './lib/chip/chip';
 export { ChoiceComponent } from './lib/choice/choice';
+export { ConsentBannerComponent } from './lib/consent-banner/consent-banner';
 export { DialogComponent } from './lib/dialog/dialog';
 export { DIALOG_DATA, DialogRef } from './lib/dialog/dialog-ref';
 export { DialogService } from './lib/dialog/dialog-service';

@@ -16,8 +16,8 @@ skinparam package {
 }
 actor "Visitor" as actor
 box "Frontend — 12L Web application" #E0F2FE
-  participant "Footer link / Settings row" as entry
-  participant "CookieSettingsDialogComponent" as dialog
+  participant "tl-footer Cookie settings" as entry
+  participant "CookieSettingsDialog" as dialog
   participant "CookieConsentService" as consent
   participant "AnalyticsService" as analytics
 end box

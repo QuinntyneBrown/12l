@@ -150,9 +150,32 @@ export async function signInAs(page: Page, member: MemberFixture): Promise<void>
  * answer 401 (a visitor) unless a test signs a member in. Other unfixtured API calls are answered
  * 501 and recorded so a test can assert none happened.
  */
-export const test = base.extend<{ unfixturedApiCalls: string[] }>({
+/** The visitor's cookie choice before the test starts; `unknown` shows the consent banner (L2-056). */
+export type ConsentFixture = 'unknown' | 'necessary' | 'analytics';
+
+/** The fake analytics provider: its script origin and the cookie its script sets. */
+export const ANALYTICS_ORIGIN = 'https://analytics.12l.invalid';
+export const ANALYTICS_COOKIE = '_12la';
+
+export const test = base.extend<{ consent: ConsentFixture; unfixturedApiCalls: string[] }>({
+  /** Tests start with "Necessary only" chosen, so the banner stays out of their way. */
+  consent: ['necessary', { option: true }],
   unfixturedApiCalls: [
-    async ({ page }, use) => {
+    async ({ page, consent, baseURL }, use) => {
+      if (consent !== 'unknown') {
+        await page
+          .context()
+          .addCookies([
+            { name: '12l_consent', value: `v1.${consent}`, url: baseURL!, secure: true, sameSite: 'Strict' },
+          ]);
+      }
+      await page.route(`${ANALYTICS_ORIGIN}/**`, (route) =>
+        route.fulfill({
+          contentType: 'text/javascript',
+          body: `document.cookie = '${ANALYTICS_COOKIE}=1; Path=/; Max-Age=3600';
+            window.twelvelAnalytics = { pageView: function () {}, optOut: function () {} };`,
+        }),
+      );
       const calls: string[] = [];
       await page.route('**/api/**', (route) => {
         calls.push(route.request().url());

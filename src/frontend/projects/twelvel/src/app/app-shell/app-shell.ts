@@ -5,6 +5,7 @@ import { filter, map } from 'rxjs';
 import { AuthState } from '@12l/api';
 import { FooterComponent, LogoComponent, TopBarComponent } from '@12l/components';
 import { PayoutBannerComponent } from '@12l/orders';
+import { CookieSettingsDialogService } from '@12l/privacy';
 
 /** Shell named by the deepest route's data.shell: 'app' (default), 'auth' or 'admin'. */
 type Shell = 'app' | 'auth' | 'admin';
@@ -18,7 +19,7 @@ function shellOf(route: ActivatedRouteSnapshot): Shell {
 
 /**
  * App shell: the payout banner, top bar with the member from AuthState, main#main with the router
- * outlet and the footer; a top-bar search navigates to the catalog. Routes with data.shell 'auth' render in the auth shell: large logo above a centred card.
+ * outlet and the footer, whose "Cookie settings" opens the dialog; a top-bar search navigates to the catalog. Routes with data.shell 'auth' render in the auth shell: large logo above a centred card.
  * Routes with data.shell 'admin' render in the admin shell: the admin top bar and no footer.
  */
 @Component({
@@ -31,6 +32,7 @@ function shellOf(route: ActivatedRouteSnapshot): Shell {
 export class AppShellComponent {
   private readonly router = inject(Router);
   readonly auth = inject(AuthState);
+  readonly cookieSettings = inject(CookieSettingsDialogService);
 
   readonly shell = toSignal(
     this.router.events.pipe(

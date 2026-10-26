@@ -16,7 +16,8 @@ dialog with `DialogService`, earnings, error summary, fixed size, icon, input gr
 segmented control, size tag, spinner) and the components browse-catalog added (empty
 state, listing card with listing grid, load more) and the components search-and-filter-catalog
 added (chip, `tl-sheet` with `SheetService`, the `search` icon) and the components
-manage-notification-preferences added (switch, and `ToastService` behind `tl-toast-region`). Feature screens not built yet are inventoried below
+manage-notification-preferences added (switch, and `ToastService` behind `tl-toast-region`) and
+the components manage-cookie-consent added (consent banner, the hint of the switch). Feature screens not built yet are inventoried below
 with their states and marked **not yet composed**; each is composed when its journey is
 implemented, and the catalogue grows in the same change.
 
@@ -24,7 +25,7 @@ implemented, and the catalogue grows in the same change.
 
 | Part | Library components | Local UI |
 |---|---|---|
-| App shell (`shell: 'app'`) | `tl-skip-link`, `tl-top-bar` (guest, member), `tl-footer`, `tl-toast-region` | `<main id="main" tabindex="-1">` with the router outlet, in `projects/twelvel` |
+| App shell (`shell: 'app'`) | `tl-skip-link`, `tl-top-bar` (guest, member), `tl-footer` (its `cookieSettings` opens `CookieSettingsDialogService`), `tl-toast-region`, `@12l/privacy` `tl-cookie-consent` in the root component | `<main id="main" tabindex="-1">` with the router outlet, in `projects/twelvel` |
 | Auth shell (`shell: 'auth'`) | `tl-skip-link`, `tl-logo` (lg), `tl-toast-region` | `.auth-layout` with `<main id="main" class="auth-card" tabindex="-1">` and the router outlet, in `projects/twelvel`; chosen by route `data.shell = 'auth'` |
 | Admin shell (`shell: 'admin'`) | `tl-skip-link`, `tl-top-bar` (`variant="admin"`: logo, "Admin" label, the member's initials), `tl-toast-region` | `<main id="main" class="container page" tabindex="-1">` with the router outlet and no footer, in `projects/twelvel`; chosen by route `data.shell = 'admin'` |
 | Bare shell (`shell: 'bare'`) | `tl-skip-link`, `tl-top-bar` (bare variant), `tl-toast-region` | Not yet composed |
@@ -423,7 +424,7 @@ Built by resolve-order-problems in `@12l/orders` (`src/lib/problem-detail/`), in
 | Ask to cancel (`dialogs/request-cancellation`: default, busy, failed) | `DialogService` | `tl-dialog` (description "If {seller} accepts, you’re refunded in full. Until then the order stays as is."), `tl-form-field` (textarea "Message to {seller}", optional, focused on open), `tl-alert` (danger "That didn’t go through" in the top slot; the message is kept), `tl-button` ("Keep order", disabled while busy; primary "Send request" with busy, "Try again" after a failure) | `RequestCancellationDialog` in `@12l/orders` |
 | Respond to cancellation (`dialogs/respond-cancellation`: default, busy, failed) | `DialogService` | `tl-dialog` (heading "{buyer} asked to cancel", description "Accepting refunds {total} in full. Declining keeps the order — you still ship by {date}."), `tl-quote` (the buyer's message), `tl-alert` (danger "That didn’t go through" in the top slot), `tl-button` ("Decline"; primary "Accept and refund", focused; the chosen one shows busy and the other is disabled) | `RespondCancellationDialog` in `@12l/orders` |
 | Withdraw listing (`dialogs/withdraw-listing`: default, busy, failed) | `DialogService` | `tl-dialog` (`size="sm"`, icon `trash`, tone danger, title "Withdraw “{title}”?", description "It leaves the shop right away. This can’t be undone."), `tl-alert` (danger "Couldn’t withdraw" / "Your listing is still live." in the top slot after a failure), `tl-button` ("Keep listing", focused, disabled while busy; danger "Withdraw" with busy, "Try again" after a failure) | `WithdrawListingDialog` in `@12l/catalog` (ADR listings/0003); on success the page goes to `/account/listings` |
-| Cookie settings (`dialogs/cookie-settings`: default, analytics-on) | `DialogService` | not yet composed | not yet composed |
+| Cookie settings (`dialogs/cookie-settings`: default, analytics-on) | `DialogService` through `CookieSettingsDialogService` | `tl-dialog` (size `sm`, heading "Cookie settings"), `tl-switch` with `hint` "Strictly necessary" ("Sign-in and checkout. Always on.", checked and disabled) and "Analytics" ("Helps us see which pages are slow.", `autofocus`), `tl-button` (Cancel; primary Save) | `CookieSettingsDialog` in `@12l/privacy` |
 | Resolve problem (`dialogs/resolve-problem`: default, invalid, busy) | `DialogService` | `tl-dialog` (heading "Resolve problem {reference}"), `tl-radio-group` (legend "Decision") with `tl-choice` "Refund buyer in full" ("{total} to {buyer} · no payout") and "Release payout to seller" ("Order completes · {seller} is paid"), `tl-form-field` (textarea "Reason", help "Sent to both members.", error "Add a reason. Both members see it."), `tl-alert` (danger after a failure), `tl-button` (Cancel, disabled while busy; primary "Refund buyer" or "Release payout", busy "Refunding" or "Releasing") | `ResolveProblemDialog` in `@12l/orders` |
 
 ## Notifications
@@ -434,7 +435,7 @@ Built by resolve-order-problems in `@12l/orders` (`src/lib/problem-detail/`), in
 | Reservation timer (`notifications/reservation-timer`: info, warning, danger, success) | timer under the checkout title; warning and danger banners at the top of checkout | `tl-reservation-timer`, `tl-alert` (banner, icon `clock`) | None; success is the confirmation page until `ToastService` exists |
 | Payout banner (`notifications/payout-banner`: info, success, warning, danger) | banner above the top bar, `@12l/orders` `PayoutBannerComponent` in the app shell | `tl-alert` (`banner`, links projected as `actions`; info and success `dismissible`) | None |
 | Toasts (`notifications/toast`: info, success, warning, danger, with-action, stacked) | toast region | `tl-toast-region`, `tl-toast`, `ToastService` | None |
-| Cookie consent (`notifications/cookie-consent`: info, success) | fixed bottom panel | not yet composed | not yet composed |
+| Cookie consent (`notifications/cookie-consent`: info, success) | fixed bottom panel, `@12l/privacy` `CookieConsentComponent` in the root component | `tl-consent-banner` (info); `ToastService` success toast "Cookie choice saved" (success) | None |
 | System notices (`notifications/system-banner`: info, success, warning, danger) | banner above the top bar | not yet composed | not yet composed |
 
 ## Summary of local UI to build
